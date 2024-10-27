@@ -67,12 +67,6 @@ namespace Utils
 		return Normalize(*this);
 	}
 
-	Vector2D Vector2D::GetVector(const Position2D& startPos, const Position2D& endPos)
-	{
-		Vector2D result(endPos.x - startPos.x, endPos.y - startPos.y);
-		return result;
-	}
-
 	std::string Vector2D::ToString(VectorForm form)
 	{
 		std::string str;
@@ -128,5 +122,11 @@ namespace Utils
 		bool sameX = Utils::ApproximateEquals(x, otherVec.x);
 		bool sameY = Utils::ApproximateEquals(y, otherVec.y);
 		return sameX && sameY;
+	}
+
+	Vector2D GetVector(const Position2D& startPos, const Position2D& endPos)
+	{
+		Vector2D result(endPos.x - startPos.x, endPos.y - startPos.y);
+		return result;
 	}
 }

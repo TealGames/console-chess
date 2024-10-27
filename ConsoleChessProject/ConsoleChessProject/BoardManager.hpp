@@ -16,15 +16,13 @@ public:
 	const Utils::Position2D attemptedPos;
 	const std::string info;
 
-	MoveResult(Utils::Position2D, bool, std::string info = "");
+	MoveResult(const Utils::Position2D&, const bool, const std::string& info = "");
 };
 
-static constexpr int boardDimension = 8;
-static std::array<std::array<Tile, boardDimension>, boardDimension> tiles;
-
-static constexpr int colorPieces = 16;
-static std::unordered_map<ColorTheme, std::array<Piece&, colorPieces>> allPieces;
+constexpr int BOARD_DIMENSION = 8;
+constexpr int COLOR_PIECES_COUNT = 16;
 
 void CreatePieces(const ColorTheme, bool);
 void ResetBoard();
 MoveResult TryMove(const Piece&, const Utils::Position2D&);
+

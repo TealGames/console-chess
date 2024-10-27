@@ -5,7 +5,14 @@
 #include "Vector2D.hpp"
 #include "HelperFunctions.hpp"
 
-const std::unordered_map<Piece::PieceType, Piece::PieceMoveInfo> Piece::pieceMoves =
+struct PieceMoveInfo
+{
+	double value;
+	const std::vector<Utils::Vector2D>& moveDirs;
+	const std::vector<Utils::Vector2D>& captureDirs;
+};
+
+static const std::unordered_map<const PieceType, const PieceMoveInfo> PIECE_MOVES =
 {
 	{PieceType::Pawn, {1, {{1,0}, {1, 1}, {-1,-1}}, {}}},
 	{PieceType::Knight, {3, {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {} }},
@@ -40,9 +47,9 @@ bool Piece::HasDifferentCaptureMove()
 	return _captureDirs.size() > 0;
 }
 
-bool Piece::HasPieceTypeDefined(const PieceType type)
+bool HasPieceTypeDefined(const PieceType type)
 {
-	return Utils::IterableHas(pieceMoves, type);
+	return Utils::IterableHas(PIECE_MOVES, type);
 }
 
 void Piece::SetCaptured(bool isCaptured)
@@ -55,61 +62,61 @@ void Piece::SetPos(Utils::Position2D newPos)
 	_pos = newPos;
 }
 
-double Piece::GetValueForPiece(const PieceType type)
+double GetValueForPiece(const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
 	{
 		std::string err = std::format("Tried to get value for a piece of type {} "
-			"but type has no defined info", type);
+			"but type has no defined info", ToString(type));
 		Utils::Log(Utils::LogType::Error, err);
 		return 0;
 	}
-	return pieceMoves.at(type).value;
+	return PIECE_MOVES.at(type).value;
 }
 
-std::vector<Utils::Vector2D> Piece::GetMoveDirsForPiece(const PieceType type)
+std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
 	{
 		std::string err = std::format("Tried to get move dirs for a piece of type {} "
-			"but type has no defined info", type);
+			"but type has no defined info", ToString(type));
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return pieceMoves.at(type).moveDirs;
+	return PIECE_MOVES.at(type).moveDirs;
 }
 
-std::vector<Utils::Vector2D> Piece::GetCaptureMovesForPiece(const PieceType type)
+std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
 	{
 		std::string err = std::format("Tried to get capture moves for a piece of type {} "
-			"but type has no defined info", type);
+			"but type has no defined info", ToString(type));
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return pieceMoves.at(type).captureDirs;
+	return PIECE_MOVES.at(type).captureDirs;
 }
 
-bool Piece::DoesMoveDeltaMatchPieceMoves(const PieceType type,
+bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 	const Utils::Position2D& startPos, const Utils::Position2D& endPos)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
 	{
 		std::string err = std::format("Tried to get move dirs for a piece of type {} "
-			"but type has no defined info", type);
+			"but type has no defined info", ToString(type));
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
 
-	const Utils::Vector2D delta = Utils::Vector2D::GetVector(startPos, endPos);
+	const Utils::Vector2D delta = GetVector(startPos, endPos);
 	if (delta == Utils::Vector2D::ZERO) return false;
 
-	for (const auto& moveDir : pieceMoves.at(type).moveDirs)
+	for (const auto& moveDir : PIECE_MOVES.at(type).moveDirs)
 	{
 		if (delta == moveDir) return true;
 
@@ -127,11 +134,33 @@ bool Piece::DoesMoveDeltaMatchPieceMoves(const PieceType type,
 
 bool Piece::DoesMoveDeltaMatchPieceMoves(const Utils::Position2D& newPos) const
 {
-	return Piece::DoesMoveDeltaMatchPieceMoves(pieceType, pos, newPos);
+	return ::DoesMoveDeltaMatchPieceMoves(pieceType, pos, newPos);
 }
 
 std::string Piece::ToString() const
 {
-	std::string str = std::format("[{} {}]", color, pieceType);
+	std::string str = std::format("[{} {}]", ::ToString(color), ::ToString(pieceType));
 	return str;
+}
+
+std::string ToString(const PieceType& piece)
+{
+	switch (piece)
+	{
+	case PieceType::Pawn:
+		return "Pawn";
+	case PieceType::Knight:
+		return "Knight";
+	case PieceType::Bishop:
+		return "Bishop";
+	case PieceType::Rook:
+		return "Rook";
+	case PieceType::Queen:
+		return "Queen";
+	case PieceType::King:
+		return "King";
+	default:
+		return "NULL";
+	}
+	return "";
 }

@@ -12,6 +12,7 @@ public:
 	const ColorTheme color;
 	bool HasPiece();
 
+	Tile();
 	Tile(const ColorTheme);
 	Tile(const ColorTheme, const Piece&);
 

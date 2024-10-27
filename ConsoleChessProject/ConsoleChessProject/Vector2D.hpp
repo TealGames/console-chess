@@ -47,14 +47,6 @@ namespace Utils
 		double GetMagnitude() const;
 		Vector2D GetNormalized() const;
 
-		/// <summary>
-		/// Will get the vector formed by the 2 points
-		/// </summary>
-		/// <param name="pos1"></param>
-		/// <param name="pos2"></param>
-		/// <returns></returns>
-		static Vector2D GetVector(const Position2D& startPos, const Position2D& endPos);
-
 		std::string ToString(const VectorForm form = VectorForm::MagnitudeDirection);
 
 		Vector2D operator+(const Vector2D&) const;
@@ -64,4 +56,12 @@ namespace Utils
 
 		bool operator==(const Vector2D&) const;
 	};
+
+	/// <summary>
+	/// Will get the vector formed by the 2 points
+	/// </summary>
+	/// <param name="startPos"></param>
+	/// <param name="endPos"></param>
+	/// <returns></returns>
+	Vector2D GetVector(const Position2D& startPos, const Position2D& endPos);
 }

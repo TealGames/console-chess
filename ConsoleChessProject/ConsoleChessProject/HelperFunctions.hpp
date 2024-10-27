@@ -5,6 +5,7 @@
 #include <optional>
 #include <cstdint>
 #include <filesystem>
+#include <type_traits>
 #include <iostream>
 
 namespace Utils
@@ -77,7 +78,7 @@ namespace Utils
 	bool IsNegInifinity(double);
 
 	template<typename T>
-	static std::optional<T> TryParse(const std::string& str)
+	std::optional<T> TryParse(const std::string& str)
 	{
 		T parsedVal;
 		type_info tType = typeid(T);
@@ -139,8 +140,17 @@ namespace Utils
 		return parsedVal;
 	}
 
-	static std::filesystem::path CleanPath(const std::filesystem::path& path);
-	static bool DoesPathExist(const std::filesystem::path& path);
+	template<typename T>
+	std::string ToStringEnum()
+	{
+		const bool isEnum = std::is_enum<T>::value;
+		if (!isEnum)
+		{
+			const std::string err = std::format();
+			Utils::Log(Utils::LogType::Error, err);
+			return "";
+		}
+	}
 
 	std::string ReadFile(const std::filesystem::path& path);
 	void WriteFile(const std::filesystem::path&, const std::string content);

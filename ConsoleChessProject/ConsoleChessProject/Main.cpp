@@ -11,10 +11,10 @@ void PromptGameOption(std::string&);
 
 int main()
 {
-	const auto json = Utils::JSON::TryGetJSONFromFile("Data/StartBoard.json");
+	const auto json = Utils::JSON::TryGetJSONFromFile("Resources/StartBoard.json");
 	std::cout << json.value().ToString();
 
-	const GameOption options[3] = { GameOption("Play"), GameOption("Restart"), GameOption("Quit") };
+	/*const GameOption options[3] = { GameOption("Play"), GameOption("Restart"), GameOption("Quit") };
 
 	std::cout << "Welcome to Chess!" << std::endl;
 
@@ -28,7 +28,7 @@ int main()
 	while (!GameOption::IsValidCommand(command)) {
 		std::cout << "Invalid option! Try again" << std::endl;
 		PromptGameOption(command);
-	}
+	}*/
 }
 
 void PromptGameOption(std::string& command)

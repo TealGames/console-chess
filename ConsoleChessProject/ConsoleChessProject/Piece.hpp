@@ -7,19 +7,18 @@
 #include "Color.hpp"
 #include "Position2D.hpp"
 
+enum class PieceType
+{
+	Pawn,
+	Knight,
+	Bishop,
+	Rook,
+	Queen,
+	King
+};
+
 class Piece
 {
-public:
-	enum class PieceType
-	{
-		Pawn,
-		Knight,
-		Bishop,
-		Rook,
-		Queen,
-		King
-	};
-
 private:
 	struct PieceMoveInfo
 	{
@@ -31,15 +30,15 @@ private:
 	const std::vector<Utils::Vector2D>& _moveDirs;
 	const std::vector<Utils::Vector2D>& _captureDirs;
 	//Note: infinity means any value
-	static const std::unordered_map<PieceType, PieceMoveInfo> pieceMoves;
+	/*static const std::unordered_map<PieceType, PieceMoveInfo> pieceMoves;*/
 
 	Utils::Position2D _pos;
 	bool _isCaptured;
 
 	bool HasDifferentCaptureMove();
-	static bool HasPieceTypeDefined(const PieceType);
+	/*static bool HasPieceTypeDefined(const PieceType);
 	static bool DoesMoveDeltaMatchPieceMoves(const PieceType,
-		const Utils::Position2D&, const Utils::Position2D&);
+		const Utils::Position2D&, const Utils::Position2D&);*/
 
 public:
 	const ColorTheme color;
@@ -48,12 +47,14 @@ public:
 
 	Piece(const ColorTheme, const PieceType, const Utils::Position2D);
 
-	void SetCaptured(bool);
-	void SetPos(const Utils::Position2D);
-	bool DoesMoveDeltaMatchPieceMoves(const Utils::Position2D&) const;
+	void SetCaptured(bool isCaptured);
+	void SetPos(const Utils::Position2D newPos);
+	bool DoesMoveDeltaMatchPieceMoves(const Utils::Position2D& newPos) const;
 	std::string ToString() const;
-
-	static double GetValueForPiece(const PieceType);
-	static std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType);
-	static std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType);
 };
+
+double GetValueForPiece(const PieceType piece);
+std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType piece);
+std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType piece);
+
+std::string ToString(const PieceType&);

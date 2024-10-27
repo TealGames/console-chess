@@ -1,6 +1,8 @@
 #include "Piece.hpp"
 #include "Tile.hpp"
+#include "Color.hpp"
 
+Tile::Tile() : color(ColorTheme::Light), _currentPiece(nullptr), currentPiece(_currentPiece) {}
 Tile::Tile(ColorTheme color) : color(color), _currentPiece(nullptr), currentPiece(_currentPiece) {}
 Tile::Tile(ColorTheme color, const Piece& piece) :
 	color(color), _currentPiece(&piece), currentPiece(_currentPiece) {}
