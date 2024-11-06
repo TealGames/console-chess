@@ -1,6 +1,6 @@
 #pragma once
 #include "Piece.hpp"
-#include "Color.hpp";
+#include "Color.hpp"
 
 class Tile
 {
@@ -16,6 +16,6 @@ public:
 	Tile(const ColorTheme);
 	Tile(const ColorTheme, const Piece&);
 
-	void UpdatePiece(const Piece&);
+	void UpdatePiece(const Piece*);
 	bool TryRemovePiece();
 };

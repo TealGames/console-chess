@@ -6,29 +6,32 @@
 #include "JSONUtils.hpp"
 #include "Vector2D.hpp"
 #include "GameOption.hpp"
+#include "json.hpp"
+#include "fstream"
 
 void PromptGameOption(std::string&);
 
 int main()
 {
-	const auto json = Utils::JSON::TryGetJSONFromFile("Resources/StartBoard.json");
-	std::cout << json.value().ToString();
+	//const auto json = Utils::JSON::TryGetJSONFromFile("StartBoard.json");
+	//std::cout << json.value().ToString() << std::endl;
 
-	/*const GameOption options[3] = { GameOption("Play"), GameOption("Restart"), GameOption("Quit") };
+	/*std::ifstream f("StartBoard.json");
+	nlohmann::json data= nlohmann::json::parse(f);
+	std::cout << data;*/
+
+	const GameOption options[3] = { GameOption("Play"), GameOption("Restart"), GameOption("Quit") };
 
 	std::cout << "Welcome to Chess!" << std::endl;
 
 	std::string command;
 	std::unordered_set<std::string> allCommands = GameOption::GetAllCommands();
 
-	Utils::Vector2D vec(-5, -10);
-	std::cout << vec.ToString();
-
 	PromptGameOption(command);
 	while (!GameOption::IsValidCommand(command)) {
 		std::cout << "Invalid option! Try again" << std::endl;
 		PromptGameOption(command);
-	}*/
+	}
 }
 
 void PromptGameOption(std::string& command)

@@ -1,11 +1,12 @@
 #include "StringUtil.hpp"
 #include "algorithm"
+#include <string>
 
 namespace Utils
 {
 	StringUtil::StringUtil(const std::string& s) : str(s) {}
 
-	StringUtil& StringUtil::trim()
+	StringUtil& StringUtil::Trim()
 	{
 		int startIndex = str.find_first_not_of(' ');
 		int endIndex = str.find_last_not_of(' ');
@@ -18,7 +19,7 @@ namespace Utils
 		return *this;
 	}
 
-	StringUtil& StringUtil::to_lower_case()
+	StringUtil& StringUtil::ToLowerCase()
 	{
 		std::string result;
 		for (auto& c : str)
@@ -28,6 +29,13 @@ namespace Utils
 		str = result;
 		return *this;
 	}
+
+	StringUtil& StringUtil::RemoveChar(const char& c)
+	{
+		str.erase(std::remove(str.begin(), str.end(), c), str.end());
+		return *this;
+	}
+
 
 	std::string StringUtil::ToString()
 	{

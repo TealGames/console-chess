@@ -10,24 +10,40 @@ namespace Utils
 {
 	namespace JSON
 	{
-		JSONObject::JSONObject() : PROPERTIES({}) {}
+		//Forward delcarations
+		static std::optional<JSONSingleType> ParseSingleValue(const std::string& json);
+		static JSONObject ConvertJsonToObject(const std::string& json);
 
-		JSONObject::JSONObject(const std::vector<JSONProperty>& vals)
-			: PROPERTIES(vals) {}
-
-		JSONObject::JSONObject(const std::string& json) :
-			PROPERTIES(ConvertJsonToProperties(json)) {}
-
-		std::string JSONObject::CleanString(const std::string& str)
+		static std::vector<JSONSingleType> ParseArray(const std::string& jsonArr)
 		{
-			std::string newStr = Utils::StringUtil(str).trim().ToString();
-			newStr = newStr.replace(newStr.begin(), newStr.end(), " ", "");
-			return newStr;
+			std::string currentJson = CleanJSON(jsonArr);
+
+			if (currentJson.substr(0, 1) != "[" ||
+				currentJson.substr(currentJson.size() - 1, 1) != "]")
+				return {};
+
+			currentJson = currentJson.substr(1, currentJson.size() - 2);
+			size_t leftIndex = 1;
+			size_t rightIndex = currentJson.find(",");
+			std::string currentStr = currentJson.substr(leftIndex, rightIndex - leftIndex);
+
+			std::vector<JSONSingleType> resultArr;
+			while (leftIndex >= 0 && leftIndex < currentJson.size() &&
+				rightIndex >= 0 && rightIndex < currentJson.size() && leftIndex < rightIndex)
+			{
+				currentStr = currentJson.substr(leftIndex, rightIndex - leftIndex);
+				std::optional<JSONSingleType> element = ParseSingleValue(currentStr);
+				if (element.has_value()) resultArr.push_back(element.value());
+
+				size_t leftIndex = rightIndex + 1;
+				size_t rightIndex = currentJson.find(",", leftIndex);
+			}
+			return resultArr;
 		}
 
-		std::optional<JSONSingleType> JSONObject::ParseSingleValue(const std::string& json)
+		static std::optional<JSONSingleType> ParseSingleValue(const std::string& json)
 		{
-			std::string cleanedJson = CleanString(json);
+			std::string cleanedJson = CleanJSON(json);
 			const std::string firstStr = cleanedJson.substr(0, 1);
 			const std::string lastStr = cleanedJson.substr(cleanedJson.size() - 1, 1);
 
@@ -51,38 +67,26 @@ namespace Utils
 			}
 		}
 
-		std::vector<JSONSingleType> JSONObject::ParseArray(const std::string& jsonArr)
+		static size_t FindStringEnd(std::string str, int startIndex)
 		{
-			std::string currentJson = CleanString(jsonArr);
+			size_t resultIndex = str.find("\"", startIndex);
+			if (resultIndex == std::string::npos) return std::string::npos;
 
-			if (currentJson.substr(0, 1) != "[" ||
-				currentJson.substr(currentJson.size() - 1, 1) != "]")
-				return {};
-
-			currentJson = currentJson.substr(1, currentJson.size() - 2);
-			int leftIndex = 1;
-			int rightIndex = currentJson.find(",");
-			std::string currentStr = currentJson.substr(leftIndex, rightIndex - leftIndex);
-
-			std::vector<JSONSingleType> resultArr;
-			while (leftIndex >= 0 && leftIndex < currentJson.size() &&
-				rightIndex >= 0 && rightIndex < currentJson.size() && leftIndex < rightIndex)
+			//If it is has a string escape it means it is a string " part of the string
+			//and it is not the end
+			while (resultIndex!=std::string::npos && resultIndex < str.size() - 1 && resultIndex>0 
+				&& str.substr(resultIndex - 1, 1) == "\\")
 			{
-				currentStr = currentJson.substr(leftIndex, rightIndex - leftIndex);
-				std::optional<JSONSingleType> element = ParseSingleValue(currentStr);
-				if (element.has_value()) resultArr.push_back(element.value());
-
-				int leftIndex = rightIndex + 1;
-				int rightIndex = currentJson.find(",", leftIndex);
+				resultIndex = str.find("\"", resultIndex+1);
 			}
-			return resultArr;
+			return resultIndex;
 		}
 
-		std::vector<JSONProperty> JSONObject::ConvertJsonToProperties(const std::string& json)
+		static std::vector<JSONProperty> ConvertJsonToProperties(const std::string& json)
 		{
-			std::string currentJson = CleanString(json);
+			std::string currentJson = CleanJSON(json);
 			std::string firstStr = currentJson.substr(0, 1);
-			std::string lastStr = currentJson.substr(currentJson.size() - 1, 1);
+			std::string lastStr = currentJson.substr(currentJson.size() - 1);
 
 			if (firstStr != "{" || lastStr != "}")
 			{
@@ -91,14 +95,15 @@ namespace Utils
 				return {};
 			}
 
-			int leftIndex = currentJson.find("\"");
-			int rightIndex = currentJson.find("\"", leftIndex + 1);
+			size_t leftIndex = currentJson.find("\"");
+			size_t rightIndex = currentJson.find("\"", leftIndex + 1);
 
 			//If the start of the first property is not at the character after { or does not exist
 			//or the right end of the first property name does not exist, we know it is invalid
-			if (leftIndex <= 1 || rightIndex < 0 || rightIndex <= leftIndex)
+			if (leftIndex < 1 || rightIndex < 0 || rightIndex <= leftIndex)
 			{
-				std::string error = std::format("Tried to parse JSON {} but could not first property", json);
+				std::string error = std::format("Tried to parse JSON {} converted: {} "
+					"but could not first property", json, currentJson);
 				Utils::Log(Utils::LogType::Warning, error);
 				return {};
 			}
@@ -109,9 +114,11 @@ namespace Utils
 			//Value str should not include the right index since it is "," not value segment
 			std::string valueStr;
 
-			for (int i = rightIndex; i < currentJson.size() - 1; i++)
+			rightIndex = leftIndex;
+			while (rightIndex<currentJson.size())
 			{
-				if (rightIndex <= leftIndex)
+				std::cout << "LOOP"<<propertyName<<" ";
+				if (rightIndex < leftIndex)
 				{
 					std::string error = std::format("Tried to parse JSON {} but found greater "
 						"left when parsing value. Left: {} Right: {}", json, leftIndex, rightIndex);
@@ -119,27 +126,39 @@ namespace Utils
 					return {};
 				}
 
-				firstStr = currentJson.substr(i, 1);
+				firstStr = currentJson.substr(rightIndex, 1);
 				if (firstStr == "{" || firstStr == "[") scopeLevel++;
 				else if (firstStr == "}" || firstStr == "]") scopeLevel--;
 				//If we find a " it means we have a property name (or property value)
 				//so we check if we have no property right now and set it to it
 				else if (firstStr == "\"" && propertyName.size() == 0)
 				{
-					int propertyEndIndex = currentJson.find("\"", i + 1);
-					if (propertyEndIndex >= 0)
+					size_t propertyEndIndex = FindStringEnd(currentJson, rightIndex + 1);
+					if (propertyEndIndex ==std::string::npos)
 					{
-						propertyName = currentJson.substr(i + 1, propertyEndIndex - i);
-						i += (propertyEndIndex - i);
+						std::string error = std::format("Tried to parse JSON: {} "
+							"but could not matching string quotes at index: {}", currentJson, rightIndex);
+						Utils::Log(Utils::LogType::Warning, error);
+						return {};
+					}
+					else if (propertyEndIndex == currentJson.size() - 1 || 
+						currentJson.substr(propertyEndIndex+1, 1)!=":")
+					{
+						std::string error = std::format("Tried to parse JSON: {} "
+							"but encountered string value (meaning property parsing failed) at {}", currentJson, rightIndex);
+						Utils::Log(Utils::LogType::Warning, error);
+						return {};
+					}
+					//Since we only care about the local ones we need to worry about
+					//those properties only and recursion handles nested properties
+					else if (scopeLevel==0)
+					{
+						propertyName = currentJson.substr(rightIndex + 1, propertyEndIndex - rightIndex - 1);
+						std::cout << "found property" << propertyName << rightIndex;
+						rightIndex += (propertyEndIndex - rightIndex);
+						leftIndex = rightIndex + 1;
 					}
 				}
-				//If we find : at the desired level it means value for property name starts, so we 
-				//set up pointer to search
-				else if (scopeLevel == 0 && firstStr == ":")
-				{
-					leftIndex = i + 1;
-				}
-
 
 				if (scopeLevel < 0)
 				{
@@ -150,26 +169,35 @@ namespace Utils
 				}
 				//If the scope level is not the right one, we keep going 
 				//and adding to the right index in case we have nesting
-				if (scopeLevel != 0)
+				else if (scopeLevel != 0)
 				{
+					rightIndex++;
 					continue;
 				}
+				/*else if (scopeLevel == 0 && (propertyName.size() == 0 ||
+					firstStr != "," || rightIndex != currentJson.size() - 2))*/
 				else if (scopeLevel == 0 && (propertyName.size() == 0 ||
-					firstStr != "," || i != currentJson.size() - 2))
+					firstStr != ","))
 				{
+					//std::cout << "false scope 0";
+					rightIndex++;
 					continue;
 				}
 
 				//If we get to this point it means we have property name, right scope,
 				//so we just use the current index to get right index for value
-				if (i == currentJson.size() - 2) rightIndex = i;
-				else rightIndex = i - 1;
+				if (rightIndex != currentJson.size() - 2) rightIndex--;
 
 				std::string valueStr = currentJson.substr(leftIndex, rightIndex - leftIndex + 1);
+				std::cout << "VAL" << valueStr;
 				if (auto maybeSingleType = ParseSingleValue(valueStr); maybeSingleType.has_value())
+				{
+					std::cout << "Adding property";
 					properties.push_back({ propertyName, maybeSingleType.value() });
+				}
+					
 				else if (auto arrResult = ParseArray(valueStr); arrResult.size() > 0)
-					properties.push_back({ propertyName, arrResult });
+					properties.push_back({ propertyName, arrResult});
 				else
 				{
 					std::string error = std::format("Tried to parse JSON {} but could not parse "
@@ -178,49 +206,51 @@ namespace Utils
 					return {};
 				}
 
+				if (rightIndex)
 				propertyName = "";
 			}
 			return properties;
 		}
 
-		JSONObject JSONObject::ConvertJsonToObject(const std::string& json)
+		static JSONObject ConvertJsonToObject(const std::string& json)
 		{
 			auto properties = ConvertJsonToProperties(json);
 			return { properties };
 		}
 
-		const std::optional<int> JSONObject::TryGetInt(const std::string& propertyName)
-		{
-			return HasProperty<int>(propertyName);
-		}
+		JSONObject::JSONObject() : PROPERTIES({}) {}
 
-		const std::optional<double> JSONObject::TryGetDouble(const std::string& propertyName)
-		{
-			return HasProperty<double>(propertyName);
-		}
+		JSONObject::JSONObject(const std::vector<JSONProperty>& vals)
+			: PROPERTIES(vals) {}
 
-		const std::optional<std::string> JSONObject::TryGetString(const std::string& propertyName)
-		{
-			return HasProperty<std::string>(propertyName);
-		}
+		JSONObject::JSONObject(const std::string& json) :
+			PROPERTIES(ConvertJsonToProperties(json)) {}
 
-		const std::optional<JSONObject> JSONObject::TryGetObject(const std::string& propertyName)
+		template<typename T>
+		const std::optional<T> JSONObject::HasProperty(const std::string& propertyName) const
 		{
-			return HasProperty<JSONObject&>(propertyName);
+			bool isList = IsListType<T>();
+			for (const auto& property : PROPERTIES)
+			{
+				if (property.IS_LIST == isList && property.PROPERTY_NAME == propertyName)
+				{
+					return property.TryGetType<T>();
+				}
+			}
+			return std::nullopt;
 		}
 
 		std::string JSONObject::ToString() const
 		{
-			if (PROPERTIES.size()) return "[]";
+			std::cout << PROPERTIES.size();
+			if (PROPERTIES.size()==0) return "[]";
 			std::string result = "[";
 			std::string propertyStr;
 
 			int index = 0;
 			for (const auto& property : PROPERTIES)
 			{
-				propertyStr = std::format("({},{})", property.PROPERTY_NAME, property.PROPERTY_VALUE);
-				result += propertyStr;
-
+				result += property.ToString();
 				if (index >= PROPERTIES.size() - 1) continue;
 
 				result += ", ";
@@ -230,5 +260,11 @@ namespace Utils
 			result += "]";
 			return result;
 		}
+
+		template const std::optional<int> JSONObject::HasProperty(const std::string&) const;
+		template const std::optional<double> JSONObject::HasProperty(const std::string&) const;
+		template const std::optional<std::string> JSONObject::HasProperty(const std::string&) const;
+		template const std::optional<JSONObject> JSONObject::HasProperty(const std::string&) const;
+		template const std::optional<JSONList> JSONObject::HasProperty(const std::string&) const;
 	}
 }

@@ -64,4 +64,7 @@ namespace Utils
 	/// <param name="endPos"></param>
 	/// <returns></returns>
 	Vector2D GetVector(const Position2D& startPos, const Position2D& endPos);
+
+	std::string ToString(const Vector2D::AngleMode& mode);
+	std::string ToString(const Vector2D::VectorForm& mode);
 }

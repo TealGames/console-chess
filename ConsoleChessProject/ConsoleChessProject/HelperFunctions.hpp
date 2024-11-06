@@ -1,27 +1,49 @@
 #pragma once
 #include <string>
 #include <format>
+#include <functional>
 #include <sstream>
 #include <optional>
+#include <unordered_map>
 #include <cstdint>
 #include <filesystem>
 #include <type_traits>
-#include <iostream>
 
 namespace Utils
 {
-	/// <summary>
-	/// A more versatile version of to_string meant to handle not just numbers
-	/// </summary>
-	/// <param name=""></param>
-	/// <returns></returns>
-	template <typename T>
-	std::string ToString(const T& obj)
+	//This is the fallback in case we supply incorrect type args
+	template <typename, typename T>
+	struct HasFunction
 	{
-		std::ostringstream oss;
-		oss << obj;
-		return oss.str();
-	}
+		static_assert(std::integral_constant<T, false>::value,
+			"Second template parameter needs to be of function type.");
+	};
+
+	template <typename C, typename Return, typename... Args>
+	struct HasFunction<C, Return(Args...)>
+	{
+	private:
+		//NOte: -> means return, which is mainly used for generic programming
+		//This will check if the method were called would return the neccessary type
+		//and if it does will store true value, otherwise will fallback to other template
+		template <typename T>
+		static constexpr auto CheckExists(int arg)
+			-> typename std::is_same<decltype(std::declval<T>().
+				method(std::declval<Args>()...)), Return>::type;
+
+		//This is a fallback in case it does not exist, creating a false value
+		//Note: ... mean any arguments
+		template <typename>
+		static constexpr std::false_type CheckExists(...);
+
+		//This is where the result of true or false is stored by
+		//evaluating the type of CheckExists with 0 (the value does not matter since
+		//we only really need to have any args so we can first check the true function)
+		typedef decltype(CheckExists<C>(0)) type;
+
+	public:
+		static constexpr bool VALUE = type::value;
+	};
 
 	enum class LogType
 	{
@@ -32,21 +54,89 @@ namespace Utils
 
 	void Log(const LogType& logType, const std::string& str);
 
-	template <typename T>
-	void Log(const LogType& logType, const T& obj)
-	{
-		std::string objAsStr = Utils::ToString(obj);
-		Log(logType, objAsStr);
-	}
 
 	template <typename T>
-	std::string ToStringIterable(const T& collection)
+	constexpr bool IS_NUMERIC = std::is_arithmetic_v<T>;
+
+	template <typename T, typename = void>
+	struct HasMemberToString : std::false_type {};
+	template <typename T>
+	struct HasMemberToString<T, std::void_t<decltype(std::declval<T>().ToString())>> : std::true_type {};
+
+	template <typename T, typename = void>
+	struct HasFreeToString : std::false_type {};
+	template <typename T>
+	struct HasFreeToString<T, std::void_t<decltype(ToString(std::declval<T>()))>> : std::true_type {};
+
+	template <typename T, typename = void>
+	struct HasOstreamOperator : std::false_type {};
+	template <typename T>
+	struct HasOstreamOperator<T, std::void_t<decltype(std::declval<std::ostringstream&>() << std::declval<T>())>> : std::true_type {};
+
+	template <typename T>
+	std::string ToString(const T& obj) 
 	{
+		//Arithmetic checks for ints and floats -> which are available with to_string
+		if constexpr (IS_NUMERIC<T>)
+		{
+			return std::to_string(obj);
+		}
+		else if constexpr (HasMemberToString<T>::value) 
+		{
+			return obj.ToString();
+		}
+		else if constexpr (HasFreeToString<T>::value) {
+			return ToString(obj);
+		}
+		else if constexpr (HasOstreamOperator<T>::value) {
+			std::ostringstream oss;
+			oss << obj;
+			return oss.str();
+		}
+		else {
+			throw std::invalid_argument("ToString: No suitable conversion available for the given type.");
+		}
+	}
+
+	template <typename T, typename = void>
+	struct IsIterableCheck : std::false_type {};
+
+	//This gets used only when we can call std::begin() and std::end() on that type
+	template <typename T>
+	struct IsIterableCheck<T, std::void_t<decltype(std::begin(std::declval<T&>())),
+		decltype(std::end(std::declval<T&>()))>> : std::true_type {};
+
+	//Will return the value of the iterable check
+	template <typename T>
+	static constexpr bool IS_ITERABLE = IsIterableCheck<T>::value;
+
+	template<typename T> 
+	inline bool IsIterable(const T& collection)
+	{
+		return IS_ITERABLE<T>();
+	}
+
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <param name="collection"></param>
+	/// <param name="toStringFunction"></param>
+	/// <returns></returns>
+	template <typename TCollection, typename TElement>
+	auto ToStringIterable(const TCollection& collection, const std::function<std::string(TElement)>
+		toStringFunction=nullptr)
+		-> typename std::enable_if<IS_ITERABLE<TCollection>, std::string>::type
+	{
+		bool hasOverrideToString = toStringFunction != nullptr;
+
 		std::string str = "[";
 		int index = 0;
 		for (const auto& element : collection)
 		{
-			str += Utils::ToString(element);
+			if (hasOverrideToString) str += toStringFunction(element);
+			else str += Utils::ToString(element);
+
 			if (index < collection.size() - 1)
 				str += ", ";
 			index++;
@@ -55,19 +145,91 @@ namespace Utils
 		return str;
 	}
 
+	/// <summary>
+	///	This function means it will return bool if this function is iterable
+	/// </summary>
+	/// <typeparam name="T1"></typeparam>
+	/// <typeparam name="T2"></typeparam>
+	/// <param name="collection"></param>
+	/// <param name="findElement"></param>
+	/// <returns></returns>
 	template <typename T1, typename T2>
-	bool IterableHas(const T1& collection, const T2& findElement)
+	auto IterableHas(const T1& collection, const T2& findElement)
+		-> typename std::enable_if<IS_ITERABLE<T1>, bool>::type
 	{
-		if (T1.size() <= 0) return false;
+		if (collection.size() <= 0) return false;
 
-		for (const auto& element : collection)
+		auto startElement = collection.begin();
+		if (!std::is_same_v<T, decltype(startElement)>) return -1;
+
+		auto startElement = collection.begin();
+
+		//If they are the same, this means the size is 0
+		if (endElement== startElement) return false;
+
+		auto result = std::find(startElement, endElement, findElement);
+		return result != endElement;
+	}
+
+	template <typename T1, typename T2>
+	auto GetIndexOfValue(const T1& collection, const T2& findElement)
+		-> typename std::enable_if<IS_ITERABLE<T1>, size_t>::type
+	{
+		if (collection.size() <= 0) return -1;
+
+		auto startElement = collection.begin();
+		if (!std::is_same_v<T, decltype(startElement)>) return -1;
+
+		auto endElement = collection.end();
+		//If they are the same, this means the size is 0
+		if (endElement == startElement) return -1;
+
+		auto findElementIt = std::find(startElement, endElement, findElement);
+		return std::distance(startElement, findElementIt);
+	}
+
+	template<typename KType, typename VType>
+	std::unordered_map<KType, VType> GetMapFromVectors(const std::vector<KType>& keys, 
+		const std::vector<VType> vals)
+	{
+		std::unordered_map<KType, VType> result;
+		if (keys.size() != vals.size())
 		{
-			if (&element == &findElement || element == findElement)
-			{
-				return true;
-			}
+			std::string err = std::format("Tried to get map from vectors but sizes do not match."
+				"Argument 1 size: {}, Argument 2 size : {}", keys.size(), vals.size());
+			Utils::Log(Utils::LogType::Error, err);
+			return result;
 		}
-		return false;
+
+		for (size_t i = 0; i < keys.size(); i++)
+		{
+			if (i < vals.size()) result.emplace(keys[i], vals[i]);
+		}
+		return result;
+	}
+
+	template<typename KType, typename VType>
+	std::vector<KType> GetKeysFromMap(const typename std::unordered_map<KType, VType>::iterator start,
+		const typename std::unordered_map<KType, VType>::iterator end)
+	{
+		std::vector<KType> keys;
+		for (auto it = start; it != end; it++)
+		{
+			keys.push_back(it->first);
+		}
+		return keys;
+	}
+
+	template<typename KType, typename VType>
+	std::vector<VType> GetValuesFromMap(const typename std::unordered_map<KType, VType>::iterator start,
+		const typename std::unordered_map<KType, VType>::iterator end)
+	{
+		std::vector<VType> values;
+		for (auto it = start; it != end; it++)
+		{
+			values.push_back(it->second);
+		}
+		return values;
 	}
 
 	double ToRadians(const double);
@@ -77,11 +239,16 @@ namespace Utils
 	bool IsInifinity(double);
 	bool IsNegInifinity(double);
 
+	inline bool IsNumber(char);
+	inline bool IsLetter(char);
+	inline bool IsLetterOrNumber(char);
+
+	inline std::string CollapseToSingleString(const std::vector<std::string>& collection);
+
 	template<typename T>
 	std::optional<T> TryParse(const std::string& str)
 	{
-		T parsedVal;
-		type_info tType = typeid(T);
+		const std::type_info& tType = typeid(T);
 
 		if (tType == typeid(unsigned int) || tType == typeid(uint16_t))
 		{
@@ -107,6 +274,7 @@ namespace Utils
 			return std::nullopt;
 		}
 
+		T parsedVal;
 		try
 		{
 			if (tType == typeid(int)) parsedVal = std::stoi(str);
@@ -138,6 +306,12 @@ namespace Utils
 			return std::nullopt;
 		}
 		return parsedVal;
+	}
+
+	template<typename Type1, typename Type2>
+	bool AreSameType()
+	{
+		return std::is_same<Type1, Type2>::value;
 	}
 
 	template<typename T>

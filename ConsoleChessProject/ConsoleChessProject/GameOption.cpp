@@ -37,7 +37,7 @@ std::string GameOption::GetCommandFromOption(const std::string& option, bool con
 	if (convertToLower)
 	{
 		Utils::StringUtil strUtil(command);
-		command = static_cast<std::string>(strUtil.to_lower_case());
+		command = static_cast<std::string>(strUtil.ToLowerCase());
 	}
 	return command;
 }
@@ -61,7 +61,7 @@ bool GameOption::IsValidCommand(const std::string& command, bool caseSensitive)
 {
 	std::string commandMutable = command;
 	Utils::StringUtil strUtil(commandMutable);
-	const std::string& commandCheck = strUtil.trim().to_lower_case().ToString();
+	const std::string& commandCheck = strUtil.Trim().ToLowerCase().ToString();
 
 	for (const std::string& str : GameOption::_allOptions)
 	{

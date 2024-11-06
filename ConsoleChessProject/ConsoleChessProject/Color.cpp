@@ -1,6 +1,6 @@
 #include "Color.hpp"
 
-std::string ToString(const ColorTheme& color) const
+std::string ToString(const ColorTheme& color)
 {
 	switch (color)
 	{

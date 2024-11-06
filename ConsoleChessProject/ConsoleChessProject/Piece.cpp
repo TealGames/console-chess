@@ -1,46 +1,30 @@
 #include <format>
+#include <unordered_map>
 #include "Piece.hpp"
 #include "Color.hpp"
 #include "Position2D.hpp"
 #include "Vector2D.hpp"
 #include "HelperFunctions.hpp"
+#include "FrozenMap.hpp"
 
-struct PieceMoveInfo
-{
-	double value;
-	const std::vector<Utils::Vector2D>& moveDirs;
-	const std::vector<Utils::Vector2D>& captureDirs;
-};
+static constexpr double INF = std::numeric_limits<double>::infinity();
+static const std::unordered_map<PieceType, PieceInfo> PIECE_INFO(
+	std::unordered_map<PieceType, PieceInfo> {
+		{PieceType::Pawn, {1, 'P', {{1,0}, {1, 1}, {-1,-1}}, {}}},
+		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
+		{PieceType::Bishop, {3, 'B', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
+		{PieceType::Rook, {5, 'R', {{0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
 
-static const std::unordered_map<const PieceType, const PieceMoveInfo> PIECE_MOVES =
-{
-	{PieceType::Pawn, {1, {{1,0}, {1, 1}, {-1,-1}}, {}}},
-	{PieceType::Knight, {3, {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {} }},
-	{PieceType::Bishop, {3, {{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()},
-									{std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()}},
-									{}}},
-	{PieceType::Rook, {5,   {{0, std::numeric_limits<double>::infinity()},
-									{std::numeric_limits<double>::infinity(), 0},
-									{0, -std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), 0}},
-									{}}},
-	{PieceType::Queen, {9,  {{std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()},
-									{std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()},
-									{0, std::numeric_limits<double>::infinity()},
-									{std::numeric_limits<double>::infinity(), 0},
-									{0, -std::numeric_limits<double>::infinity()},
-									{-std::numeric_limits<double>::infinity(), 0}},
-									{}}},
-	{PieceType::King, {std::numeric_limits<double>::infinity(), {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
-};
+		{PieceType::Queen, {9, 'Q', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF},
+								 {0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
 
-Piece::Piece(const ColorTheme color, const PieceType piece, const Utils::Position2D pos)
+		{PieceType::King, {INF, 'K', {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
+	});
+
+Piece::Piece(const ColorTheme color, const PieceType piece, const std::string& displayString)
 	: color(color), pieceType(piece), _moveDirs(GetMoveDirsForPiece(piece)),
-	_captureDirs(GetCaptureMovesForPiece(piece)), _pos(pos), pos(_pos), _isCaptured(false) {}
+	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state), 
+	_displayString(displayString), displayString(_displayString){}
 
 bool Piece::HasDifferentCaptureMove()
 {
@@ -49,17 +33,12 @@ bool Piece::HasDifferentCaptureMove()
 
 bool HasPieceTypeDefined(const PieceType type)
 {
-	return Utils::IterableHas(PIECE_MOVES, type);
+	return PIECE_INFO.find(type) != PIECE_INFO.end();
 }
 
-void Piece::SetCaptured(bool isCaptured)
+void Piece::UpdateState(const State& state)
 {
-	_isCaptured = isCaptured;
-}
-
-void Piece::SetPos(Utils::Position2D newPos)
-{
-	_pos = newPos;
+	_state = state;
 }
 
 double GetValueForPiece(const PieceType type)
@@ -72,10 +51,10 @@ double GetValueForPiece(const PieceType type)
 		Utils::Log(Utils::LogType::Error, err);
 		return 0;
 	}
-	return PIECE_MOVES.at(type).value;
+	return PIECE_INFO.at(type).ScoreValue;
 }
 
-std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
+const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -85,10 +64,10 @@ std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return PIECE_MOVES.at(type).moveDirs;
+	return PIECE_INFO.at(type).MoveDirs;
 }
 
-std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
+const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -98,7 +77,30 @@ std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return PIECE_MOVES.at(type).captureDirs;
+	return PIECE_INFO.at(type).MoveDirs;
+}
+
+char GetNotationSymbolForPiece(const PieceType type)
+{
+	bool hasType = HasPieceTypeDefined(type);
+	if (!hasType)
+	{
+		std::string err = std::format("Tried to get piece moves for a piece of type {} "
+			"but type has no defined info", ToString(type));
+		Utils::Log(Utils::LogType::Error, err);
+		return {};
+	}
+	return PIECE_INFO.at(type).MoveNotationCharacter;
+}
+
+const std::optional<PieceType> TryGetPieceFromNotationSymbol(const char& notation)
+{
+	for (const auto& pieceInfo : PIECE_INFO)
+	{
+		if (pieceInfo.second.MoveNotationCharacter == notation) 
+			return pieceInfo.first;
+	}
+	return std::nullopt;
 }
 
 bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
@@ -116,7 +118,7 @@ bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 	const Utils::Vector2D delta = GetVector(startPos, endPos);
 	if (delta == Utils::Vector2D::ZERO) return false;
 
-	for (const auto& moveDir : PIECE_MOVES.at(type).moveDirs)
+	for (const auto& moveDir : PIECE_INFO.at(type).MoveDirs)
 	{
 		if (delta == moveDir) return true;
 
@@ -132,9 +134,27 @@ bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 	}
 }
 
-bool Piece::DoesMoveDeltaMatchPieceMoves(const Utils::Position2D& newPos) const
+bool DoesMoveDeltaMatchCaptureMoves(const PieceType type,
+	const Utils::Position2D& startPos, const Utils::Position2D& endPos)
 {
-	return ::DoesMoveDeltaMatchPieceMoves(pieceType, pos, newPos);
+	bool hasType = HasPieceTypeDefined(type);
+	if (!hasType)
+	{
+		std::string err = std::format("Tried to get capture dirs for a piece of type {} "
+			"but type has no defined info", ToString(type));
+		Utils::Log(Utils::LogType::Error, err);
+		return {};
+	}
+
+	const Utils::Vector2D delta = GetVector(startPos, endPos);
+	if (delta == Utils::Vector2D::ZERO) return false;
+
+
+	for (const auto& moveDir : PIECE_INFO.at(type).MoveDirs)
+	{
+		if (delta == moveDir) return true;
+	}
+	return false;
 }
 
 std::string Piece::ToString() const

@@ -77,7 +77,8 @@ namespace Utils
 			break;
 
 		case VectorForm::Unit:
-			str = std::format("{{}i+{}j}", x, y);
+			//Double braces needed on the outside to escape format {}
+			str = std::format("{{ {}i+{}j }}", x, y);
 			break;
 
 		case VectorForm::MagnitudeDirection:
@@ -86,7 +87,7 @@ namespace Utils
 
 		default:
 			std::string error = std::format("Tried to convert vector ({},{}) to string "
-				"with undefined form {}", x, y, form);
+				"with undefined form {}", x, y, ToString(form));
 			Utils::Log(LogType::Error, error);
 			break;
 		}
@@ -128,5 +129,32 @@ namespace Utils
 	{
 		Vector2D result(endPos.x - startPos.x, endPos.y - startPos.y);
 		return result;
+	}
+
+	std::string ToString(const Vector2D::AngleMode& mode)
+	{
+		using Mode = Vector2D::AngleMode;
+		if (mode == Mode::Degrees) return "Degrees";
+		else if (mode == Mode::Radians) return "Radians";
+		else
+		{
+			std::string err = std::format("Tried to convert undefined vector2D angle mode to string");
+			Log(LogType::Error, err);
+			return "";
+		}
+	}
+
+	std::string ToString(const Vector2D::VectorForm& form)
+	{
+		using Form = Vector2D::VectorForm;
+		if (form == Form::Component) return "Component";
+		else if (form == Form::MagnitudeDirection) return "Magnitude@Direction";
+		else if (form == Form::Unit) return "Unit";
+		else
+		{
+			std::string err = std::format("Tried to convert undefined vector2D form mode to string");
+			Log(LogType::Error, err);
+			return "";
+		}
 	}
 }

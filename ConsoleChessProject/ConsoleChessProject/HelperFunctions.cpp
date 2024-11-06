@@ -1,14 +1,18 @@
 #include <string>
 #include <array>
+#include <cctype>
 #include <format>
 #include <numbers>
+#include <numeric>
 #include <cmath>
 #include <optional>
 #include <limits>
 #include <fstream>
 #include <filesystem>
+#include <iostream>
 #include "HelperFunctions.hpp"
 #include "StringUtil.hpp"
+
 
 namespace Utils
 {
@@ -69,10 +73,30 @@ namespace Utils
 		return std::isinf(value) && std::signbit(value);
 	}
 
+	inline bool IsNumber(char c)
+	{
+		return std::isdigit(c);
+	}
+
+	inline bool IsLetter(char c)
+	{
+		return std::isalpha(c);
+	}
+
+	inline bool IsLetterOrNumber(char c)
+	{
+		return std::isalnum(c);
+	}
+
+	inline std::string CollapseToSingleString(const std::vector<std::string>& vec)
+	{
+		return std::accumulate(vec.begin(), vec.end(), std::string());
+	}
+
 	std::filesystem::path CleanPath(const std::filesystem::path& path)
 	{
 		Utils::StringUtil cleaner(path.string());
-		const std::string cleaned = cleaner.trim().ToString();
+		const std::string cleaned = cleaner.Trim().ToString();
 		return cleaned;
 	}
 
@@ -80,7 +104,7 @@ namespace Utils
 	{
 		if (!std::filesystem::exists(path))
 		{
-			std::string err = std::format("File path {} does not exist", path);
+			std::string err = std::format("File path {} does not exist", path.string());
 			Log(LogType::Error, err);
 			return false;
 		}
@@ -96,7 +120,8 @@ namespace Utils
 		std::ifstream file(cleanedPath);
 		if (!file.is_open())
 		{
-			std::string err = std::format("Tried to read file at path {} but it could not be opened", cleanedPath);
+			std::string err = std::format("Tried to read file at path {} but it could not be opened", 
+				cleanedPath.string());
 			Utils::Log(Utils::LogType::Error, err);
 			return "";
 		}
@@ -119,7 +144,7 @@ namespace Utils
 		if (!file.is_open())
 		{
 			std::string err = std::format("Tried to write {} to file at path {} "
-				"but it could not be opened", content, cleanedPath);
+				"but it could not be opened", content, cleanedPath.string());
 			Utils::Log(Utils::LogType::Error, err);
 			return;
 		}

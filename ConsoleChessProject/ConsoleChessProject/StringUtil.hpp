@@ -7,8 +7,9 @@ namespace Utils {
 		std::string str;
 	public:
 		StringUtil(const std::string&);
-		StringUtil& trim();
-		StringUtil& to_lower_case();
+		StringUtil& Trim();
+		StringUtil& ToLowerCase();
+		StringUtil& RemoveChar(const char& c);
 
 		std::string ToString();
 		explicit operator std::string();

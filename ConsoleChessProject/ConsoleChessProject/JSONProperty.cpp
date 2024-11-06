@@ -1,3 +1,7 @@
+#include <variant>
+#include <optional>
+#include <vector>
+#include <format>
 #include "JSONUtils.hpp"
 #include "HelperFunctions.hpp"
 
@@ -5,27 +9,40 @@ namespace Utils
 {
 	namespace JSON
 	{
-		JSONProperty::JSONProperty(const std::string& name, const JSONType& type) :
-			PROPERTY_NAME(name), PROPERTY_VALUE(type) {}
+		JSONProperty::JSONProperty(const std::string& name, const JSONSingleType& type) :
+			PROPERTY_NAME(name), PROPERTY_VALUE({ type }), IS_LIST(false) {}
 
-		const std::optional<int> JSONProperty::TryGetInt()
+		JSONProperty::JSONProperty(const std::string& name, const JSONList& type):
+			PROPERTY_NAME(name), PROPERTY_VALUE(type), IS_LIST(true) {}
+
+		const std::optional<JSONSingleType> JSONProperty::TryGetSingleType() const
 		{
-			return TryGetType<int>();
+			if (IS_LIST || PROPERTY_VALUE.size()==0) return std::nullopt;
+			else return PROPERTY_VALUE[0];
 		}
 
-		const std::optional<double> JSONProperty::TryGetDouble()
+		std::string JSONProperty::ToString() const
 		{
-			return TryGetType<double>();
-		}
+			std::string result;
+			result += "(" + PROPERTY_NAME + ",";
 
-		const std::optional<std::string> JSONProperty::TryGetString()
-		{
-			return TryGetType<std::string>();
-		}
-
-		const std::optional<JSONObject> JSONProperty::TryGetObject()
-		{
-			return TryGetType<JSONObject>();
+			if (IS_LIST)
+			{
+				result += JSONListToString(PROPERTY_VALUE);
+			}
+			else if (std::optional<JSONSingleType> val= TryGetSingleType() && val.has_value())
+			{
+				result+=JSONSingleTypeToString(val.value());
+			}
+			else
+			{
+				std::string err = std::format("Tried to convert JSON property {} "
+					"but does not match any defined type", PROPERTY_NAME);
+				Utils::Log(Utils::LogType::Error, err);
+				return "";
+			}
+			result += ")";
+			return result;
 		}
 	}
 }
