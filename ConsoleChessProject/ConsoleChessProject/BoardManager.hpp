@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include <unordered_map>
 #include "HelperFunctions.hpp"
 #include "Position2D.hpp"
@@ -13,10 +14,11 @@ class MoveResult
 {
 public:
 	const bool IsValidMove;
-	const Utils::Position2D AttemptedPos;
+	const std::vector<Utils::Position2D> AttemptedPositions;
 	const std::string Info;
 
 	MoveResult(const Utils::Position2D&, const bool, const std::string& info = "");
+	MoveResult(const std::vector<Utils::Position2D>&, const bool, const std::string& info = "");
 };
 
 enum class SpecialMove : unsigned int
@@ -82,4 +84,7 @@ MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D&
 
 std::string CleanInput(const std::string& input);
 std::optional<MoveInfo> TryParseMoveInfoFromMove(const std::string& input);
+//TODO: add parse/serialization method to convert moveinfo to chess notation input
 
+const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);
+bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove=nullptr);

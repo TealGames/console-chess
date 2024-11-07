@@ -12,12 +12,15 @@
 #include "Globals.hpp"
 
 MoveResult::MoveResult(const Utils::Position2D& pos, const bool isValid, const std::string& info)
-	:AttemptedPos(pos), IsValidMove(isValid), Info(info)
-{}
+	:AttemptedPositions({pos}), IsValidMove(isValid), Info(info) {}
+
+MoveResult::MoveResult(const std::vector<Utils::Position2D>& positions, const bool isValid, const std::string& info)
+	:AttemptedPositions(positions), IsValidMove(isValid), Info(info) {}
 
 //This stores 
 using PiecePositionMapType = std::unordered_map<Utils::Position2D, Piece*>;
 static PiecePositionMapType piecePositions;
+static std::unordered_map<ColorTheme, std::vector<MoveInfo>> previousMoves;
 
 struct PiecesRange
 {
@@ -112,7 +115,7 @@ static bool TryUpdatePiecePosition(const PiecePositionData currentData, Utils::P
 		Utils::Log(Utils::LogType::Error, error);
 		return;
 	}
-	piecePositions.insert({ newPos, currentData.piece });
+	piecePositions.emplace(newPos, currentData.piece );
 }
 
 static void PlaceDefaultBoardPieces(const ColorTheme& color, bool overrideExisting=true)
@@ -165,15 +168,47 @@ void CreateDefaultBoard()
 	PlaceDefaultBoardPieces(ColorTheme::Light);
 }
 
-static bool IsCastleMove(const PiecePositionData currentData, const Utils::Position2D& newPos)
+struct CastleInfo
 {
+	const bool isCastle;
+	const bool isKingSide;
+	const bool isQueenSide;
+};
 
+static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils::Position2D& newPos)
+{
+	if (currentData.piece->pieceType != PieceType::King) return { false, false, false };
+
+	int startCol = std::min(currentData.pos.y, newPos.y);
+	int endCol = std::max(currentData.pos.y, newPos.y);
+	int delta = endCol - startCol;
+
+	const Piece* outPiece;
+	int rookCol = delta > 0 ? BOARD_DIMENSION - 1 : 0;
+	//If in the direction moved is NOT a rook at the end, it means we do not have castle chance
+	if (!HasPieceAtPosition({ currentData.pos.x , rookCol }, outPiece)) return { false, false, false };
+	if (outPiece == nullptr || outPiece->pieceType != PieceType::Rook) return { false, false, false };
+
+	//If we move kingside it is 3, otherwise it is 4 diff
+	if (std::abs(delta) != 3 && std::abs(delta) != 4) return { false, false, false };
+
+	for (int i = startCol + 1; i <= endCol - 1; i++)
+	{
+		//If there is a piece in the way it means we cannot castle
+		if (HasPieceAtPosition({ currentData.pos.x, i }, outPiece)) 
+			return { false, false, false };
+	}
+	//Delta >0 means moves up, <0 means moves down queen side
+	return { true, delta>0, delta < 0 };
 }
 
-static bool IsCapture(const PiecePositionData currentData, const Utils::Position2D newPos)
+static bool IsCapture(const PiecePositionData currentData, 
+	const Utils::Position2D newPos, const Piece* outCapturedPiece = nullptr)
 {
-	Piece* outPieceAtNewPos;
+	const Piece* outPieceAtNewPos = nullptr;
+	outCapturedPiece = outPieceAtNewPos;
 	if (!HasPieceAtPosition(newPos, outPieceAtNewPos))return false;
+
 	if (!DoesMoveDeltaMatchCaptureMoves(currentData.piece->pieceType, currentData.pos, newPos)) 
 		return false;
 
@@ -192,7 +227,31 @@ MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D&
 	if (!IsValidPosition(newPos))
 		return { newPos, false, std::format("Position ({}) is out of bounds", newPos.ToString()) };
 
-	if (IsCapture({ movedPiece, currentPos }, newPos))
+	//Based on the castle info we assume to add the rook position 
+	//based on if it is kingside or queenside
+	PiecePositionData currentPosData = { movedPiece, currentPos };
+	if (CastleInfo castleInfo= IsCastleMove(currentPosData, newPos); castleInfo.isCastle)
+	{
+		std::vector<Utils::Position2D> rookKingMoves = { newPos };
+
+		if (castleInfo.isKingSide)
+			rookKingMoves.emplace_back(newPos.x, newPos.y-1);
+		else if (castleInfo.isQueenSide)
+			rookKingMoves.emplace_back(newPos.x, newPos.y+1);
+		else 
+		{
+			std::string error = std::format("Tried to move piece: {} at pos: {} "
+				"but failed to update its position: {} to castle move since it is neither kingside nor queenside",
+				currentPosData.piece->ToString(), currentPosData.pos.ToString(), newPos.ToString());
+			Utils::Log(Utils::LogType::Error, error);
+			return {newPos, false};
+		}
+		return { rookKingMoves, true };
+	}
+
+	//Update position 
+	Piece* takenPiece = nullptr;
+	if (IsCapture(currentPosData, newPos, takenPiece))
 	{
 		if (!TryUpdatePiecePosition({ movedPiece, currentPos }, newPos))
 		{
@@ -200,7 +259,7 @@ MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D&
 				"due to capture but failed to update its position {}",
 				movedPiece->ToString(), currentPos.ToString(), newPos.ToString()) };
 		}
-		movedPiece->UpdateState(Piece::State::Captured);
+		takenPiece->UpdateState(Piece::State::Captured);
 		return { newPos, true };
 	}
 
@@ -303,4 +362,32 @@ std::optional<MoveInfo> TryParseMoveInfoFromMove(const std::string& input)
 		isCheckmate
 	};
 	return info;
+}
+
+const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color)
+{
+	if (previousMoves.size() == 0) return {};
+	if (previousMoves.find(color) == previousMoves.end()) return {};
+
+	return previousMoves.at(color);
+}
+
+bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove) 
+{	
+	const std::vector<MoveInfo> colorMoves = GetPreviousMoves(color);
+	if (colorMoves.size() == 0) return false;
+
+	for (const auto& move : colorMoves)
+	{
+		if (move.PiecesMoved.size() == 0) continue;
+		for (const auto& piecesMoved : move.PiecesMoved)
+		{
+			if (piecesMoved == type)
+			{
+				outFirstMove = &move;
+				return true;
+			}
+		}
+	}
+	return false;
 }
