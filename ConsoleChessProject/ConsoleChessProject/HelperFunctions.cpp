@@ -73,6 +73,12 @@ namespace Utils
 		return std::isinf(value) && std::signbit(value);
 	}
 
+	int GetSign(double num)
+	{
+		if (ApproximateEquals(num, 0)) return 0;
+		return num >= 0 ? 1 : -1;
+	}
+
 	inline bool IsNumber(char c)
 	{
 		return std::isdigit(c);

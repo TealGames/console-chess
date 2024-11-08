@@ -79,12 +79,17 @@ void ResetBoard();
 void CreateDefaultBoard();
 Piece* GetPieceAtPosition(const Utils::Position2D& pos);
 inline bool HasPieceAtPosition(const Utils::Position2D& pos, const Piece* outPiece);
+bool HasPieceWithinPositionRange(const Utils::Position2D& startPos, const Utils::Position2D& endPos, bool inclusive=true);
+const std::vector<Piece*> TryGetAvailablePieces(const ColorTheme& color, const PieceType& type);
+const std::vector<Utils::Position2D> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type);
 
+const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);
+bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove = nullptr);
+
+std::vector<Utils::Position2D> GetPossibleMovesForPieceAt(const Utils::Position2D& pos);
 MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D& moveToPos);
 
 std::string CleanInput(const std::string& input);
 std::optional<MoveInfo> TryParseMoveInfoFromMove(const std::string& input);
 //TODO: add parse/serialization method to convert moveinfo to chess notation input
 
-const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);
-bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove=nullptr);

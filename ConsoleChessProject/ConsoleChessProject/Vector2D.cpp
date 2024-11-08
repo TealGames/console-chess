@@ -131,6 +131,11 @@ namespace Utils
 		return result;
 	}
 
+	Utils::Position2D GetVectorEndPoint(const Position2D& startPos, const Vector2D& vector)
+	{
+		return { startPos.x + vector.x, startPos.y + vector.y };
+	}
+
 	std::string ToString(const Vector2D::AngleMode& mode)
 	{
 		using Mode = Vector2D::AngleMode;
