@@ -94,7 +94,7 @@ namespace Utils
 		return std::isalnum(c);
 	}
 
-	inline std::string CollapseToSingleString(const std::vector<std::string>& vec)
+	std::string CollapseToSingleString(const std::vector<std::string>& vec)
 	{
 		return std::accumulate(vec.begin(), vec.end(), std::string());
 	}

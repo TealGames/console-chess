@@ -47,7 +47,7 @@ std::string GetDefaultBoardJSON(const ColorTheme& color)
 			boardSpacesAsString = GetBoardSpacesFrom(defaultBoardProperty, ColorTheme::Light);
 		else
 		{
-			std::string err = std::format("Tried to get default board for undefined color {}", color);
+			std::string err = std::format("Tried to get default board for undefined color {}", ToString(color));
 			Utils::Log(Utils::LogType::Error, err);
 			return "";
 		}
@@ -57,9 +57,9 @@ std::string GetDefaultBoardJSON(const ColorTheme& color)
 	return storedBoards.at(color);
 }
 
-std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, const std::vector<Piece*>& pieces)
+std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, const std::vector<const Piece*>& pieces)
 {
-	std::vector<Piece*> noPositionSetPieces = pieces;
+	std::vector<const Piece*> noPositionSetPieces = pieces;
 	std::vector<Utils::Position2D> positions;
 	positions.reserve(noPositionSetPieces.size());
 	int spaceIndex = -1;
@@ -75,10 +75,10 @@ std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, co
 		//TODO: maybe log error or warning?
 		if (!spacePieceType.has_value()) continue;
 		
-		std::vector<Piece*>::iterator foundPieceWithTypeIt = std::find_if(noPositionSetPieces.begin(), noPositionSetPieces.end(),
-			[&spacePieceType](const Piece& piece) -> bool 
+		std::vector<const Piece*>::const_iterator foundPieceWithTypeIt = std::find_if(noPositionSetPieces.begin(), noPositionSetPieces.end(),
+			[&spacePieceType](const Piece* piece) -> bool 
 			{
-				return piece.pieceType == spacePieceType.value();
+				return piece->pieceType == spacePieceType.value();
 			});
 
 		//We erase to make sure if there are pieces of the same type are 
@@ -88,9 +88,10 @@ std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, co
 			//We get index of the piece we found from copied list and then check its index in the unchanged list
 			//which should work since we do only check values that should not get removed from list prior
 			size_t indexOfFoundPiece = Utils::GetIndexOfValue(pieces, *foundPieceWithTypeIt);
-			Utils::Position2D piecePos = {spaceIndex/BOARD_DIMENSION, spaceIndex%BOARD_DIMENSION};
-			positions.insert(positions.begin()+indexOfFoundPiece, piecePos);
+			Utils::Position2D piecePos = { static_cast<double>(spaceIndex / BOARD_DIMENSION),
+										   static_cast<double>(spaceIndex % BOARD_DIMENSION) };
 
+			positions.insert(positions.begin()+indexOfFoundPiece, piecePos);
 			noPositionSetPieces.erase(foundPieceWithTypeIt);
 		}
 	}

@@ -43,7 +43,7 @@ namespace Utils
 		Vector2D(double, double);
 		Vector2D(const Vector2D&);
 
-		double GetDirection(const AngleMode = AngleMode::Radians) const;
+		double GetDirection(const AngleMode mode = AngleMode::Radians) const;
 		double GetMagnitude() const;
 		Vector2D GetNormalized() const;
 

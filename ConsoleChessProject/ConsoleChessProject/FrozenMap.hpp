@@ -31,7 +31,7 @@ namespace Utils
 				return it->second;
 			}
 
-			inline const T& at(const KType& key) const
+			inline const VType& at(const KType& key) const
 			{
 				return *this[key];
 			}

@@ -51,9 +51,12 @@ public:
 	const std::string& displayString;
 
 	Piece(const ColorTheme, const PieceType, const std::string& displayString);
+	Piece(const Piece& copy);
 
 	void UpdateState(const State& state);
 	std::string ToString() const;
+
+	bool operator==(const Piece& piece) const;
 };
 
 double GetValueForPiece(const PieceType piece);

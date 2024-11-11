@@ -26,6 +26,17 @@ Piece::Piece(const ColorTheme color, const PieceType piece, const std::string& d
 	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state), 
 	_displayString(displayString), displayString(_displayString){}
 
+Piece::Piece(const Piece& copy) 
+	: color(copy.color), pieceType(copy.pieceType), _moveDirs(GetMoveDirsForPiece(copy.pieceType)),
+	_captureDirs(GetCaptureMovesForPiece(copy.pieceType)), _state(Piece::State::Undefined), state(_state),
+	_displayString(copy.displayString), displayString(_displayString) {}
+
+bool Piece::operator==(const Piece& piece) const
+{
+	return color == piece.color && pieceType == piece.pieceType && _moveDirs == piece._moveDirs &&
+		_captureDirs == piece._captureDirs && state == piece.state;
+}
+
 bool Piece::HasDifferentCaptureMove()
 {
 	return _captureDirs.size() > 0;

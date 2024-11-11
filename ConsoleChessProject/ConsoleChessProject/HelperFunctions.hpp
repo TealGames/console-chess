@@ -160,9 +160,9 @@ namespace Utils
 		if (collection.size() <= 0) return false;
 
 		auto startElement = collection.begin();
-		if (!std::is_same_v<T, decltype(startElement)>) return -1;
+		if (!std::is_same_v<T2, decltype(startElement)>) return -1;
 
-		auto startElement = collection.begin();
+		auto endElement = collection.end();
 
 		//If they are the same, this means the size is 0
 		if (endElement== startElement) return false;
@@ -178,7 +178,7 @@ namespace Utils
 		if (collection.size() <= 0) return -1;
 
 		auto startElement = collection.begin();
-		if (!std::is_same_v<T, decltype(startElement)>) return -1;
+		if (!std::is_same_v<T1, decltype(startElement)>) return -1;
 
 		auto endElement = collection.end();
 		//If they are the same, this means the size is 0
@@ -247,7 +247,7 @@ namespace Utils
 	inline bool IsLetter(char);
 	inline bool IsLetterOrNumber(char);
 
-	inline std::string CollapseToSingleString(const std::vector<std::string>& collection);
+	std::string CollapseToSingleString(const std::vector<std::string>& collection);
 
 	template<typename T>
 	std::optional<T> TryParse(const std::string& str)

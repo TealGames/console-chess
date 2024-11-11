@@ -79,7 +79,7 @@ namespace Utils
 		return sameX && sameY;
 	}
 
-	Position2D Position2D::operator=(const Position2D& newPos)
+	Position2D& Position2D::operator=(const Position2D& newPos)
 	{
 		if (this != &newPos)
 		{

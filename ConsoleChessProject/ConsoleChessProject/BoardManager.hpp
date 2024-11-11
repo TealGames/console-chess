@@ -50,17 +50,62 @@ SpecialMove& operator&=(SpecialMove lhs, SpecialMove rhs) {
 	return lhs;
 }
 
-struct MoveInfo
+struct PiecePositionData
 {
-	const std::vector<PieceType> PiecesMoved = {};
-	const std::optional<Utils::Position2D> PiecePositionInfo;
-	const Utils::Position2D MoveToPosition;
-	const std::string& BoardNotation = "";
-	const SpecialMove SpecialMoveFlags = SpecialMove::None;
+	const Piece& PieceRef;
+	const Utils::Position2D& Pos;
+
+	PiecePositionData(const Piece& piece, const Utils::Position2D& pos);
+};
+
+class MovePiecePositionData
+{
+private:
+	//This needs to be a pointer since constructor
+	//cannot initialize non const refs to const refs
+	const Piece* _piece;
+	Utils::Position2D _oldPos;
+	Utils::Position2D _newPos;
+
+public:
+	const Piece& PieceRef;
+	const Utils::Position2D& OldPos;
+	const Utils::Position2D& NewPos;
+
+	MovePiecePositionData(const Piece& piece, const Utils::Position2D& oldPos, const Utils::Position2D& newPos);
+	MovePiecePositionData(const MovePiecePositionData& other);
+
+	MovePiecePositionData& operator=(const MovePiecePositionData& other);
+	bool operator==(const MovePiecePositionData& other) const;
+};
+
+class MoveInfo
+{
+private:
+	//all the pieces moved and their NEW position
+	std::vector<MovePiecePositionData> _piecesMoved;
+	std::string _boardNotation;
+	SpecialMove _specialMoveFlags;
 	//Piece to promote to
-	const std::optional<PieceType> PiecePromotion; 
-	const bool IsCheck = false;
-	const bool IsCheckmate = false;
+	std::optional<Piece*> _piecePromotion; 
+	bool _isCheck;
+	bool _isCheckmate;
+
+public:
+	//all the pieces moved and their NEW position
+	const std::vector<MovePiecePositionData>& PiecesMoved;
+	const std::string& BoardNotation = "";
+	const SpecialMove& SpecialMoveFlags = SpecialMove::None;
+	//Piece to promote to
+	const std::optional<Piece*>& PiecePromotion;
+	const bool& IsCheck = false;
+	const bool& IsCheckmate = false;
+
+	MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
+		const std::optional<Piece*>& promotion, const bool& check, const bool& checkmate);
+
+	bool operator==(const MoveInfo& otherInfo) const;
+	MoveInfo& operator=(const MoveInfo& otherInfo);
 };
 
 constexpr int TEAMS_COUNT = 2;
@@ -77,19 +122,21 @@ const std::string NOTATION_QUEENSIDE_CASTLE = "O-O-O";
 
 void ResetBoard();
 void CreateDefaultBoard();
-Piece* GetPieceAtPosition(const Utils::Position2D& pos);
-inline bool HasPieceAtPosition(const Utils::Position2D& pos, const Piece* outPiece);
+inline bool TryGetPieceAtPosition(const Utils::Position2D& pos, const Piece* outPiece);
+std::optional<Utils::Position2D> TryGetPositionOfPiece(const Piece& piece);
+
 bool HasPieceWithinPositionRange(const Utils::Position2D& startPos, const Utils::Position2D& endPos, bool inclusive=true);
-const std::vector<Piece*> TryGetAvailablePieces(const ColorTheme& color, const PieceType& type);
-const std::vector<Utils::Position2D> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type);
+std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type);
 
 const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);
 bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove = nullptr);
 
-std::vector<Utils::Position2D> GetPossibleMovesForPieceAt(const Utils::Position2D& pos);
+std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Position2D& pos);
 MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D& moveToPos);
 
 std::string CleanInput(const std::string& input);
-std::optional<MoveInfo> TryParseMoveInfoFromMove(const std::string& input);
+//std::string GetNotationFromMoveInfo(const MoveInfo& info);
+//std::optional<MoveInfo> TryParseMoveInfoFromMove(const ColorTheme& color, const std::string& input);
+
 //TODO: add parse/serialization method to convert moveinfo to chess notation input
 
