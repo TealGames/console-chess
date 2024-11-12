@@ -3,6 +3,8 @@
 #include <format>
 #include "HelperFunctions.hpp"
 #include "Vector2D.hpp"
+#include "Point2D.hpp"
+#include "Point2DInt.hpp"
 
 namespace Utils
 {
@@ -125,15 +127,24 @@ namespace Utils
 		return sameX && sameY;
 	}
 
-	Vector2D GetVector(const Position2D& startPos, const Position2D& endPos)
+	Vector2D GetVector(const Point2D& startPos, const Point2D& endPos)
 	{
 		Vector2D result(endPos.x - startPos.x, endPos.y - startPos.y);
 		return result;
 	}
+	Vector2D GetVector(const Point2DInt& startPos, const Point2DInt& endPos)
+	{
+		Vector2D result(static_cast<double>(endPos.x - startPos.x), endPos.y - startPos.y);
+		return result;
+	}
 
-	Utils::Position2D GetVectorEndPoint(const Position2D& startPos, const Vector2D& vector)
+	Utils::Point2D GetVectorEndPoint(const Point2D& startPos, const Vector2D& vector)
 	{
 		return { startPos.x + vector.x, startPos.y + vector.y };
+	}
+	Utils::Point2DInt GetVectorEndPoint(const Point2DInt& startPos, const Vector2D& vector)
+	{
+		return { static_cast<int>(startPos.x + vector.x), static_cast<int>(startPos.y + vector.y) };
 	}
 
 	std::string ToString(const Vector2D::AngleMode& mode)

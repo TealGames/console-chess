@@ -7,21 +7,30 @@ constexpr int BORDER_WIDTH = 5;
 struct CellColors
 {
 	wxColour innerColor;
-	wxColour borderColor;
 	wxColour hoverColor;
 };
 
-class Cell : public wxButton
+class Cell : public wxPanel
 {
 private:
-	wxPanel* innerPanel = nullptr;
-	const CellColors colors;
+	const CellColors _colors;	
+	wxStaticBitmap* _bitMapDisplay;
+	bool _isClickable;
+
+public:
+	bool& IsClickable;
 
 private:
 	void OnEnter(wxMouseEvent& evt);
 	void OnExit(wxMouseEvent& evt);
+	void OnClick(wxMouseEvent& evt);
 
 public:
-	Cell(wxPanel* parent, wxPoint pos, const CellColors& colors);
+	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors);
+
+	using CellCallbackType = std::function<void(const Cell*)>;
+	void AddOnClickCallback(const CellCallbackType& callback);
+	void UpdateImage(const wxImage& image);
+	void UpdateCanClick(bool isClickable);
 };
 

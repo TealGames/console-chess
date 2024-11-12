@@ -7,7 +7,7 @@
 #include "HelperFunctions.hpp"
 #include "Piece.hpp"
 #include "Color.hpp"
-#include "Position2D.hpp"
+#include "Point2DInt.hpp"
 #include "json.hpp"
 #include "BoardSetup.hpp"
 #include "Globals.hpp"
@@ -57,10 +57,10 @@ std::string GetDefaultBoardJSON(const ColorTheme& color)
 	return storedBoards.at(color);
 }
 
-std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, const std::vector<const Piece*>& pieces)
+std::vector<Utils::Point2DInt> GetPositionsForPieces(const ColorTheme& color, const std::vector<const Piece*>& pieces)
 {
 	std::vector<const Piece*> noPositionSetPieces = pieces;
-	std::vector<Utils::Position2D> positions;
+	std::vector<Utils::Point2DInt> positions;
 	positions.reserve(noPositionSetPieces.size());
 	int spaceIndex = -1;
 
@@ -88,8 +88,7 @@ std::vector<Utils::Position2D> GetPositionsForPieces(const ColorTheme& color, co
 			//We get index of the piece we found from copied list and then check its index in the unchanged list
 			//which should work since we do only check values that should not get removed from list prior
 			size_t indexOfFoundPiece = Utils::GetIndexOfValue(pieces, *foundPieceWithTypeIt);
-			Utils::Position2D piecePos = { static_cast<double>(spaceIndex / BOARD_DIMENSION),
-										   static_cast<double>(spaceIndex % BOARD_DIMENSION) };
+			Utils::Point2DInt piecePos = { spaceIndex / BOARD_DIMENSION, spaceIndex % BOARD_DIMENSION};
 
 			positions.insert(positions.begin()+indexOfFoundPiece, piecePos);
 			noPositionSetPieces.erase(foundPieceWithTypeIt);

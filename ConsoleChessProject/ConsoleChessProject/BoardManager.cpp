@@ -4,25 +4,44 @@
 #include <algorithm>
 #include "BoardManager.hpp"
 #include "BoardSetup.hpp"
-#include "Position2D.hpp"
+#include "Point2DInt.hpp"
 #include "Vector2D.hpp"
 #include "Piece.hpp"
 #include "HelperFunctions.hpp"
 #include "StringUtil.hpp"
 #include "Globals.hpp"
 
-MoveResult::MoveResult(const Utils::Position2D& pos, const bool isValid, const std::string& info)
+MoveResult::MoveResult(const Utils::Point2DInt& pos, const bool isValid, const std::string& info)
 	:AttemptedPositions({pos}), IsValidMove(isValid), Info(info) {}
 
-MoveResult::MoveResult(const std::vector<Utils::Position2D>& positions, const bool isValid, const std::string& info)
+MoveResult::MoveResult(const std::vector<Utils::Point2DInt>& positions, const bool isValid, const std::string& info)
 	:AttemptedPositions(positions), IsValidMove(isValid), Info(info) {}
 
+inline SpecialMove operator|(SpecialMove lhs, SpecialMove rhs) {
+	return static_cast<SpecialMove>(
+		static_cast<unsigned int>(lhs) | static_cast<unsigned int>(rhs));
+}
 
-PiecePositionData::PiecePositionData(const Piece& piece, const Utils::Position2D& pos)
+SpecialMove& operator|=(SpecialMove lhs, SpecialMove rhs) {
+	lhs = lhs | rhs;
+	return lhs;
+}
+
+inline SpecialMove operator&(SpecialMove lhs, SpecialMove rhs) {
+	return static_cast<SpecialMove>(
+		static_cast<unsigned int>(lhs) & static_cast<unsigned int>(rhs));
+}
+
+SpecialMove& operator&=(SpecialMove lhs, SpecialMove rhs) {
+	lhs = lhs & rhs;
+	return lhs;
+}
+
+
+PiecePositionData::PiecePositionData(const Piece& piece, const Utils::Point2DInt& pos)
 	: PieceRef(piece), Pos(pos) {}
 
-
-MovePiecePositionData::MovePiecePositionData(const Piece& piece, const Utils::Position2D& oldPos, const Utils::Position2D& newPos) 
+MovePiecePositionData::MovePiecePositionData(const Piece& piece, const Utils::Point2DInt& oldPos, const Utils::Point2DInt& newPos)
 	: _piece(&piece), PieceRef(*_piece), _oldPos(oldPos), OldPos(_oldPos), _newPos(newPos), NewPos(_newPos) {}
 
 MovePiecePositionData::MovePiecePositionData(const MovePiecePositionData& other) 
@@ -39,7 +58,6 @@ bool MovePiecePositionData::operator==(const MovePiecePositionData& other) const
 {
 	return PieceRef == other.PieceRef && OldPos == other.OldPos && NewPos == other.NewPos;
 }
-
 
 MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
 	const std::optional<Piece*>& promotion, const bool& check, const bool& checkmate) :
@@ -69,12 +87,22 @@ MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo)
 	return *this;
 }
 
-using PiecePositionMapType = std::unordered_map<Utils::Position2D, Piece>;
+using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 static PiecePositionMapType piecePositions;
 static std::unordered_map<ColorTheme, std::vector<MoveInfo>> previousMoves;
 
 static bool inCheckmate;
 static bool inCheck;
+
+bool InCheck()
+{
+	return inCheck;
+}
+
+bool InCheckmate()
+{
+	return inCheckmate;
+}
 
 static std::vector<const Piece*> MakeImmutable(std::vector<Piece*> pieces)
 {
@@ -88,15 +116,13 @@ static std::vector<const Piece*> MakeImmutable(std::vector<Piece*> pieces)
 
 struct PiecesRange
 {
-	const std::vector<Utils::Position2D> keys;
+	const std::vector<Utils::Point2DInt> keys;
 	const std::vector<Piece*> values;
 };
 
-//We use the assumption that light is stored first followed by dark to retrieve
-//the iterators to be used for any purpose
 static const PiecesRange GetPiecesForColorMutable(const ColorTheme color)
 {
-	std::vector<Utils::Position2D> keys;
+	std::vector<Utils::Point2DInt> keys;
 	std::vector<Piece*> values;
 
 	//cant be a const iteration since we need to get a pointer to a not const value
@@ -112,28 +138,28 @@ static const PiecesRange GetPiecesForColorMutable(const ColorTheme color)
 }
 
 //Will get the piece at the specified position using .find for map (fast)
-Piece* GetPieceAtPositionMutable(const Utils::Position2D& pos)
+Piece* GetPieceAtPositionMutable(const Utils::Point2DInt& pos)
 {
 	PiecePositionMapType::iterator it = piecePositions.find(pos);
 	if (it == piecePositions.end()) return nullptr;
 	else return &(it->second);
 }
 
-inline bool TryGetPieceAtPosition(const Utils::Position2D& pos, const Piece* outPiece= nullptr)
+inline bool TryGetPieceAtPosition(const Utils::Point2DInt& pos, const Piece* outPiece= nullptr)
 {
 	const Piece* piecePtr = GetPieceAtPositionMutable(pos);
 	outPiece = piecePtr;
 	return piecePtr != nullptr;
 }
 
-static bool TryGetPieceAtPositionMutable(const Utils::Position2D& pos, Piece* outPiece = nullptr)
+static bool TryGetPieceAtPositionMutable(const Utils::Point2DInt& pos, Piece* outPiece = nullptr)
 {
 	Piece* piecePtr = GetPieceAtPositionMutable(pos);
 	outPiece = piecePtr;
 	return piecePtr != nullptr;
 }
 
-std::optional<Utils::Position2D> TryGetPositionOfPiece(const Piece& piece)
+std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const Piece& piece)
 {
 	for (const auto& piecePos : piecePositions)
 	{
@@ -142,10 +168,10 @@ std::optional<Utils::Position2D> TryGetPositionOfPiece(const Piece& piece)
 	return std::nullopt;
 }
 
-bool HasPieceWithinPositionRange(const Utils::Position2D& startPos, const Utils::Position2D& endPos, bool inclusive)
+bool HasPieceWithinPositionRange(const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos, bool inclusive)
 {
-	Utils::Position2D currentPosition = startPos;
-	Utils::Position2D endPosition = endPos;
+	Utils::Point2DInt currentPosition = startPos;
+	Utils::Point2DInt endPosition = endPos;
 
 	int xTotalDelta = endPosition.x - currentPosition.x;
 	int yTotalDelta = endPosition.y - currentPosition.y;
@@ -206,6 +232,22 @@ std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& c
 	return foundPieces;
 }
 
+std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color)
+{
+	std::vector<PiecePositionData> positions;
+	for (const auto& piecePos : piecePositions)
+	{
+		if (!piecePos.second.state == Piece::State::InPlay &&
+			piecePos.second.color == color) positions.emplace_back(piecePos.second, piecePos.first);
+	}
+	return positions;
+}
+
+int GetAvailablePieces(const ColorTheme& color)
+{
+	return TryGetAvailablePiecesPosition(color).size();
+}
+
 static bool MoveInfoHasData(const std::vector<MoveInfo>& allMoveInfo, const std::function<bool(MoveInfo)> iterationCheck)
 {
 	for (const auto& moveInfo : allMoveInfo)
@@ -231,7 +273,7 @@ static bool EraseMoveInfoWithData(std::vector<MoveInfo>& allMoveInfo, const std:
 }
 
 //Will check if the position is within bounds of the board
-static bool IsWithinBounds(const Utils::Position2D& pos)
+bool IsWithinBounds(const Utils::Point2DInt& pos)
 {
 	if (pos.x < 0 || pos.y >= BOARD_DIMENSION) return false;
 	else if (pos.x < 0 || pos.y >= BOARD_DIMENSION) return false;
@@ -245,7 +287,7 @@ void ResetBoard()
 	piecePositions.clear();
 }
 
-static bool IsCheckOrMateAtPiece(const Utils::Position2D& posAttemptingCheck, bool updateGlobal)
+static bool IsCheckOrMateAtPiece(const Utils::Point2DInt& posAttemptingCheck, bool updateGlobal)
 {
 	const Piece* pieceAttemptingCheck = nullptr;
 	TryGetPieceAtPosition(posAttemptingCheck, pieceAttemptingCheck);
@@ -311,7 +353,7 @@ static std::vector<PiecePositionData> GetCheckablePositions(const ColorTheme& co
 	return checkablePiecePositions;
 }
 
-static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const Utils::Position2D& newPos)
+static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const Utils::Point2DInt& newPos)
 {
 	if (!TryGetPieceAtPosition(currentData.Pos, &currentData.PieceRef))
 	{
@@ -349,7 +391,7 @@ static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const U
 	piecePositions.emplace(newPos, currentData.PieceRef);
 }
 
-static bool TryUpdatePiecePosition(const PiecePositionData currentData, Utils::Position2D newPos, MoveInfo moveInfo)
+static bool TryUpdatePiecePosition(const PiecePositionData currentData, Utils::Point2DInt newPos, MoveInfo moveInfo)
 {
 	TryUpdatePiecePosition(currentData, newPos);
 
@@ -368,7 +410,7 @@ static void PlaceDefaultBoardPieces(const ColorTheme& color, bool overrideExisti
 {
 	const PiecesRange ranges = GetPiecesForColorMutable(color);
 
-	const std::vector<Utils::Position2D> oldPositions = ranges.keys;
+	const std::vector<Utils::Point2DInt> oldPositions = ranges.keys;
 	const std::vector<Piece*> piecePointers = ranges.values;
 
 	int pieceIndex = 0;
@@ -420,8 +462,8 @@ struct CastleInfo
 	const bool isKingSide;
 	const bool isQueenSide;
 
-	const Utils::Position2D kingSideCastleMove;
-	const Utils::Position2D queenSideCastleMove;
+	const Utils::Point2DInt kingSideCastleMove;
+	const Utils::Point2DInt queenSideCastleMove;
 };
 
 static CastleInfo CanCastle(const ColorTheme& color)
@@ -434,7 +476,7 @@ static CastleInfo CanCastle(const ColorTheme& color)
 	//TODO: optimize these calls so they are batched together to find pos for both rook and king at the same time
 	const std::vector<PiecePositionData> kingPositions = TryGetAvailablePiecesPosition(color, PieceType::King);
 	if (kingPositions.size() != 1) return { false, false, false };
-	Utils::Position2D kingPos = kingPositions[0].Pos;
+	Utils::Point2DInt kingPos = kingPositions[0].Pos;
 
 	const std::vector<PiecePositionData> rookPositions = TryGetAvailablePiecesPosition(color, PieceType::Rook);
 	if (rookPositions.size() <= 0 || rookPositions.size() > 2) return { false, false, false };
@@ -442,7 +484,7 @@ static CastleInfo CanCastle(const ColorTheme& color)
 	bool canKingSide = true;
 	bool canQueenSide = true;
 	bool checkingKingSide = false;
-	Utils::Position2D currentPosCheck;
+	Utils::Point2DInt currentPosCheck;
 	for (const auto& rookPos : rookPositions)
 	{
 		if (rookPos.Pos.x != kingPos.x) continue;
@@ -467,11 +509,11 @@ static CastleInfo CanCastle(const ColorTheme& color)
 		}
 	}
 
-	Utils::Position2D kingSideCastleMove = canKingSide ? Utils::Position2D{ kingPos.x, kingPos.y + 2 } : Utils::Position2D{};
-	Utils::Position2D queenSideCastleMove = canKingSide ? Utils::Position2D{ kingPos.x, kingPos.y - 2 } : Utils::Position2D{};
+	Utils::Point2DInt kingSideCastleMove = canKingSide ? Utils::Point2DInt{ kingPos.x, kingPos.y + 2 } : Utils::Point2DInt{};
+	Utils::Point2DInt queenSideCastleMove = canKingSide ? Utils::Point2DInt{ kingPos.x, kingPos.y - 2 } : Utils::Point2DInt{};
 	return { canKingSide || canQueenSide, canKingSide, canQueenSide, kingSideCastleMove, queenSideCastleMove};
 }
-static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils::Position2D& newPos)
+static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils::Point2DInt& newPos)
 {
 	if (currentData.PieceRef.pieceType != PieceType::King) return { false, false, false };
 
@@ -482,7 +524,7 @@ static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils:
 	const Piece* outPiece;
 	int rookCol = delta > 0 ? BOARD_DIMENSION - 1 : 0;
 	//If in the direction moved is NOT a rook at the end, it means we do not have castle chance
-	if (!TryGetPieceAtPosition({ currentData.Pos.x , static_cast<double>(rookCol) }, outPiece)) return { false, false, false };
+	if (!TryGetPieceAtPosition({ currentData.Pos.x , rookCol}, outPiece)) return { false, false, false };
 	if (outPiece == nullptr || outPiece->pieceType != PieceType::Rook) return { false, false, false };
 
 	//If we move kingside it is 3, otherwise it is 4 diff
@@ -491,7 +533,7 @@ static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils:
 	for (int i = startCol + 1; i <= endCol - 1; i++)
 	{
 		//If there is a piece in the way it means we cannot castle
-		if (TryGetPieceAtPosition({ currentData.Pos.x, static_cast<double>(i) }, outPiece)) 
+		if (TryGetPieceAtPosition({ currentData.Pos.x, i }, outPiece)) 
 			return { false, false, false };
 	}
 	//Delta >0 means moves up, <0 means moves down queen side
@@ -499,7 +541,7 @@ static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils:
 }
 
 static bool IsCapture(const PiecePositionData currentData, 
-	const Utils::Position2D newPos, const Piece* outCapturedPiece = nullptr)
+	const Utils::Point2DInt newPos, const Piece* outCapturedPiece = nullptr)
 {
 	const Piece* outPieceAtNewPos = nullptr;
 	outCapturedPiece = outPieceAtNewPos;
@@ -512,7 +554,7 @@ static bool IsCapture(const PiecePositionData currentData,
 	return true;
 }
 
-std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Position2D& startPos)
+std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Point2DInt& startPos)
 {
 	if (!IsWithinBounds(startPos))
 		return {};
@@ -522,7 +564,7 @@ std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Position2D& startP
 		return {};
 
 	std::vector<MoveInfo> possibleMoves;
-	Utils::Position2D moveNewPos;
+	Utils::Point2DInt moveNewPos;
 	const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->pieceType);
 	for (auto& movePos : GetMoveDirsForPiece(movedPiece->pieceType))
 	{
@@ -624,7 +666,7 @@ std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Position2D& startP
 
 //Will check if it is possible to move to that point using a variety of bounds checks,
 //valid moves, and special move checks
-MoveResult TryMove(const Utils::Position2D& currentPos, const Utils::Position2D& newPos)
+MoveResult TryMove(const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos)
 {
 	if (!IsWithinBounds(currentPos))
 		return { newPos, false, std::format("Tried to move from a place outside the board") };

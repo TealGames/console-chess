@@ -2,7 +2,7 @@
 #include <unordered_map>
 #include "Piece.hpp"
 #include "Color.hpp"
-#include "Position2D.hpp"
+#include "Point2DInt.hpp"
 #include "Vector2D.hpp"
 #include "HelperFunctions.hpp"
 #include "FrozenMap.hpp"
@@ -115,7 +115,7 @@ const std::optional<PieceType> TryGetPieceFromNotationSymbol(const char& notatio
 }
 
 bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
-	const Utils::Position2D& startPos, const Utils::Position2D& endPos)
+	const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -146,7 +146,7 @@ bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 }
 
 bool DoesMoveDeltaMatchCaptureMoves(const PieceType type,
-	const Utils::Position2D& startPos, const Utils::Position2D& endPos)
+	const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)

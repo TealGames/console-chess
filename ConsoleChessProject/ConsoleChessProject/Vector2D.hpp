@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include "Position2D.hpp"
+#include "Point2D.hpp"
+#include "Point2DInt.hpp"
 
 namespace Utils
 {
@@ -63,8 +64,11 @@ namespace Utils
 	/// <param name="startPos"></param>
 	/// <param name="endPos"></param>
 	/// <returns></returns>
-	Vector2D GetVector(const Position2D& startPos, const Position2D& endPos);
-	Utils::Position2D GetVectorEndPoint(const Position2D& startPos, const Vector2D& vector);
+	Vector2D GetVector(const Point2D& startPos, const Point2D& endPos);
+	Utils::Point2D GetVectorEndPoint(const Point2D& startPos, const Vector2D& vector);
+
+	Vector2D GetVector(const Point2DInt& startPos, const Point2DInt& endPos);
+	Utils::Point2DInt GetVectorEndPoint(const Point2DInt& startPos, const Vector2D& vector);
 
 	std::string ToString(const Vector2D::AngleMode& mode);
 	std::string ToString(const Vector2D::VectorForm& mode);

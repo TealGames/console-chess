@@ -32,12 +32,6 @@ namespace Utils
 			template<typename T>
 			const std::optional<T> HasProperty(const std::string& propertyName) const;
 
-			/*const std::optional<int> TryGetInt(const std::string& propertyName) const;
-			const std::optional<double> TryGetDouble(const std::string& propertyName) const;
-			const std::optional<std::string> TryGetString(const std::string& propertyName) const;
-			const std::optional<JSONObject> TryGetObject(const std::string& propertyName) const;
-			const std::optional<JSONList> TryGetList(const std::string& propertyName) const;*/
-
 			std::string ToString() const;
 		};
 

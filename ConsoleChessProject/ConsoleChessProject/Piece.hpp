@@ -6,7 +6,7 @@
 #include <limits>
 #include "Vector2D.hpp"
 #include "Color.hpp"
-#include "Position2D.hpp"
+#include "Point2DInt.hpp"
 
 enum class PieceType
 {
@@ -66,8 +66,8 @@ char GetNotationSymbolForPiece(const PieceType piece);
 const std::optional<PieceType> TryGetPieceFromNotationSymbol(const char& notation);
 
 bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
-	const Utils::Position2D& startPos, const Utils::Position2D& endPos);
+	const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos);
 bool DoesMoveDeltaMatchCaptureMoves(const PieceType type,
-	const Utils::Position2D& startPos, const Utils::Position2D& endPos);
+	const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos);
 
 std::string ToString(const PieceType&);

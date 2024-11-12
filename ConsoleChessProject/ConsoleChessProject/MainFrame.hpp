@@ -21,7 +21,6 @@ private:
 	void DrawGame();
 
 	void TogglePage(const Page& page);
-	void EraseAll();
 
 public:
 	MainFrame(const wxString& title);

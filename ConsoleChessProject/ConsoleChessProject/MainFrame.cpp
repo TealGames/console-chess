@@ -3,6 +3,7 @@
 #include "MainFrame.hpp"
 #include "CButton.hpp"
 #include "Cell.hpp"
+#include "BoardUI.hpp"
 
 
 static const wxFont TITLE_FONT(30, wxFONTFAMILY_SCRIPT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
@@ -76,25 +77,10 @@ void MainFrame::DrawGame()
 	wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
 	rootSizer->Add(cellParent, 0, wxALIGN_CENTER | wxTOP, 0);
 	gameRoot->SetSizer(rootSizer);
-	
-	wxPoint currentPoint;
+	CreateBoard(cellParent);
 
-	const int gridStartX = 0;
-	const int gridStartY = 0;
-
-	for (int r = 0; r < BOARD_DIMENSION; r++)
-	{
-		for (int c = 0; c < BOARD_DIMENSION; c++)
-		{
-			CellColors cellColors;
-			cellColors.innerColor = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1) ? TAN : LIGHT_GREEN;
-			cellColors.borderColor = cellColors.innerColor == TAN ? TAN : LIGHT_GREEN;
-			cellColors.hoverColor= cellColors.innerColor == TAN ? DARKER_TAN : DARKER_LIGHT_GREEN;
-			currentPoint = wxPoint(gridStartX+c*CELL_SIZE.x, gridStartY+r*CELL_SIZE.y);
-
-			Cell* cell = new Cell(cellParent, currentPoint, cellColors);
-		}
-	}
+	bool canDoIt= TryRenderPieceAtPos({ 3, 5 }, PieceType::Queen);
+	if (!canDoIt) wxLogMessage("failed to render piece");
 	
 	pages->AddPage(gameRoot, "Game");
 }
