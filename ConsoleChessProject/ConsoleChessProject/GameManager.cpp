@@ -1,3 +1,4 @@
+#include <functional>
 #include <vector>
 #include "GameManager.hpp"
 #include "Color.hpp"
@@ -18,6 +19,15 @@ static ColorTheme GetOtherPlayer()
 	else return ColorTheme::Light;
 }
 
+static void EndGame()
+{
+	const ColorTheme otherPlayer = GetOtherPlayer();
+	for (const EndGameCallbackType& callback : endGameCallbacks)
+	{
+		callback({ otherPlayer });
+	}
+}
+
 static void NextTurn()
 {
 	currentPlayer = GetOtherPlayer();
@@ -29,14 +39,6 @@ static void NextTurn()
 	}
 }
 
-static void EndGame()
-{
-	const ColorTheme otherPlayer = GetOtherPlayer();
-	for (const EndGameCallbackType& callback : endGameCallbacks)
-	{
-		callback({ otherPlayer });
-	}
-}
 
 void AddEndGameCallback(const EndGameCallbackType& callback)
 {

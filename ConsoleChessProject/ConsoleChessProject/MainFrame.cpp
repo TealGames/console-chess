@@ -1,10 +1,10 @@
 #include <wx/wx.h>
+#include <wx/stdpaths.h>
 #include <wx/simplebook.h>
 #include "MainFrame.hpp"
 #include "CButton.hpp"
 #include "Cell.hpp"
 #include "BoardUI.hpp"
-
 
 static const wxFont TITLE_FONT(30, wxFONTFAMILY_SCRIPT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
 
@@ -15,6 +15,8 @@ static constexpr int BUTTON_SPACING = 70;
 MainFrame::MainFrame(const wxString& title)
 	: wxFrame(nullptr, wxID_ANY, title)
 {
+	wxStandardPaths& paths = wxStandardPaths::Get();
+	wxLogMessage(paths.GetResourcesDir());
 	DrawStatic();
 	DrawMainMenu();
 	DrawGame();

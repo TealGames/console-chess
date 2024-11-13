@@ -3,10 +3,24 @@
 #include "UIGlobals.hpp"
 #include "BoardManager.hpp"
 #include "ResourceManager.hpp"
+#include "GameManager.hpp"
 #include "Point2D.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
 static const Cell* currentSelected;
+
+static void UpdateInteractablePieces(const ColorTheme& interactableColor)
+{
+	const Piece* cellPiece = nullptr;
+	for (const auto& cell : cells)
+	{
+		if (!cell.second->HasPiece(cellPiece) ||
+			cellPiece == nullptr) continue;
+
+		bool isInteractableColor = cellPiece->color == interactableColor;
+		cell.second->UpdateCanClick(isInteractableColor);
+	}
+}
 
 void CreateBoard(wxWindow* parent)
 {
@@ -29,8 +43,7 @@ void CreateBoard(wxWindow* parent)
 		}
 	}
 
-	AddTurnChangeCall
-
+	AddTurnChangeCallback(&UpdateInteractablePieces);
 }
 
 static void DisplayPieceMoves()
@@ -59,17 +72,19 @@ bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceType& pieceTyp
 		return false;
 	}
 	
-	wxImage* image = nullptr;
-	if (!TryLoadPieceImage(pieceType, image) || image == nullptr)
+	wxImage* image= new wxImage();
+	bool result = TryLoadPieceImage(pieceType, image);
+	if (!result || image == nullptr)
 	{
-		std::string err = std::format("Tried to render piece {} at pos {} but pos is "
-			"could not retrieve piece image", ToString(pieceType), pos.ToString());
+		std::string err = std::format("Tried to render piece {} at pos {} but "
+			"could not retrieve piece image: {}", ToString(pieceType), pos.ToString(), result);
 		Utils::Log(Utils::LogType::Error, err);
 		wxLogError(err.c_str());
 		return false;
 	}
 
-	cellIt->second->UpdateImage(*image);
+	//TODO: change from nullptr to actual piece
+	cellIt->second->UpdatePiece(nullptr, *image);
 	return true;
 }
 
