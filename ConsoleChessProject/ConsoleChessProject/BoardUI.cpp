@@ -5,8 +5,10 @@
 #include "ResourceManager.hpp"
 #include "GameManager.hpp"
 #include "Point2D.hpp"
+#include "Piece.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
+static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
 static const Cell* currentSelected;
 
 static void UpdateInteractablePieces(const ColorTheme& interactableColor)
@@ -44,6 +46,9 @@ void CreateBoard(wxWindow* parent)
 	}
 
 	AddTurnChangeCallback(&UpdateInteractablePieces);
+
+	//TODO: this should be done elsewhere not in the UI!
+	CreateDefaultBoard();
 }
 
 static void DisplayPieceMoves()
@@ -51,14 +56,27 @@ static void DisplayPieceMoves()
 	//TODO: add display piece moves logic
 }
 
-bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceType& pieceType)
+static bool TryCacheAllSprites()
 {
+	if (!pieceSprites.empty()) return false;
+	if (!TryLoadAllPieceImages(&pieceSprites))
+	{
+		const std::string error = std::format("Tried to cache all piece sprites "
+			"but failed to load all from resource manager");
+		Utils::Log(Utils::LogType::Error, error);
+		return false;
+	}
+	return true;
+}
+
+bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceTypeInfo& pieceInfo)
+{
+	TryCacheAllSprites();
 	if (!IsWithinBounds(pos))
 	{
 		std::string err = std::format("Tried to render piece {} at pos {} "
-			"but it is out of board bounds", ToString(pieceType), pos.ToString());
+			"but it is out of board bounds", pieceInfo.ToString(), pos.ToString());
 		Utils::Log(Utils::LogType::Error, err);
-		wxLogError(err.c_str());
 		return false;
 	}
 
@@ -66,27 +84,41 @@ bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceType& pieceTyp
 	if (cellIt == cells.end())
 	{
 		std::string err = std::format("Tried to render piece {} at pos {} but pos is "
-			"not found in cached cells", ToString(pieceType), pos.ToString());
+			"not found in cached cells", pieceInfo.ToString(), pos.ToString());
 		Utils::Log(Utils::LogType::Error, err);
-		wxLogError(err.c_str());
 		return false;
 	}
 	
-	wxImage* image= new wxImage();
-	bool result = TryLoadPieceImage(pieceType, image);
-	if (!result || image == nullptr)
+	auto imagePairIt = pieceSprites.find(pieceInfo);
+	if (imagePairIt == pieceSprites.end())
 	{
-		std::string err = std::format("Tried to render piece {} at pos {} but "
-			"could not retrieve piece image: {}", ToString(pieceType), pos.ToString(), result);
+		std::string err = std::format("Tried to render piece {} at pos {} but its sprite "
+			"is not cached", pieceInfo.ToString(), pos.ToString());
 		Utils::Log(Utils::LogType::Error, err);
-		wxLogError(err.c_str());
 		return false;
 	}
 
 	//TODO: change from nullptr to actual piece
-	cellIt->second->UpdatePiece(nullptr, *image);
+	cellIt->second->UpdatePiece(nullptr, imagePairIt->second);
 	return true;
 }
+
+bool TryRenderAllPieces()
+{
+	const std::unordered_map<Utils::Point2DInt, Piece>& pieces = GetAllPieces();
+	const std::string message = std::format("A total of pieces: {}", std::to_string(pieces.size()));
+	wxLogMessage(message.c_str());
+	for (const auto& pieceData : pieces)
+	{
+		PieceTypeInfo pieceInfo = {pieceData.second.color, pieceData.second.pieceType};
+		if (!TryRenderPieceAtPos(pieceData.first, pieceInfo))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 void EndCleanup()
 {

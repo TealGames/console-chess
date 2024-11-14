@@ -6,6 +6,7 @@
 #include "Piece.hpp"
 
 void CreateBoard(wxWindow* parent);
-bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceType& piece);
+bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceTypeInfo& pieceInfo);
+bool TryRenderAllPieces();
 void EndCleanup();
 

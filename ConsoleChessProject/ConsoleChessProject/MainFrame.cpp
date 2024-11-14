@@ -5,6 +5,7 @@
 #include "CButton.hpp"
 #include "Cell.hpp"
 #include "BoardUI.hpp"
+#include "Color.hpp"
 
 static const wxFont TITLE_FONT(30, wxFONTFAMILY_SCRIPT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
 
@@ -15,8 +16,6 @@ static constexpr int BUTTON_SPACING = 70;
 MainFrame::MainFrame(const wxString& title)
 	: wxFrame(nullptr, wxID_ANY, title)
 {
-	wxStandardPaths& paths = wxStandardPaths::Get();
-	wxLogMessage(paths.GetResourcesDir());
 	DrawStatic();
 	DrawMainMenu();
 	DrawGame();
@@ -80,10 +79,15 @@ void MainFrame::DrawGame()
 	rootSizer->Add(cellParent, 0, wxALIGN_CENTER | wxTOP, 0);
 	gameRoot->SetSizer(rootSizer);
 	CreateBoard(cellParent);
+	TryRenderAllPieces();
 
-	bool canDoIt= TryRenderPieceAtPos({ 3, 5 }, PieceType::Queen);
+	bool canDoIt = TryRenderPieceAtPos({ 3, 5 }, { ColorTheme::Light, PieceType::Knight });
 	if (!canDoIt) wxLogMessage("failed to render piece");
 	
+	//TryRenderPieceAtPos({ 2, 7 }, { ColorTheme::Dark, PieceType::King });
+	//TryRenderPieceAtPos({ 3, 4 }, { ColorTheme::Light, PieceType::Pawn });
+	//TryRenderPieceAtPos({ 4, 5 }, { ColorTheme::Dark, PieceType::Knight });
+
 	pages->AddPage(gameRoot, "Game");
 }
 

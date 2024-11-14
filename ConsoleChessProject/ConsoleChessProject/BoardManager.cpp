@@ -168,6 +168,11 @@ std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const Piece& piece)
 	return std::nullopt;
 }
 
+const std::unordered_map<Utils::Point2DInt, Piece>& GetAllPieces()
+{
+	return piecePositions;
+}
+
 bool HasPieceWithinPositionRange(const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos, bool inclusive)
 {
 	Utils::Point2DInt currentPosition = startPos;
@@ -287,6 +292,28 @@ void ResetBoard()
 	piecePositions.clear();
 }
 
+void InitPieces()
+{
+	Utils::Point2DInt currentPos{ 0, 0 };
+	
+	for (int i = 0; i < 2; i++)
+	{
+		ColorTheme currentColor = i == 0 ? ColorTheme::Light : ColorTheme::Dark;
+		if (currentPos.y >= BOARD_DIMENSION)
+			currentPos = { currentPos.x + 1, 0 };
+
+		for (const auto& pieceType : ALL_PIECE_TYPES)
+		{
+			piecePositions.insert({ currentPos, Piece{ currentColor, pieceType } });
+			currentPos = { currentPos.x, currentPos.y + 1 };
+
+			Utils::Log(Utils::LogType::Log, std::format("Adding: {} size: {}", ToString(pieceType), piecePositions.size()));
+			if (currentPos.y >= BOARD_DIMENSION)
+				currentPos = { currentPos.x + 1, 0 };
+		}
+	}
+}
+
 static bool IsCheckOrMateAtPiece(const Utils::Point2DInt& posAttemptingCheck, bool updateGlobal)
 {
 	const Piece* pieceAttemptingCheck = nullptr;
@@ -379,14 +406,18 @@ static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const U
 		return false;
 	}
 
-	size_t elementsErased = piecePositions.erase(currentData.Pos);
-	if (elementsErased == 0)
+	bool hasPiece = piecePositions.find(currentData.Pos) != piecePositions.end();
+	if (hasPiece)
 	{
-		std::string error = std::format("Tried to place board piece: {} at pos: {} "
-			"but failed to retrieve it and/or remove it from its old position {}",
-			currentData.PieceRef.ToString(), newPos.ToString(), currentData.Pos.ToString());
-		Utils::Log(Utils::LogType::Error, error);
-		return false;
+		size_t elementsErased = piecePositions.erase(currentData.Pos);
+		if (elementsErased == 0)
+		{
+			std::string error = std::format("Tried to place board piece: {} at pos: {} "
+				"but failed to retrieve it and/or remove it from its old position {}",
+				currentData.PieceRef.ToString(), newPos.ToString(), currentData.Pos.ToString());
+			Utils::Log(Utils::LogType::Error, error);
+			return false;
+		}
 	}
 	piecePositions.emplace(newPos, currentData.PieceRef);
 }
@@ -451,6 +482,7 @@ static void PlaceDefaultBoardPieces(const ColorTheme& color, bool overrideExisti
 void CreateDefaultBoard()
 {
 	ResetBoard();
+	if (piecePositions.empty()) InitPieces();
 	
 	PlaceDefaultBoardPieces(ColorTheme::Dark);
 	PlaceDefaultBoardPieces(ColorTheme::Light);

@@ -109,6 +109,7 @@ bool IsWithinBounds(const Utils::Point2DInt& pos);
 bool InCheck();
 bool InCheckmate();
 
+void InitPieces();
 void ResetBoard();
 void CreateDefaultBoard();
 inline bool TryGetPieceAtPosition(const Utils::Point2DInt& pos, const Piece* outPiece);
@@ -117,6 +118,7 @@ std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const Piece& piece);
 bool HasPieceWithinPositionRange(const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos, bool inclusive=true);
 std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type);
 std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color);
+const std::unordered_map<Utils::Point2DInt, Piece>& GetAllPieces();
 int GetAvailablePieces(const ColorTheme& color);
 
 const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);

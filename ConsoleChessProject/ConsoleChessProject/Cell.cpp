@@ -69,17 +69,19 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	//pieceHere = &piece;
 	pieceHere = piece;
 	
-	if (updateImageSize)
+	wxSize startSize(image.GetWidth(), image.GetHeight());
+	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
+					  static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.y));
+	if (updateImageSize && startSize!=targetSize)
 	{
-		wxSize startSize(image.GetWidth(), image.GetHeight());
-		float newWidthScale = ICON_SIZE_TO_CELL * CELL_SIZE.x / startSize.x;
-		float newHeightScale = ICON_SIZE_TO_CELL * CELL_SIZE.y / startSize.y;
+		float newWidthScale =  static_cast<float>(targetSize.x)/ startSize.x;
+		float newHeightScale = static_cast<float>(targetSize.y)/ startSize.y;
 		float totalScale = std::max(newWidthScale, newHeightScale);
 		wxSize size(image.GetWidth() * totalScale, image.GetHeight() * totalScale);
 
 		Resize(image, size);
-		std::string m = std::format("Start: ({}, {})  END: ({}, {})", std::to_string(startSize.x), std::to_string(startSize.y),
-			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()));
+		std::string m = std::format("Start: ({}, {})  END: ({}, {}) target: {} {}", std::to_string(startSize.x), std::to_string(startSize.y),
+			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()), std::to_string(targetSize.x), std::to_string(targetSize.y));
 		wxLogMessage(m.c_str());
 	}
 	

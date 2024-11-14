@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <array>
+#include <functional>
 #include <optional>
 #include <unordered_map>
 #include <string>
@@ -18,7 +20,33 @@ enum class PieceType
 	King
 };
 
-struct PieceInfo
+constexpr std::array<PieceType, 6> ALL_PIECE_TYPES = {
+	PieceType::Pawn, PieceType::Knight, PieceType::Bishop,
+	PieceType::Rook, PieceType::Queen, PieceType::King };
+
+struct PieceTypeInfo
+{
+	const ColorTheme Color;
+	const PieceType PieceType;
+
+	std::string ToString() const;
+	bool operator==(const PieceTypeInfo& other) const;
+};
+
+namespace std
+{
+	template<> struct hash<PieceTypeInfo>
+	{
+		std::size_t operator()(const PieceTypeInfo& info) const noexcept
+		{
+			std::size_t colorHash = std::hash<int>()(static_cast<int>(info.Color));
+			std::size_t typeHash = std::hash<int>()(static_cast<int>(info.PieceType));
+			return colorHash ^ (typeHash << 1);
+		}
+	};
+}
+
+struct PieceStaticInfo
 {
 	const double ScoreValue;
 	const char MoveNotationCharacter;
@@ -48,9 +76,8 @@ public:
 	const ColorTheme color;
 	const PieceType pieceType;
 	const State& state;
-	const std::string& displayString;
 
-	Piece(const ColorTheme, const PieceType, const std::string& displayString);
+	Piece(const ColorTheme, const PieceType);
 	Piece(const Piece& copy);
 
 	void UpdateState(const State& state);

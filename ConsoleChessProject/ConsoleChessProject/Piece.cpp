@@ -8,8 +8,8 @@
 #include "FrozenMap.hpp"
 
 static constexpr double INF = std::numeric_limits<double>::infinity();
-static const std::unordered_map<PieceType, PieceInfo> PIECE_INFO(
-	std::unordered_map<PieceType, PieceInfo> {
+static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
+	std::unordered_map<PieceType, PieceStaticInfo> {
 		{PieceType::Pawn, {1, 'P', {{1,0}, {1, 1}, {-1,-1}}, {}}},
 		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
 		{PieceType::Bishop, {3, 'B', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
@@ -21,15 +21,24 @@ static const std::unordered_map<PieceType, PieceInfo> PIECE_INFO(
 		{PieceType::King, {INF, 'K', {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
 	});
 
-Piece::Piece(const ColorTheme color, const PieceType piece, const std::string& displayString)
+std::string PieceTypeInfo::ToString() const
+{
+	std::string displayStr = std::format("[{}, {}]", ::ToString(Color), ::ToString(PieceType));
+	return displayStr;
+}
+
+bool PieceTypeInfo::operator==(const PieceTypeInfo& other) const
+{
+	return Color == other.Color && PieceType == other.PieceType;
+}
+
+Piece::Piece(const ColorTheme color, const PieceType piece)
 	: color(color), pieceType(piece), _moveDirs(GetMoveDirsForPiece(piece)),
-	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state), 
-	_displayString(displayString), displayString(_displayString){}
+	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state) {}
 
 Piece::Piece(const Piece& copy) 
 	: color(copy.color), pieceType(copy.pieceType), _moveDirs(GetMoveDirsForPiece(copy.pieceType)),
-	_captureDirs(GetCaptureMovesForPiece(copy.pieceType)), _state(Piece::State::Undefined), state(_state),
-	_displayString(copy.displayString), displayString(_displayString) {}
+	_captureDirs(GetCaptureMovesForPiece(copy.pieceType)), _state(Piece::State::Undefined), state(_state) {}
 
 bool Piece::operator==(const Piece& piece) const
 {

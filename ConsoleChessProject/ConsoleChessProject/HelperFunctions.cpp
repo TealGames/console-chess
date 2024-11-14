@@ -14,6 +14,12 @@
 #include "StringUtil.hpp"
 
 
+#define LOG_WX_WIDGETS
+
+#ifdef LOG_WX_WIDGETS
+#include <wx/wx.h>
+#endif
+
 namespace Utils
 {
 	void Log(const LogType& logType, const std::string& str)
@@ -36,7 +42,13 @@ namespace Utils
 			Log(LogType::Error, errMessage);
 			return;
 		}
-		std::cout << "\n" + logTypeMessage + ": " << str << std::endl;
+		std::string fullMessage = "\n" + logTypeMessage + ": " + str;
+
+#ifdef LOG_WX_WIDGETS
+		wxLogMessage(fullMessage.c_str());
+#else
+		std::cout << fullMessage << std::endl;
+#endif
 	}
 
 	double ToRadians(const double deg)

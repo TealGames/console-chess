@@ -6,11 +6,13 @@
 #include "Point2DInt.hpp"
 #include "HelperFunctions.hpp"
 
+//Size/spacing is row, col
 const wxSize SPRITE_SIZE(101, 101);
 const wxSize SPRITE_SPACING(21, 21);
 const std::filesystem::path PIECES_PATH = "chess_pieces.png";
+static wxImage* pieceSpriteMap= nullptr;
 
-static const std::unordered_map<PieceInfo, Utils::Point2DInt> PIECE_POSITIONS =
+static const std::unordered_map<PieceTypeInfo, Utils::Point2DInt> PIECE_POSITIONS =
 {
 	{{ColorTheme::Light, PieceType::Queen},		{0,0}},
 	{{ColorTheme::Light, PieceType::King},		{0,1}},
@@ -37,7 +39,6 @@ static bool HasValidImageHandler(const wxBitmapType& resourceType)
 		const std::string error = std::format("Tried to load images of a type that does "
 			"not have a bitmap image type handler");
 		Utils::Log(Utils::LogType::Error, error);
-		wxLogMessage(error.c_str());
 		return false;
 	}
 	return true;
@@ -68,58 +69,43 @@ bool TryLoad(const std::filesystem::path& resourcePath, const wxBitmapType& reso
 	return result;
 }
 
-bool TryLoadPieceImages(const std::vector<PieceInfo>& pieces, std::vector<wxImage>* outImages = nullptr)
+bool TryLoadAllPieceImages(std::unordered_map<PieceTypeInfo, wxImage>* outImages)
 {
 	if (outImages != nullptr) outImages->clear();
 
-	wxImage* tilemap = nullptr;
-	if (!TryLoad(PIECES_PATH, wxBITMAP_TYPE_PNG, tilemap)) return false;
+	if (pieceSpriteMap == nullptr)
+	{
+		pieceSpriteMap = new wxImage();
+		if (!TryLoad(PIECES_PATH, wxBITMAP_TYPE_PNG, pieceSpriteMap)) return false;
+	}
 
 	wxImage currentSubImage;
 	wxPoint tileMapPos;
 	int r = 0;
 	int c = 0;
 	bool foundAtLeastOnePiece = false;
-	for (const auto& piece : pieces)
+	for (const auto& piecePos : PIECE_POSITIONS)
 	{
-		for (const auto piecePos : PIECE_POSITIONS)
+		foundAtLeastOnePiece = true;
+		if (outImages != nullptr)
 		{
-			if (piecePos.first.Color == piece.Color && 
-				piecePos.first.PieceType == piece.PieceType)
-			{
-				foundAtLeastOnePiece = true;
-				if (outImages != nullptr)
-				{
-					r = piecePos.second.y;
-					c = piecePos.second.x;
-					tileMapPos = { c * SPRITE_SIZE.x + c * SPRITE_SPACING.x, r * SPRITE_SIZE.y + r * SPRITE_SPACING.y };
-					currentSubImage = GetSubImage(*tilemap, tileMapPos, SPRITE_SIZE);
-					outImages->push_back(currentSubImage);
-				}
-				else break;
-			}
+			r = piecePos.second.x;
+			c = piecePos.second.y;
+			tileMapPos = { c * SPRITE_SIZE.x + c * SPRITE_SPACING.x, r * SPRITE_SIZE.y + r * SPRITE_SPACING.y };
+
+			std::string message = std::format("Piece {} Pos: {} {}", piecePos.first.ToString(), 
+				std::to_string(tileMapPos.x), std::to_string(tileMapPos.y));
+			wxLogMessage(message.c_str());
+			outImages->emplace(piecePos.first, GetSubImage(*pieceSpriteMap, tileMapPos, SPRITE_SIZE));
 		}
+		else break;
 	}
 	return foundAtLeastOnePiece;
 }
 
-bool TryLoadPieceImage(const ColorTheme& color, const PieceType& piece, wxImage* outImage)
-{
-	auto foundPiecePath = pieceImagePaths.find(piece);
-	if (foundPiecePath != pieceImagePaths.end())
-	{
-		bool result= TryLoad(foundPiecePath->second,, outImage);
-		bool isFound = outImage != nullptr;
-		wxLogMessage(std::to_string(isFound).c_str());
-		return result;
-	}
-
-	return false;
-}
-
 void Resize(wxImage& resourceImage, const wxSize& newSize)
 {
-	resourceImage.Rescale(newSize.x, newSize.y);
+	resourceImage.Rescale(newSize.x, newSize.y, wxIMAGE_QUALITY_HIGH);
 }
 
 void ResizePreserveAspect(wxImage& resourceImage, const wxSize& newSize, const wxPoint& point)
@@ -130,18 +116,4 @@ void ResizePreserveAspect(wxImage& resourceImage, const wxSize& newSize, const w
 wxImage GetSubImage(const wxImage& resourceImage, const wxPoint& position, const wxSize& size)
 {
 	return resourceImage.GetSubImage(wxRect(position.x, position.y, size.x, size.y));
-}
-
-bool TryLoadAll()
-{
-	for (const auto& pieceImagePath : pieceImagePaths)
-	{
-		if (!TryLoadPieceImage(pieceImagePath.first))
-		{
-			std::string err = std::format("Tried to load piece {} failed", ToString(pieceImagePath.first));
-			Utils::Log(Utils::LogType::Error, err);
-			wxLogError(err.c_str());
-			return false;
-		}
-	}
 }
