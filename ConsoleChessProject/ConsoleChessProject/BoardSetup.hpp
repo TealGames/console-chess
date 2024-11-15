@@ -13,5 +13,9 @@ const std::filesystem::path BOARDS_PATH = "StartBoard.json";
 
 std::string GetDefaultBoardJSON(const ColorTheme& color);
 
-//Pieces has to be not const and not reference since we need to have a copy to remove values
-std::vector<Utils::Point2DInt> GetPositionsForPieces(const ColorTheme& color, const std::vector<const Piece*>& pieces);
+struct InitPiecePosition
+{
+	const PieceType PieceType;
+	const Utils::Point2DInt NewPos;
+};
+std::vector<InitPiecePosition> GetDefaultBoardPiecePositions(const ColorTheme& color);

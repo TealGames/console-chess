@@ -2,6 +2,7 @@
 
 #include <array>
 #include <vector>
+#include <optional>
 #include <unordered_map>
 #include "HelperFunctions.hpp"
 #include "Point2DInt.hpp"
@@ -109,20 +110,20 @@ bool IsWithinBounds(const Utils::Point2DInt& pos);
 bool InCheck();
 bool InCheckmate();
 
-void InitPieces();
 void ResetBoard();
 void CreateDefaultBoard();
-inline bool TryGetPieceAtPosition(const Utils::Point2DInt& pos, const Piece* outPiece);
+const Piece* TryGetPieceAtPosition(const Utils::Point2DInt& pos);
 std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const Piece& piece);
 
 bool HasPieceWithinPositionRange(const Utils::Point2DInt& startPos, const Utils::Point2DInt& endPos, bool inclusive=true);
-std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type);
-std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color);
+std::vector<PiecePositionData> TryGetPiecesPosition(const ColorTheme& color, const std::optional<PieceType>& type, 
+	const std::optional<Piece::State>& state);
 const std::unordered_map<Utils::Point2DInt, Piece>& GetAllPieces();
-int GetAvailablePieces(const ColorTheme& color);
+size_t GetAvailablePieces(const ColorTheme& color);
 
 const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color);
-bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove = nullptr);
+const MoveInfo* GetPieceFirstMove(const ColorTheme& color, const PieceType& type);
+bool HasMovedPiece(const ColorTheme& color, const PieceType& type);
 
 std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Point2DInt& pos);
 MoveResult TryMove(const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);

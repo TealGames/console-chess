@@ -77,6 +77,7 @@ public:
 	const PieceType pieceType;
 	const State& state;
 
+	Piece();
 	Piece(const ColorTheme, const PieceType);
 	Piece(const Piece& copy);
 

@@ -57,41 +57,45 @@ std::string GetDefaultBoardJSON(const ColorTheme& color)
 	return storedBoards.at(color);
 }
 
-std::vector<Utils::Point2DInt> GetPositionsForPieces(const ColorTheme& color, const std::vector<const Piece*>& pieces)
+std::vector<InitPiecePosition> GetDefaultBoardPiecePositions(const ColorTheme& color)
 {
-	std::vector<const Piece*> noPositionSetPieces = pieces;
-	std::vector<Utils::Point2DInt> positions;
-	positions.reserve(noPositionSetPieces.size());
+	//std::vector<const Piece*> noPositionSetPieces = pieces;
+	std::vector<InitPiecePosition> positions;
+	//positions.reserve(noPositionSetPieces.size());
 	int spaceIndex = -1;
 
 	//Have to iterator through spaces and not pieces since there are multiple of the same piece
 	//so instead we have to retrieve any we have left
-	for (const auto& spaceSymbol : GetDefaultBoardJSON(color))
+	for (const auto& cellSymbol : GetDefaultBoardJSON(color))
 	{
 		spaceIndex++;
-		if (spaceSymbol == EMPTY_IDENTIFIER) continue;
-		std::optional<PieceType> spacePieceType = TryGetPieceFromNotationSymbol(spaceSymbol);
+		if (cellSymbol == EMPTY_IDENTIFIER) continue;
+		std::optional<PieceType> spacePieceType = TryGetPieceFromNotationSymbol(cellSymbol);
 
 		//TODO: maybe log error or warning?
 		if (!spacePieceType.has_value()) continue;
 		
-		std::vector<const Piece*>::const_iterator foundPieceWithTypeIt = std::find_if(noPositionSetPieces.begin(), noPositionSetPieces.end(),
-			[&spacePieceType](const Piece* piece) -> bool 
-			{
-				return piece->pieceType == spacePieceType.value();
-			});
+		//std::vector<const Piece*>::const_iterator foundPieceWithTypeIt = std::find_if(noPositionSetPieces.begin(), noPositionSetPieces.end(),
+		//	[&spacePieceType](const Piece* piece) -> bool 
+		//	{
+		//		return piece->pieceType == spacePieceType.value();
+		//	});
+
+		Utils::Point2DInt piecePos = { spaceIndex / BOARD_DIMENSION, spaceIndex % BOARD_DIMENSION };
+		positions.emplace_back(InitPiecePosition{spacePieceType.value(), piecePos});
 
 		//We erase to make sure if there are pieces of the same type are 
 		//removed to not check it again
-		if (foundPieceWithTypeIt != noPositionSetPieces.end())
-		{
-			//We get index of the piece we found from copied list and then check its index in the unchanged list
-			//which should work since we do only check values that should not get removed from list prior
-			size_t indexOfFoundPiece = Utils::GetIndexOfValue(pieces, *foundPieceWithTypeIt);
-			Utils::Point2DInt piecePos = { spaceIndex / BOARD_DIMENSION, spaceIndex % BOARD_DIMENSION};
+		//if (foundPieceWithTypeIt != noPositionSetPieces.end())
+		//{
+		//	//We get index of the piece we found from copied list and then check its index in the unchanged list
+		//	//which should work since we do only check values that should not get removed from list prior
+		//	size_t indexOfFoundPiece = Utils::GetIndexOfValue(pieces, *foundPieceWithTypeIt);
+		//	Utils::Point2DInt piecePos = { spaceIndex / BOARD_DIMENSION, spaceIndex % BOARD_DIMENSION};
 
-			positions.insert(positions.begin()+indexOfFoundPiece, piecePos);
-			noPositionSetPieces.erase(foundPieceWithTypeIt);
-		}
+		//	positions.insert(positions.begin()+indexOfFoundPiece, piecePos);
+		//	noPositionSetPieces.erase(foundPieceWithTypeIt);
+		//}
 	}
+	return positions;
 }

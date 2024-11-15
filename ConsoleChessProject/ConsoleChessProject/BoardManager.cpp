@@ -1,4 +1,5 @@
 #include <format>
+#include <queue>
 #include <vector>
 #include <optional>
 #include <algorithm>
@@ -36,7 +37,6 @@ SpecialMove& operator&=(SpecialMove lhs, SpecialMove rhs) {
 	lhs = lhs & rhs;
 	return lhs;
 }
-
 
 PiecePositionData::PiecePositionData(const Piece& piece, const Utils::Point2DInt& pos)
 	: PieceRef(piece), Pos(pos) {}
@@ -90,9 +90,25 @@ MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo)
 using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 static PiecePositionMapType piecePositions;
 static std::unordered_map<ColorTheme, std::vector<MoveInfo>> previousMoves;
+static std::vector<Utils::Point2DInt> allPossiblePositions;
 
 static bool inCheckmate;
 static bool inCheck;
+
+static std::vector<Utils::Point2DInt> GetAllPositionsOnBoard()
+{
+	if (!allPossiblePositions.empty()) return allPossiblePositions;
+
+	for (int r = 0; r < BOARD_DIMENSION; r++)
+	{
+		for (int c = 0; c < BOARD_DIMENSION; c++)
+		{
+			allPossiblePositions.emplace_back(r, c);
+		}
+	}
+	std::sort(allPossiblePositions.begin(), allPossiblePositions.end());
+	return allPossiblePositions;
+}
 
 bool InCheck()
 {
@@ -145,18 +161,14 @@ Piece* GetPieceAtPositionMutable(const Utils::Point2DInt& pos)
 	else return &(it->second);
 }
 
-inline bool TryGetPieceAtPosition(const Utils::Point2DInt& pos, const Piece* outPiece= nullptr)
+const Piece* TryGetPieceAtPosition(const Utils::Point2DInt& pos)
 {
-	const Piece* piecePtr = GetPieceAtPositionMutable(pos);
-	outPiece = piecePtr;
-	return piecePtr != nullptr;
+	return GetPieceAtPositionMutable(pos);
 }
 
-static bool TryGetPieceAtPositionMutable(const Utils::Point2DInt& pos, Piece* outPiece = nullptr)
+static Piece* TryGetPieceAtPositionMutable(const Utils::Point2DInt& pos)
 {
-	Piece* piecePtr = GetPieceAtPositionMutable(pos);
-	outPiece = piecePtr;
-	return piecePtr != nullptr;
+	return GetPieceAtPositionMutable(pos);
 }
 
 std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const Piece& piece)
@@ -206,7 +218,7 @@ bool HasPieceWithinPositionRange(const Utils::Point2DInt& startPos, const Utils:
 		}
 
 		currentPosition = { currentPosition.x + xCurrentDelta, currentPosition.y + yCurrentDelta };
-		if (TryGetPieceAtPosition(currentPosition)) return true;
+		if (TryGetPieceAtPosition(currentPosition)!=nullptr) return true;
 
 		if (currentPosition == endPosition) break;
 	}
@@ -225,13 +237,18 @@ std::vector<const Piece*> TryGetAvailablePieces(const ColorTheme& color, const P
 	return foundPieces;
 }
 
-std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& color, const PieceType& type)
+std::vector<PiecePositionData> TryGetPiecesPosition(const ColorTheme& color, const std::optional<PieceType>& type,
+	const std::optional<Piece::State>& state)
 {
 	std::vector<PiecePositionData> foundPieces;
+	bool checkType = type.has_value();
+	bool checkState = state.has_value();
 	for (const auto& piecePos : piecePositions)
 	{
-		if (piecePos.second.state == Piece::State::InPlay &&
-			piecePos.second.color == color && piecePos.second.pieceType == type)
+		if (checkType && piecePos.second.pieceType != type.value()) continue;
+		if (checkState && piecePos.second.state != state.value()) continue;
+
+		if (piecePos.second.color== color)
 			foundPieces.emplace_back(piecePos.second, piecePos.first);
 	}
 	return foundPieces;
@@ -248,7 +265,7 @@ std::vector<PiecePositionData> TryGetAvailablePiecesPosition(const ColorTheme& c
 	return positions;
 }
 
-int GetAvailablePieces(const ColorTheme& color)
+size_t GetAvailablePieces(const ColorTheme& color)
 {
 	return TryGetAvailablePiecesPosition(color).size();
 }
@@ -292,32 +309,45 @@ void ResetBoard()
 	piecePositions.clear();
 }
 
-void InitPieces()
+static Piece CreatePiece(const ColorTheme& color, const PieceType& pieceType)
 {
-	Utils::Point2DInt currentPos{ 0, 0 };
-	
-	for (int i = 0; i < 2; i++)
-	{
-		ColorTheme currentColor = i == 0 ? ColorTheme::Light : ColorTheme::Dark;
-		if (currentPos.y >= BOARD_DIMENSION)
-			currentPos = { currentPos.x + 1, 0 };
-
-		for (const auto& pieceType : ALL_PIECE_TYPES)
-		{
-			piecePositions.insert({ currentPos, Piece{ currentColor, pieceType } });
-			currentPos = { currentPos.x, currentPos.y + 1 };
-
-			Utils::Log(Utils::LogType::Log, std::format("Adding: {} size: {}", ToString(pieceType), piecePositions.size()));
-			if (currentPos.y >= BOARD_DIMENSION)
-				currentPos = { currentPos.x + 1, 0 };
-		}
-	}
+	return {color, pieceType};
 }
+
+//void InitPieces()
+//{
+//	int r = 0;
+//	int c = 0;
+//	
+//	for (int i = 0; i < 2; i++)
+//	{
+//		ColorTheme currentColor = i == 0 ? ColorTheme::Light : ColorTheme::Dark;
+//		if (c >= BOARD_DIMENSION)
+//		{
+//			r++;
+//			c = 0;
+//		}
+//			
+//		for (const auto& pieceType : ALL_PIECE_TYPES)
+//		{
+//			piecePositions.insert({ Utils::Point2DInt(r, c), CreatePiece(currentColor, pieceType)});
+//			c++;
+//
+//			Utils::Log(Utils::LogType::Log, std::format("Adding: {} for pos: {} {} size: {}", ToString(pieceType), 
+//				std::to_string(r),std::to_string(c), piecePositions.size()));
+//
+//			if (c >= BOARD_DIMENSION)
+//			{
+//				r++;
+//				c = 0;
+//			}
+//		}
+//	}
+//}
 
 static bool IsCheckOrMateAtPiece(const Utils::Point2DInt& posAttemptingCheck, bool updateGlobal)
 {
-	const Piece* pieceAttemptingCheck = nullptr;
-	TryGetPieceAtPosition(posAttemptingCheck, pieceAttemptingCheck);
+	const Piece* pieceAttemptingCheck = TryGetPieceAtPosition(posAttemptingCheck);
 	const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(posAttemptingCheck);
 	
 	const Piece* pieceChecked = nullptr;
@@ -332,7 +362,7 @@ static bool IsCheckOrMateAtPiece(const Utils::Point2DInt& posAttemptingCheck, bo
 				if (&pieceMove.PieceRef != pieceAttemptingCheck) continue;
 
 				//If the piece at the end of the path is a king of a different color it is a check
-				TryGetPieceAtPosition(pieceMove.NewPos, pieceChecked);
+				pieceChecked= TryGetPieceAtPosition(pieceMove.NewPos);
 				if (pieceChecked != nullptr && pieceChecked->pieceType == PieceType::King &&
 					pieceChecked->color != pieceAttemptingCheck->color)
 				{
@@ -346,8 +376,8 @@ static bool IsCheckOrMateAtPiece(const Utils::Point2DInt& posAttemptingCheck, bo
 	bool inCheckmateResult = false;
 	if (inCheckResult)
 	{
-		std::vector<PiecePositionData> kingPositions = TryGetAvailablePiecesPosition(pieceAttemptingCheck->color ==
-			ColorTheme::Dark ? ColorTheme::Light : ColorTheme::Dark, PieceType::King);
+		std::vector<PiecePositionData> kingPositions = TryGetPiecesPosition(pieceAttemptingCheck->color ==
+			ColorTheme::Dark ? ColorTheme::Light : ColorTheme::Dark, PieceType::King, Piece::State::InPlay);
 		if (kingPositions.size() != 1)
 		{
 			std::string error = std::format("Tried to check for check and checkmate but no king was found!");
@@ -382,7 +412,7 @@ static std::vector<PiecePositionData> GetCheckablePositions(const ColorTheme& co
 
 static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const Utils::Point2DInt& newPos)
 {
-	if (!TryGetPieceAtPosition(currentData.Pos, &currentData.PieceRef))
+	if (!TryGetPieceAtPosition(currentData.Pos))
 	{
 		std::string error = std::format("Tried to update pos of piece: {} from pos: {} "
 			"but it is not located there", currentData.PieceRef.ToString(), currentData.Pos.ToString());
@@ -420,11 +450,12 @@ static bool TryUpdatePiecePosition(const PiecePositionData& currentData, const U
 		}
 	}
 	piecePositions.emplace(newPos, currentData.PieceRef);
+	return true;
 }
 
 static bool TryUpdatePiecePosition(const PiecePositionData currentData, Utils::Point2DInt newPos, MoveInfo moveInfo)
 {
-	TryUpdatePiecePosition(currentData, newPos);
+	if (!TryUpdatePiecePosition(currentData, newPos)) return false;
 
 	ColorTheme color = currentData.PieceRef.color;
 	if (previousMoves.find(color) == previousMoves.end())
@@ -435,54 +466,118 @@ static bool TryUpdatePiecePosition(const PiecePositionData currentData, Utils::P
 	{
 		previousMoves.at(color).push_back(moveInfo);
 	}
+	return true;
 }
 
-static void PlaceDefaultBoardPieces(const ColorTheme& color, bool overrideExisting=true)
+//Will place all pieces from default board positions. If the peice exists it will be moved
+//otherwise it will be created and moved
+static void PlaceDefaultBoardPieces(const ColorTheme& color)
 {
+	const bool piecesAlreadyInitialized = !piecePositions.empty();
 	const PiecesRange ranges = GetPiecesForColorMutable(color);
 
 	const std::vector<Utils::Point2DInt> oldPositions = ranges.keys;
 	const std::vector<Piece*> piecePointers = ranges.values;
 
-	int pieceIndex = 0;
-	for (const auto& position : GetPositionsForPieces(color, MakeImmutable(piecePointers)))
+	std::vector<Utils::Point2DInt> allPossiblePositions = GetAllPositionsOnBoard();
+	std::vector<Utils::Point2DInt> currentPiecePositions = Utils::GetKeysFromMap<Utils::Point2DInt, Piece>
+														  (piecePositions.begin(), piecePositions.end());
+
+	std::sort(allPossiblePositions.begin(), allPossiblePositions.end());
+	std::sort(currentPiecePositions.begin(), currentPiecePositions.end());
+	std::vector<Utils::Point2DInt> availablePositions; 
+	std::set_intersection(allPossiblePositions.begin(), allPossiblePositions.end(), currentPiecePositions.begin(), 
+		currentPiecePositions.end(), availablePositions.begin());
+
+	std::queue<Utils::Point2DInt> availablePositionsQueue;
+	for (const auto& pos : availablePositions)
 	{
-		if (!IsWithinBounds(position))
+		availablePositionsQueue.push(pos);
+	}
+
+	int pieceIndex = 0;
+	Utils::Point2DInt pieceCurrentPos(0, 0);
+	for (const auto& initPiecePos : GetDefaultBoardPiecePositions(color))
+	{
+		if (!IsWithinBounds(initPiecePos.NewPos))
 		{
 			std::string error = std::format("Tried to place default board piece: {} at pos: {} "
-				"but is invalid pos", piecePointers[pieceIndex]->ToString(), position.ToString());
+				"but is invalid pos", piecePointers[pieceIndex]->ToString(), initPiecePos.NewPos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
 			return;
 		}
 		pieceIndex++;
 
-		const Piece* outPiece = nullptr;
-		if (!overrideExisting && TryGetPieceAtPosition(position, outPiece))
+		Piece* movePiece = nullptr;
+		if (piecesAlreadyInitialized)
 		{
-			std::string error = std::format("Tried to place default board piece: {} at pos: {} "
-				"but piece: {} already exists and overriding is forbidden", 
-				piecePointers[pieceIndex]->ToString(), position.ToString(), outPiece->ToString());
+			std::vector<PiecePositionData> availablePieces = TryGetPiecesPosition(color, initPiecePos.PieceType, std::nullopt);
+			if (availablePieces.empty())
+			{
+				std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
+					"but there are no available pieces of this type!",
+					ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
+				Utils::Log(Utils::LogType::Error, error);
+				return;
+			}
+
+			//We can just take the top one at index 0 since we will update their state anyways so they just dwindle
+			//down if we keep updating for the same piece
+			pieceCurrentPos = availablePieces[0].Pos;
+			movePiece = GetPieceAtPositionMutable(pieceCurrentPos);
+		}
+		else
+		{
+			if (availablePositionsQueue.empty())
+			{
+				std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
+					"but no available pos left for created piece",
+					ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
+				Utils::Log(Utils::LogType::Error, error);
+				return;
+			}
+
+			//We have to emplace it in order to preserve the pieces lifetime
+			auto it = piecePositions.emplace(, 
+				CreatePiece(color, initPiecePos.PieceType));
+			movePiece = &(it.first->second);
+		}
+
+		if (movePiece == nullptr)
+		{
+			std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
+				"but and it failed to be retrieved or created",
+				ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
 			return;
 		}
 
-		Piece* pieceData = piecePointers[pieceIndex];
-		if (!TryUpdatePiecePosition(PiecePositionData{ *pieceData, oldPositions[pieceIndex] }, position))
+		std::optional<Utils::Point2DInt> currentPos = TryGetPositionOfPiece(*movePiece);
+		if (!currentPos.has_value())
 		{
 			std::string error = std::format("Tried to place default board piece: {} at pos: {} "
-				"but failed to update its position {}",
-				piecePointers[pieceIndex]->ToString(), position.ToString(), oldPositions[pieceIndex].ToString());
+				"but failed to retrieve its current pos",
+				movePiece->ToString(), initPiecePos.NewPos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
 			return;
 		}
-		pieceData->UpdateState(Piece::State::InPlay);
+
+		if (!TryUpdatePiecePosition(PiecePositionData{ *movePiece, currentPos.value()}, initPiecePos.NewPos))
+		{
+			std::string error = std::format("Tried to place default board piece: {} at pos: {} "
+				"but failed to update its position",
+				movePiece->ToString(), initPiecePos.NewPos.ToString());
+			Utils::Log(Utils::LogType::Error, error);
+			return;
+		}
+		movePiece->UpdateState(Piece::State::InPlay);
 	}
 }
 
 void CreateDefaultBoard()
 {
 	ResetBoard();
-	if (piecePositions.empty()) InitPieces();
+	//if (piecePositions.empty()) InitPieces();
 	
 	PlaceDefaultBoardPieces(ColorTheme::Dark);
 	PlaceDefaultBoardPieces(ColorTheme::Light);
@@ -506,11 +601,11 @@ static CastleInfo CanCastle(const ColorTheme& color)
 	const std::vector<const Piece*> rooks = TryGetAvailablePieces(color, PieceType::Rook);
 
 	//TODO: optimize these calls so they are batched together to find pos for both rook and king at the same time
-	const std::vector<PiecePositionData> kingPositions = TryGetAvailablePiecesPosition(color, PieceType::King);
+	const std::vector<PiecePositionData> kingPositions = TryGetPiecesPosition(color, PieceType::King, Piece::State::InPlay);
 	if (kingPositions.size() != 1) return { false, false, false };
 	Utils::Point2DInt kingPos = kingPositions[0].Pos;
 
-	const std::vector<PiecePositionData> rookPositions = TryGetAvailablePiecesPosition(color, PieceType::Rook);
+	const std::vector<PiecePositionData> rookPositions = TryGetPiecesPosition(color, PieceType::Rook, Piece::State::InPlay);
 	if (rookPositions.size() <= 0 || rookPositions.size() > 2) return { false, false, false };
 	
 	bool canKingSide = true;
@@ -556,7 +651,7 @@ static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils:
 	const Piece* outPiece;
 	int rookCol = delta > 0 ? BOARD_DIMENSION - 1 : 0;
 	//If in the direction moved is NOT a rook at the end, it means we do not have castle chance
-	if (!TryGetPieceAtPosition({ currentData.Pos.x , rookCol}, outPiece)) return { false, false, false };
+	if ((outPiece=TryGetPieceAtPosition({ currentData.Pos.x , rookCol}))==nullptr) return { false, false, false };
 	if (outPiece == nullptr || outPiece->pieceType != PieceType::Rook) return { false, false, false };
 
 	//If we move kingside it is 3, otherwise it is 4 diff
@@ -565,25 +660,27 @@ static CastleInfo IsCastleMove(const PiecePositionData currentData, const Utils:
 	for (int i = startCol + 1; i <= endCol - 1; i++)
 	{
 		//If there is a piece in the way it means we cannot castle
-		if (TryGetPieceAtPosition({ currentData.Pos.x, i }, outPiece)) 
+		if ((outPiece= TryGetPieceAtPosition({ currentData.Pos.x, i }))!=nullptr) 
 			return { false, false, false };
 	}
 	//Delta >0 means moves up, <0 means moves down queen side
 	return { true, delta>0, delta < 0 };
 }
 
-static bool IsCapture(const PiecePositionData currentData, 
-	const Utils::Point2DInt newPos, const Piece* outCapturedPiece = nullptr)
+static const Piece* TryGetCapturePiece(const PiecePositionData currentData, const Utils::Point2DInt newPos)
 {
-	const Piece* outPieceAtNewPos = nullptr;
-	outCapturedPiece = outPieceAtNewPos;
-	if (!TryGetPieceAtPosition(newPos, outPieceAtNewPos))return false;
+	const Piece* pieceAtNewPos = nullptr;
+	if ((pieceAtNewPos=TryGetPieceAtPosition(newPos))==nullptr) return nullptr;
 
 	if (!DoesMoveDeltaMatchCaptureMoves(currentData.PieceRef.pieceType, currentData.Pos, newPos))
-		return false;
+		return nullptr;
 
 	//TODO: are there any other checks to capture a piece
-	return true;
+	return pieceAtNewPos;
+}
+static bool IsCapture(const PiecePositionData currentData, const Utils::Point2DInt newPos)
+{
+	return TryGetCapturePiece(currentData, newPos) != nullptr;
 }
 
 std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Point2DInt& startPos)
@@ -591,8 +688,8 @@ std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Point2DInt& startP
 	if (!IsWithinBounds(startPos))
 		return {};
 
-	Piece* movedPiece;
-	if (!TryGetPieceAtPosition(startPos, movedPiece))
+	const Piece* movedPiece = nullptr;
+	if ((movedPiece= TryGetPieceAtPosition(startPos))==nullptr)
 		return {};
 
 	std::vector<MoveInfo> possibleMoves;
@@ -605,7 +702,7 @@ std::vector<MoveInfo> GetPossibleMovesForPieceAt(const Utils::Point2DInt& startP
 		{
 			//We have to check if it is a capture because capture moves might not be different
 			//from move dirs so we might capture during regualar moves
-			SpecialMove specialMove = IsCapture(PiecePositionData{ *movedPiece, startPos }, moveNewPos) ? 
+			SpecialMove specialMove = TryGetCapturePiece(PiecePositionData{ *movedPiece, startPos }, moveNewPos) ? 
 				SpecialMove::Capture : SpecialMove::None;
 
 			possibleMoves.emplace_back(
@@ -703,8 +800,8 @@ MoveResult TryMove(const Utils::Point2DInt& currentPos, const Utils::Point2DInt&
 	if (!IsWithinBounds(currentPos))
 		return { newPos, false, std::format("Tried to move from a place outside the board") };
 
-	Piece* movedPiece;
-	if (!TryGetPieceAtPosition(currentPos, movedPiece))
+	const Piece* movedPiece = nullptr;
+	if ((movedPiece=TryGetPieceAtPosition(currentPos))==nullptr)
 		return { newPos, false, std::format("Position ({}) has no piece", newPos.ToString()) };
 
 	if (!IsWithinBounds(newPos))
@@ -884,10 +981,10 @@ const std::vector<MoveInfo>& GetPreviousMoves(const ColorTheme& color)
 	return previousMoves.at(color);
 }
 
-bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInfo* outFirstMove) 
+const MoveInfo* GetPieceFirstMove(const ColorTheme& color, const PieceType& type)
 {	
 	const std::vector<MoveInfo> colorMoves = GetPreviousMoves(color);
-	if (colorMoves.size() == 0) return false;
+	if (colorMoves.size() == 0) return nullptr;
 
 	for (const auto& move : colorMoves)
 	{
@@ -896,10 +993,14 @@ bool HasMovedPiece(const ColorTheme& color, const PieceType& type, const MoveInf
 		{
 			if (piecesMoved.PieceRef.pieceType == type)
 			{
-				outFirstMove = &move;
-				return true;
+				return &move;
 			}
 		}
 	}
-	return false;
+	return nullptr;
+}
+
+bool HasMovedPiece(const ColorTheme& color, const PieceType& type)
+{
+	return GetPieceFirstMove(color, type) != nullptr;
 }

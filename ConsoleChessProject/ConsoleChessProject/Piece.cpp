@@ -32,6 +32,10 @@ bool PieceTypeInfo::operator==(const PieceTypeInfo& other) const
 	return Color == other.Color && PieceType == other.PieceType;
 }
 
+Piece::Piece()
+	: color(ColorTheme::Light), pieceType(PieceType::Pawn), _moveDirs(GetMoveDirsForPiece(pieceType)),
+	_captureDirs(GetCaptureMovesForPiece(pieceType)), _state(Piece::State::Undefined), state(_state) {}
+
 Piece::Piece(const ColorTheme color, const PieceType piece)
 	: color(color), pieceType(piece), _moveDirs(GetMoveDirsForPiece(piece)),
 	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state) {}
