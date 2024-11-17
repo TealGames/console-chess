@@ -24,7 +24,7 @@ static void UpdateInteractablePieces(const ColorTheme& interactableColor)
 	}
 }
 
-void CreateBoard(wxWindow* parent)
+void CreateBoardCells(wxWindow* parent)
 {
 	wxPoint currentPoint;
 
@@ -48,7 +48,7 @@ void CreateBoard(wxWindow* parent)
 	AddTurnChangeCallback(&UpdateInteractablePieces);
 
 	//TODO: this should be done elsewhere not in the UI!
-	CreateDefaultBoard();
+	//CreateDefaultBoard();
 }
 
 static void DisplayPieceMoves()
@@ -113,6 +113,9 @@ bool TryRenderAllPieces()
 		PieceTypeInfo pieceInfo = {pieceData.second.color, pieceData.second.pieceType};
 		if (!TryRenderPieceAtPos(pieceData.first, pieceInfo))
 		{
+			const std::string err = std::format("Tried to render all pieces but failed to do it for piece {} at {}", 
+				pieceData.second.ToString(), pieceData.first.ToString());
+			Utils::Log(Utils::LogType::Error, err);
 			return false;
 		}
 	}

@@ -1,14 +1,34 @@
 #pragma once
 #include <functional>
 #include "Color.hpp"
+#include "Event.hpp"
 
-struct EndGameInfo
+namespace GameManagement
 {
-	const ColorTheme& WinningPlayer;
-};
-using EndGameCallbackType = std::function<void(EndGameInfo)>;
-using TurnChangeCallbackType = std::function<void(ColorTheme)>;
 
-void StartGame();
-void AddEndGameCallback(const EndGameCallbackType& callback);
-void AddTurnChangeCallback(const TurnChangeCallbackType& callback);
+	struct EndGameInfo
+	{
+		const ColorTheme& WinningPlayer;
+	};
+
+	class GameManager
+	{
+	public:
+		Utils::Event<void> GameStartEvent;
+		Utils::Event<void, EndGameInfo> GameEndEvent;
+		Utils::Event<void, ColorTheme> TurnChangeEvent;
+
+	private:
+		std::optional<ColorTheme> _currentPlayerTurn;
+
+	private:
+		std::optional<ColorTheme> TryGetOtherPlayer() const;
+		void NextTurn();
+		void EndGame();
+
+	public:
+		GameManager();
+
+		void StartNewGame();
+	};
+}

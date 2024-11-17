@@ -1,6 +1,7 @@
 #include <format>
 #include <string>
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <unordered_map>
 #include <fstream>
@@ -14,22 +15,41 @@
 
 using json = nlohmann::json;
 
-static const std::unordered_map<ColorTheme, std::string> COLOR_PROPERTY_NAMES =
-{ {ColorTheme::Light, "LightPieces"}, {ColorTheme::Dark, "DarkPieces"}};
-static const std::string DEFAULT_BOARD_PROPERTY = "Default";
+static const std::unordered_map<ColorTheme, char> COLOR_SYMBOLS =
+{ {ColorTheme::Light, 'L'}, {ColorTheme::Dark, 'D'}};
+static const std::unordered_map<BoardType, std::string> BOARD_TYPE_PROPERTIES =
+{ {BoardType::Default, "Default" } };
 static const char EMPTY_IDENTIFIER = '-';
 
 static std::optional<json> boardsJSON;
-static std::unordered_map<ColorTheme, std::string> storedBoards;
+static std::unordered_map<BoardType, std::vector<std::string>> storedBoards;
 
-static std::string GetBoardSpacesFrom(const json& fullBoard, const ColorTheme& color)
+static std::optional<ColorTheme> TryGetColorFromNotation(const char& notation)
 {
-	auto darkBoard = fullBoard[COLOR_PROPERTY_NAMES.at(ColorTheme::Dark)];
-	std::vector<std::string> boardSpaces = darkBoard.get<std::vector<std::string>>();
-	return Utils::CollapseToSingleString(boardSpaces);
+	for (const auto& colorChar : COLOR_SYMBOLS)
+	{
+		if (colorChar.second == notation) return colorChar.first;
+	}
+	return std::nullopt;
 }
 
-std::string GetDefaultBoardJSON(const ColorTheme& color)
+static std::vector<std::string> GetBoardSpacesFrom(const json& fullBoard, const BoardType& type)
+{
+	auto propertyNameIt = BOARD_TYPE_PROPERTIES.find(type);
+	if (propertyNameIt == BOARD_TYPE_PROPERTIES.end())
+	{
+		std::string err = "Tried to get board spaces for "
+			"type with no property defined";
+		Utils::Log(Utils::LogType::Error, err);
+		return {};
+	}
+
+	json board = fullBoard[propertyNameIt->second];
+	std::vector<std::string> boardSpaces = board.get<std::vector<std::string>>();
+	return boardSpaces;
+}
+
+std::vector<std::string> GetBoardJSON(const BoardType& boardType)
 {
 	if (boardsJSON == std::nullopt)
 	{
@@ -37,43 +57,61 @@ std::string GetDefaultBoardJSON(const ColorTheme& color)
 		boardsJSON = json::parse(fstream);
 	}
 
-	if (storedBoards.find(color) == storedBoards.end())
+	if (storedBoards.find(boardType) == storedBoards.end())
 	{
-		json defaultBoardProperty = boardsJSON.value()[DEFAULT_BOARD_PROPERTY];
-		std::string boardSpacesAsString;
-		if (color == ColorTheme::Dark)
-			boardSpacesAsString = GetBoardSpacesFrom(defaultBoardProperty, ColorTheme::Dark);
-		else if (color == ColorTheme::Light)
-			boardSpacesAsString = GetBoardSpacesFrom(defaultBoardProperty, ColorTheme::Light);
-		else
-		{
-			std::string err = std::format("Tried to get default board for undefined color {}", ToString(color));
-			Utils::Log(Utils::LogType::Error, err);
-			return "";
-		}
-		storedBoards.insert({ color, boardSpacesAsString });
-		return boardSpacesAsString;
+		std::vector<std::string> boardCells = GetBoardSpacesFrom(boardsJSON.value(), boardType);
+		if (boardCells.empty()) return {};
+		
+		storedBoards.insert({ boardType, boardCells });
+		return boardCells;
 	}
-	return storedBoards.at(color);
+	return storedBoards.at(boardType);
 }
 
-std::vector<InitPiecePosition> GetDefaultBoardPiecePositions(const ColorTheme& color)
+std::vector<InitPiecePosition> GetDefaultBoardPiecePositions()
 {
 	//std::vector<const Piece*> noPositionSetPieces = pieces;
 	std::vector<InitPiecePosition> positions;
 	//positions.reserve(noPositionSetPieces.size());
 	int spaceIndex = -1;
+	char currentColorChar = '0';
+	char currentPieceChar = '0';
 
 	//Have to iterator through spaces and not pieces since there are multiple of the same piece
 	//so instead we have to retrieve any we have left
-	for (const auto& cellSymbol : GetDefaultBoardJSON(color))
+	for (const auto& cellSymbol : GetBoardJSON(BoardType::Default))
 	{
 		spaceIndex++;
-		if (cellSymbol == EMPTY_IDENTIFIER) continue;
-		std::optional<PieceType> spacePieceType = TryGetPieceFromNotationSymbol(cellSymbol);
+		if (cellSymbol.size()>0 && cellSymbol[0] == EMPTY_IDENTIFIER) continue;
 
-		//TODO: maybe log error or warning?
-		if (!spacePieceType.has_value()) continue;
+		if (cellSymbol.size() <= 1)
+		{
+			std::string err = std::format("Tried to create data for cell symbol: {} for default board positions"
+				"but the size does not have enough space for all data. Size: {}", cellSymbol, cellSymbol.size());
+			Utils::Log(Utils::LogType::Error, err);
+			return {};
+		}
+
+		currentColorChar = cellSymbol[0];
+		currentPieceChar = cellSymbol[1];
+		std::optional<ColorTheme> maybeColor = TryGetColorFromNotation(currentColorChar);
+		if (!maybeColor.has_value())
+		{
+			std::string err = std::format("Tried to get default board positions"
+				"but could not parse the color type char: {}", currentColorChar);
+			Utils::Log(Utils::LogType::Error, err);
+			return {};
+		}
+
+		std::optional<PieceType> maybePieceType = TryGetPieceFromNotationSymbol(currentPieceChar);
+		if (!maybePieceType.has_value())
+		{
+			std::string err = std::format("Tried to get default board positions"
+				"but could not parse the piece type char: {}", currentPieceChar);
+			Utils::Log(Utils::LogType::Error, err);
+			return {};
+		}
+		
 		
 		//std::vector<const Piece*>::const_iterator foundPieceWithTypeIt = std::find_if(noPositionSetPieces.begin(), noPositionSetPieces.end(),
 		//	[&spacePieceType](const Piece* piece) -> bool 
@@ -82,7 +120,7 @@ std::vector<InitPiecePosition> GetDefaultBoardPiecePositions(const ColorTheme& c
 		//	});
 
 		Utils::Point2DInt piecePos = { spaceIndex / BOARD_DIMENSION, spaceIndex % BOARD_DIMENSION };
-		positions.emplace_back(InitPiecePosition{spacePieceType.value(), piecePos});
+		positions.emplace_back(InitPiecePosition{ maybePieceType.value(), maybeColor.value(), piecePos});
 
 		//We erase to make sure if there are pieces of the same type are 
 		//removed to not check it again

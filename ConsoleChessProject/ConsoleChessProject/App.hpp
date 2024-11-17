@@ -1,7 +1,7 @@
 #pragma once
 #include <wx/wx.h>
 
-class ChessUI : public wxApp
+class App : public wxApp
 {
 public:
 	bool OnInit();

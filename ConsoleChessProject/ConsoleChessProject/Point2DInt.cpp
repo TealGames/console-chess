@@ -72,6 +72,30 @@ namespace Utils
 		return sameX && sameY;
 	}
 
+	bool Point2DInt::operator!=(const Point2DInt& otherPos) const
+	{
+		return !(*this == otherPos);
+	}
+
+	bool Point2DInt::operator<(const Point2DInt& otherPos) const
+	{
+		if (x == otherPos.x) return y < otherPos.y;
+		else return x < otherPos.x;
+	}
+	bool Point2DInt::operator<=(const Point2DInt& otherPos) const
+	{
+		return *this == otherPos || *this < otherPos;
+	}
+
+	bool Point2DInt::operator>(const Point2DInt& otherPos) const
+	{
+		return !(*this <= otherPos);
+	}
+	bool Point2DInt::operator>=(const Point2DInt& otherPos) const
+	{
+		return *this == otherPos || *this > otherPos;
+	}
+
 	Point2DInt& Point2DInt::operator=(const Point2DInt& newPos)
 	{
 		if (this != &newPos)
@@ -79,6 +103,6 @@ namespace Utils
 			_x = newPos.x;
 			_y = newPos.y;
 		}
-		else return *this;
+		return *this;
 	}
 }

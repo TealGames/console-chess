@@ -93,9 +93,9 @@ bool TryLoadAllPieceImages(std::unordered_map<PieceTypeInfo, wxImage>* outImages
 			c = piecePos.second.y;
 			tileMapPos = { c * SPRITE_SIZE.x + c * SPRITE_SPACING.x, r * SPRITE_SIZE.y + r * SPRITE_SPACING.y };
 
-			std::string message = std::format("Piece {} Pos: {} {}", piecePos.first.ToString(), 
+			/*std::string message = std::format("Piece {} Pos: {} {}", piecePos.first.ToString(), 
 				std::to_string(tileMapPos.x), std::to_string(tileMapPos.y));
-			wxLogMessage(message.c_str());
+			wxLogMessage(message.c_str());*/
 			outImages->emplace(piecePos.first, GetSubImage(*pieceSpriteMap, tileMapPos, SPRITE_SIZE));
 		}
 		else break;

@@ -181,9 +181,16 @@ bool DoesMoveDeltaMatchCaptureMoves(const PieceType type,
 	return false;
 }
 
-std::string Piece::ToString() const
+std::string Piece::ToString(bool shorten) const
 {
-	std::string str = std::format("[{} {}]", ::ToString(color), ::ToString(pieceType));
+	std::string colorStr = ::ToString(color);
+	std::string pieceStr = ::ToString(pieceType);
+	if (shorten)
+	{
+		colorStr = *colorStr.begin();
+		pieceStr = *pieceStr.begin();
+	}
+	std::string str = std::format("[{} {}]", colorStr, pieceStr);
 	return str;
 }
 

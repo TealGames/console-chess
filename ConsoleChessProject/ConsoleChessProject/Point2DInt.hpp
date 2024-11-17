@@ -27,6 +27,11 @@ namespace Utils
 		Point2DInt operator/(const int) const;
 
 		bool operator==(const Point2DInt&) const;
+		bool operator!=(const Point2DInt&) const;
+		bool operator<(const Point2DInt&) const;
+		bool operator<=(const Point2DInt&) const;
+		bool operator>(const Point2DInt&) const;
+		bool operator>=(const Point2DInt&) const;
 
 		//This is needed because const vars delete = operator definition
 		Point2DInt& operator=(const Point2DInt&);

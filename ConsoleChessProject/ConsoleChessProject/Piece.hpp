@@ -82,7 +82,7 @@ public:
 	Piece(const Piece& copy);
 
 	void UpdateState(const State& state);
-	std::string ToString() const;
+	std::string ToString(bool shorten=false) const;
 
 	bool operator==(const Piece& piece) const;
 };

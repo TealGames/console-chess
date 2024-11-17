@@ -9,13 +9,18 @@
 #include "json.hpp"
 #include "Point2Dint.hpp"
 
-const std::filesystem::path BOARDS_PATH = "StartBoard.json";
+enum class BoardType
+{
+	Default,
+};
 
-std::string GetDefaultBoardJSON(const ColorTheme& color);
+const std::filesystem::path BOARDS_PATH = "StartBoard.json";
+std::vector<std::string> GetBoardJSON(const BoardType& boardType);
 
 struct InitPiecePosition
 {
 	const PieceType PieceType;
+	const ColorTheme Color;
 	const Utils::Point2DInt NewPos;
 };
-std::vector<InitPiecePosition> GetDefaultBoardPiecePositions(const ColorTheme& color);
+std::vector<InitPiecePosition> GetDefaultBoardPiecePositions();

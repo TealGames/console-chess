@@ -3,24 +3,17 @@
 #include <wx/wx.h>
 #include <wx/simplebook.h>
 #include "UIGlobals.hpp"
+#include "UIManager.hpp"
 
 class MainFrame : public wxFrame
 {
 private:
-	enum class Page : int
-	{
-		MainMenu = 0,
-		Game = 1,
-	};
+	
+public:
+	const std::string WindowName;
+	const UIManager& UIManager;
 
-	wxPanel* root = nullptr;
-	wxSimplebook* pages = nullptr;
-
-	void DrawStatic();
-	void DrawMainMenu();
-	void DrawGame();
-
-	void TogglePage(const Page& page);
+private:
 
 public:
 	MainFrame(const wxString& title);

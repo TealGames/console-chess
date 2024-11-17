@@ -3,49 +3,58 @@
 #include "GameManager.hpp"
 #include "Color.hpp"
 #include "BoardManager.hpp"
+#include "Event.hpp"
 
-static ColorTheme currentPlayer;
-static std::vector<EndGameCallbackType> endGameCallbacks;
-static std::vector<TurnChangeCallbackType> turnChangeCallbacks;
-
-void StartGame()
+namespace GameManagement
 {
-	currentPlayer = ColorTheme::Light;
-}
+	GameManager::GameManager()
+		: _currentPlayerTurn(std::nullopt), GameStartEvent(), GameEndEvent(), TurnChangeEvent()
+	{}
 
-static ColorTheme GetOtherPlayer()
-{
-	if (currentPlayer == ColorTheme::Light) return ColorTheme::Dark;
-	else return ColorTheme::Light;
-}
-
-static void EndGame()
-{
-	const ColorTheme otherPlayer = GetOtherPlayer();
-	for (const EndGameCallbackType& callback : endGameCallbacks)
+	void GameManager::StartNewGame()
 	{
-		callback({ otherPlayer });
+		_currentPlayerTurn = ColorTheme::Light;
+		Board::CreateDefaultBoard();    
+		GameStartEvent.Invoke();
 	}
-}
 
-static void NextTurn()
-{
-	currentPlayer = GetOtherPlayer();
-	if (InCheckmate() || GetAvailablePieces(currentPlayer) == 0) EndGame();
-
-	for (const TurnChangeCallbackType& callback : turnChangeCallbacks)
+	std::optional<ColorTheme> GameManager::TryGetOtherPlayer() const
 	{
-		callback(currentPlayer);
+		if (!_currentPlayerTurn.has_value()) return std::nullopt;
+
+		if (_currentPlayerTurn == ColorTheme::Light) return ColorTheme::Dark;
+		else return ColorTheme::Light;
 	}
-}
 
+	void GameManager::NextTurn()
+	{
+		_currentPlayerTurn = TryGetOtherPlayer();
+		if (!_currentPlayerTurn.has_value())
+		{
+			std::string error = std::format("Tried to change players turn in "
+				"GameManager but there is empty player's turn!");
+			Utils::Log(Utils::LogType::Error, error);
+			return;
+		}
 
-void AddEndGameCallback(const EndGameCallbackType& callback)
-{
-	endGameCallbacks.push_back(callback);
-}
+		if (Board::InCheckmate() || 
+			Board::GetAvailablePieces(_currentPlayerTurn.value()) == 0) EndGame();
 
-void AddTurnChangeCallback(const TurnChangeCallbackType& callback)
-{
-	turnChangeCallbacks.push_back(callback);
+		TurnChangeEvent.Invoke(_currentPlayerTurn.value());
+	}
+
+	void GameManager::EndGame()
+	{
+		std::optional<ColorTheme> maybeOther= TryGetOtherPlayer();
+		if (!maybeOther.has_value())
+		{
+			std::string error = std::format("Tried to end the game in GameManager "
+				"but there is no player's turn!");
+			Utils::Log(Utils::LogType::Error, error);
+			return;
+		}
+
+		//The player who did not cause game end is the one who wins
+		GameEndEvent.Invoke(EndGameInfo{maybeOther.value()});
+	}
 }

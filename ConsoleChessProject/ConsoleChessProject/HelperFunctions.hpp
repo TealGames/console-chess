@@ -5,6 +5,7 @@
 #include <sstream>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <cstdint>
 #include <filesystem>
 #include <type_traits>
@@ -230,6 +231,37 @@ namespace Utils
 			values.push_back(it->second);
 		}
 		return values;
+	}
+
+	//By default the interesection methods in std require sorting so this is a custom version
+	//Note: intersection is what both of them have in common
+	template<typename T>
+	std::unordered_set<T> GetUnorderedIntersection(const std::vector<T>& vec1, const std::vector<T>& vec2)
+	{
+		if (vec1.empty() || vec2.empty()) return {};
+
+		const std::vector<T>& smallerVec = vec2.size() > vec1.size() ? vec1 : vec2;
+		const std::vector<T>& largerVec = vec2.size() > vec1.size() ? vec2 : vec1;
+		std::unordered_set<T> intersection;
+
+		for (const auto& element : largerVec)
+		{
+			//The element must be in both vectors but can not already be in the intersection list
+			if (std::find(smallerVec.begin(), smallerVec.end(), element) != smallerVec.end())
+			{
+				intersection.insert(element);
+			}
+		}
+		return intersection;
+	}
+
+	//By default the interesection methods in std require sorting so this is a custom version
+	//Note: intersection is what both of them have in common
+	//Note: this is a more optimized version of the vector version since it does not require to check for duplicates
+	template<typename T>
+	std::unordered_set<T> GetUnorderedIntersection(const std::unordered_set<T>& vec1, const std::unordered_set<T>& vec2)
+	{
+		return GetUnorderedIntersection(std::vector<T>(vec1), std::vector<T>(vec2));
 	}
 
 	double ToRadians(const double);
