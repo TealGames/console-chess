@@ -125,7 +125,7 @@ namespace Utils
 	/// <param name="toStringFunction"></param>
 	/// <returns></returns>
 	template <typename TCollection, typename TElement>
-	auto ToStringIterable(const TCollection& collection, const std::function<std::string(TElement)>
+	auto ToStringIterable(const TCollection& collection, const std::function<std::string(const TElement&)>
 		toStringFunction=nullptr)
 		-> typename std::enable_if<IS_ITERABLE<TCollection>, std::string>::type
 	{
@@ -137,6 +137,31 @@ namespace Utils
 		{
 			if (hasOverrideToString) str += toStringFunction(element);
 			else str += Utils::ToString(element);
+
+			if (index < collection.size() - 1)
+				str += ", ";
+			index++;
+		}
+		str += "]";
+		return str;
+	}
+
+	template <typename TKey, typename TValue>
+	std::string ToStringIterable(const std::unordered_map<TKey, TValue> collection,
+		const std::function<std::string(const std::pair<TKey, TValue>&)> toStringFunction = nullptr)
+	{
+		bool hasOverrideToString = toStringFunction != nullptr;
+
+		std::string str = "[";
+		int index = 0;
+		for (const auto& pair : collection)
+		{
+			if (hasOverrideToString) str += toStringFunction(pair);
+			else
+			{
+				str += std::format("({},{})", 
+					Utils::ToString(pair.first), Utils::ToString(pair.second));
+			}
 
 			if (index < collection.size() - 1)
 				str += ", ";

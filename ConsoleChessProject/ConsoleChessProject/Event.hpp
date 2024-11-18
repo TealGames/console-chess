@@ -21,7 +21,7 @@ namespace Utils
 			(const std::function<TReturn(TArgs...)> listener) const
 		{
 			int index = 0;
-			std::vector<ListenerType>::const_iterator it = _listeners.end();
+			typename std::vector<ListenerType>::const_iterator it = _listeners.end();
 			for (const ListenerType& existingListener : _listeners)
 			{
 				if (existingListener.target_type() == listener.target_type())
@@ -56,7 +56,7 @@ namespace Utils
 
 			for (const ListenerType& listener : _listeners)
 			{
-				listener(args);
+				listener(args...);
 			}
 		}
 

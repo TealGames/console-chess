@@ -1,13 +1,15 @@
 #pragma once
 #include <vector>
 #include "MainFrame.hpp"
+#include "GameManager.hpp"
 
 class ChessEngine
 {
 private:
-	std::vector<MainFrame*> windows;
+	std::vector<MainFrame*> m_Windows;
 
 public:
+	GameManagement::GameManager GameManager;
 
 private:
 	

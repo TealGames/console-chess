@@ -2,6 +2,7 @@
 #include <functional>
 #include "Color.hpp"
 #include "Event.hpp"
+#include "GameState.hpp"
 
 namespace GameManagement
 {
@@ -16,19 +17,19 @@ namespace GameManagement
 	public:
 		Utils::Event<void> GameStartEvent;
 		Utils::Event<void, EndGameInfo> GameEndEvent;
-		Utils::Event<void, ColorTheme> TurnChangeEvent;
+		Utils::Event<void, const ColorTheme> TurnChangeEvent;
 
 	private:
-		std::optional<ColorTheme> _currentPlayerTurn;
 
 	private:
-		std::optional<ColorTheme> TryGetOtherPlayer() const;
-		void NextTurn();
-		void EndGame();
+		std::optional<ColorTheme> TryGetOtherPlayer(const GameState& state) const;
+		
+		void EndGame(GameState& state);
 
 	public:
 		GameManager();
 
-		void StartNewGame();
+		GameState StartNewGame();
+		void AdvanceTurn(GameState& state);
 	};
 }

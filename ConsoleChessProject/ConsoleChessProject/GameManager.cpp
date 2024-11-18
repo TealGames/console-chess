@@ -4,48 +4,54 @@
 #include "Color.hpp"
 #include "BoardManager.hpp"
 #include "Event.hpp"
+#include "GameState.hpp"
 
 namespace GameManagement
 {
 	GameManager::GameManager()
-		: _currentPlayerTurn(std::nullopt), GameStartEvent(), GameEndEvent(), TurnChangeEvent()
+		: GameStartEvent(), GameEndEvent(), TurnChangeEvent()
 	{}
 
-	void GameManager::StartNewGame()
+	GameState GameManager::StartNewGame()
 	{
-		_currentPlayerTurn = ColorTheme::Light;
-		Board::CreateDefaultBoard();    
-		GameStartEvent.Invoke();
+		GameState newState = {};
+		newState.CurrentPlayer= ColorTheme::Light;
+		Board::CreateDefaultBoard(newState); 
+		Utils::Log(Utils::LogType::Warning, std::format("Start game: {}", newState.ToString()));
+
+		//TODO: error arises when invoking
+		//GameStartEvent.Invoke();
+		return newState;
 	}
 
-	std::optional<ColorTheme> GameManager::TryGetOtherPlayer() const
+	std::optional<ColorTheme> GameManager::TryGetOtherPlayer(const GameState& state) const
 	{
-		if (!_currentPlayerTurn.has_value()) return std::nullopt;
-
-		if (_currentPlayerTurn == ColorTheme::Light) return ColorTheme::Dark;
+		if (state.CurrentPlayer == ColorTheme::Light) return ColorTheme::Dark;
 		else return ColorTheme::Light;
 	}
 
-	void GameManager::NextTurn()
+	void GameManager::AdvanceTurn(GameState& state)
 	{
-		_currentPlayerTurn = TryGetOtherPlayer();
-		if (!_currentPlayerTurn.has_value())
+		std::optional<ColorTheme> maybeOtherPlayer = TryGetOtherPlayer(state);
+		if (!maybeOtherPlayer.has_value())
 		{
 			std::string error = std::format("Tried to change players turn in "
-				"GameManager but there is empty player's turn!");
+				"GameManager but there is empty player's turn! Current Player turn left unchanged: {}", 
+				ToString(state.CurrentPlayer));
 			Utils::Log(Utils::LogType::Error, error);
 			return;
 		}
 
-		if (Board::InCheckmate() || 
-			Board::GetAvailablePieces(_currentPlayerTurn.value()) == 0) EndGame();
+		state.CurrentPlayer = maybeOtherPlayer.value();
+		if (state.InCheckmate || Board::GetAvailablePieces(state, state.CurrentPlayer) == 0) 
+			EndGame(state);
 
-		TurnChangeEvent.Invoke(_currentPlayerTurn.value());
+		TurnChangeEvent.Invoke(state.CurrentPlayer);
 	}
 
-	void GameManager::EndGame()
+	void GameManager::EndGame(GameState& state)
 	{
-		std::optional<ColorTheme> maybeOther= TryGetOtherPlayer();
+		std::optional<ColorTheme> maybeOther= TryGetOtherPlayer(state);
 		if (!maybeOther.has_value())
 		{
 			std::string error = std::format("Tried to end the game in GameManager "
@@ -55,6 +61,6 @@ namespace GameManagement
 		}
 
 		//The player who did not cause game end is the one who wins
-		GameEndEvent.Invoke(EndGameInfo{maybeOther.value()});
+		//GameEndEvent.Invoke(EndGameInfo{maybeOther.value()});
 	}
 }

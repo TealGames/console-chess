@@ -2,7 +2,7 @@
 #include "ChessEngine.hpp"
 #include "MainFrame.hpp"
 
-ChessEngine::ChessEngine() : windows()
+ChessEngine::ChessEngine() : m_Windows(), GameManager()
 {
 	Initialize();
 }
@@ -14,7 +14,7 @@ ChessEngine::~ChessEngine()
 
 void ChessEngine::CreateWindow(const std::string windowName)
 {
-	MainFrame* mainFrame = new MainFrame(windowName);
+	MainFrame* mainFrame = new MainFrame(GameManager, windowName);
 	mainFrame->SetClientSize(WIDTH, HEIGHT);
 	mainFrame->Center();
 	mainFrame->Show();
@@ -27,9 +27,9 @@ void ChessEngine::Initialize()
 
 void ChessEngine::Shutdown()
 {
-	for (MainFrame* window : windows)
+	for (MainFrame* window : m_Windows)
 	{
 		delete window;
 	}
-	windows.clear();
+	m_Windows.clear();
 }

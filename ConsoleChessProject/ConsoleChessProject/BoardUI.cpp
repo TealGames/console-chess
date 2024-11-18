@@ -11,7 +11,7 @@ static std::unordered_map<Utils::Point2DInt, Cell*> cells;
 static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
 static const Cell* currentSelected;
 
-static void UpdateInteractablePieces(const ColorTheme& interactableColor)
+void UpdateInteractablePieces(const ColorTheme& interactableColor)
 {
 	const Piece* cellPiece = nullptr;
 	for (const auto& cell : cells)
@@ -42,10 +42,11 @@ void CreateBoardCells(wxWindow* parent)
 			
 			cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColors));
 			cells.end()->second->AddOnClickCallback([](const Cell* cell) -> void { currentSelected = cell; });
+			//wxLogMessage("DREW CELLS");
 		}
 	}
-
-	AddTurnChangeCallback(&UpdateInteractablePieces);
+	
+	//AddTurnChangeCallback(&UpdateInteractablePieces);
 
 	//TODO: this should be done elsewhere not in the UI!
 	//CreateDefaultBoard();
@@ -72,7 +73,7 @@ static bool TryCacheAllSprites()
 bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceTypeInfo& pieceInfo)
 {
 	TryCacheAllSprites();
-	if (!IsWithinBounds(pos))
+	if (!Board::IsWithinBounds(pos))
 	{
 		std::string err = std::format("Tried to render piece {} at pos {} "
 			"but it is out of board bounds", pieceInfo.ToString(), pos.ToString());
@@ -103,9 +104,9 @@ bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceTypeInfo& piec
 	return true;
 }
 
-bool TryRenderAllPieces()
+bool TryRenderAllPieces(const GameState& state)
 {
-	const std::unordered_map<Utils::Point2DInt, Piece>& pieces = GetAllPieces();
+	const std::unordered_map<Utils::Point2DInt, Piece>& pieces = state.PiecePositions;
 	const std::string message = std::format("A total of pieces: {}", std::to_string(pieces.size()));
 	wxLogMessage(message.c_str());
 	for (const auto& pieceData : pieces)
