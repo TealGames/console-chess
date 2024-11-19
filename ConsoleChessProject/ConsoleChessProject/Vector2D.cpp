@@ -69,7 +69,7 @@ namespace Utils
 		return Normalize(*this);
 	}
 
-	std::string Vector2D::ToString(VectorForm form)
+	std::string Vector2D::ToString(VectorForm form) const
 	{
 		std::string str;
 		switch (form)

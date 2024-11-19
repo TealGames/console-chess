@@ -93,7 +93,8 @@ bool MainFrame::TryUpdateBoard()
 {
 	if (!_currentState.has_value())
 	{
-		const std::string err = std::format("Tried to update board display but there is no current game state!");
+		const std::string err = std::format("Tried to update board display in main frame "
+			"but there is no current game state!");
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}
@@ -103,6 +104,16 @@ bool MainFrame::TryUpdateBoard()
 void MainFrame::StartGame()
 {
 	_currentState = manager.StartNewGame();
+	if (!_currentState.has_value())
+	{
+		const std::string err = std::format("Tried to start game in main frame"
+			" but there is no current game state!");
+		Utils::Log(Utils::LogType::Error, err);
+		return;
+	}
+	//std::string str = "State of Game: "+_currentState.value().ToString();
+	//Utils::Log(Utils::LogType::Warning, str);
+	BindCellEventsForGameState(_currentState.value());
 	TogglePage(Page::Game);
 
 	//return;

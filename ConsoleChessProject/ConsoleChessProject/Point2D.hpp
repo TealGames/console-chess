@@ -10,8 +10,8 @@ namespace Utils
 		double _y;
 
 	public:
-		const double x;
-		const double y;
+		const double& x;
+		const double& y;
 
 		Point2D();
 		Point2D(double, double);
@@ -19,6 +19,7 @@ namespace Utils
 
 		std::string ToString() const;
 
+		//TODO: add all other operators for rvalues as well
 		Point2D operator+(const Point2D&) const;
 		Point2D operator-(const Point2D&) const;
 		Point2D operator*(const Point2D&) const;
@@ -30,6 +31,7 @@ namespace Utils
 
 		//This is needed because const vars delete = operator definition
 		Point2D& operator=(const Point2D&);
+		Point2D& operator=(Point2D&&) noexcept;
 	};
 }
 

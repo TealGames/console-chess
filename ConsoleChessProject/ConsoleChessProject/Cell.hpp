@@ -1,5 +1,7 @@
 #pragma once
 #include <wx/wx.h>
+#include <vector>
+#include <functional>
 #include "Piece.hpp"
 
 const wxSize CELL_SIZE{ 50, 50 };
@@ -7,20 +9,31 @@ constexpr float ICON_SIZE_TO_CELL = 0.7;
 
 struct CellColors
 {
-	wxColour innerColor;
-	wxColour hoverColor;
+	wxColour InnerColor;
+	wxColour HoverColor;
+	wxColour HighlightedColor;
 };
 
+//class Cell;
+//using CellClickCallbackType = std::function<void(Cell*)>;
 class Cell : public wxPanel
 {
 private:
+	std::vector<std::function<void(Cell*)>> _onClickCallbacks;
+
 	const CellColors _colors;	
 	wxStaticBitmap* _bitMapDisplay;
 	bool _isClickable;
+
+	bool _isHighlighted;
+
 	const Piece* pieceHere;
 
+	static constexpr bool _UPDATE_IMAGE_SIZE = true;
+
 public:
-	bool& IsClickable;
+	const bool& IsClickable;
+	const bool& IsHighlighted;
 
 private:
 	
@@ -39,8 +52,10 @@ public:
 	void UpdatePiece(const Piece* piece, wxImage& image);
 	bool TryRemovePiece();
 
-	using CellCallbackType = std::function<void(const Cell*)>;
-	void AddOnClickCallback(const CellCallbackType& callback);
+	void AddOnClickCallback(const std::function<void(Cell*)>& callback);
+	
+	void SetHighlighted(bool doHighlight);
+	void ToggleHighlighted();
 	void UpdateCanClick(bool isClickable);
 };
 

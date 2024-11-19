@@ -105,4 +105,15 @@ namespace Utils
 		}
 		return *this;
 	}
+
+	Point2DInt& Point2DInt::operator=(Point2DInt&& other) noexcept
+	{
+		if (this == &other)
+			return *this;
+
+		_x = std::exchange(other._x, 0);
+		_y = std::exchange(other._y, 0);
+
+		return *this;
+	}
 }

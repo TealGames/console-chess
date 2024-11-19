@@ -1,4 +1,7 @@
 #include <wx/wx.h>
+#include <format>
+#include <vector>
+#include <unordered_map>
 #include "BoardUI.hpp"
 #include "UIGlobals.hpp"
 #include "BoardManager.hpp"
@@ -6,10 +9,19 @@
 #include "GameManager.hpp"
 #include "Point2D.hpp"
 #include "Piece.hpp"
+#include "Cell.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
 static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
-static const Cell* currentSelected;
+static Cell* currentSelected;
+static std::vector<Cell*> currentCellMoves;
+
+Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
+{
+	auto it = cells.find(point);
+	if (it == cells.end()) return nullptr;
+	else return it->second;
+}
 
 void UpdateInteractablePieces(const ColorTheme& interactableColor)
 {
@@ -36,13 +48,20 @@ void CreateBoardCells(wxWindow* parent)
 		for (int c = 0; c < BOARD_DIMENSION; c++)
 		{
 			CellColors cellColors;
-			cellColors.innerColor = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1) ? DARKER_TAN : DARKER_LIGHT_GREEN;
-			cellColors.hoverColor = cellColors.innerColor == DARKER_TAN ? TAN : LIGHT_GREEN;
+			bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
+			cellColors.InnerColor = isDarkCell ? DARK_CELL_COLOR : LIGHT_CELL_COLOR;
+			cellColors.HoverColor = isDarkCell ? DARK_CELL_HOVER_COLOR : LIGHT_CELL_HOVER_COLOR;
+			cellColors.HighlightedColor = isDarkCell ? DARK_CELL_HIGHLIGHT_COLOR : LIGHT_CELL_HIGHLIGHT_COLOR;
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
-			cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColors));
-			cells.end()->second->AddOnClickCallback([](const Cell* cell) -> void { currentSelected = cell; });
-			//wxLogMessage("DREW CELLS");
+			auto emplaced= cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColors));
+			if (!emplaced.second)
+			{
+				const std::string error = std::format("Tried to place cell at row {} col {}"
+					"but failed to emplace data into cell vector.emplace()", std::to_string(r), std::to_string(c));
+				Utils::Log(Utils::LogType::Error, error);
+				return;
+			}
 		}
 	}
 	
@@ -50,6 +69,53 @@ void CreateBoardCells(wxWindow* parent)
 
 	//TODO: this should be done elsewhere not in the UI!
 	//CreateDefaultBoard();
+}
+
+void BindCellEventsForGameState(const GameState& state)
+{
+	for (const auto& cell : cells)
+	{
+		cell.second->AddOnClickCallback([&state, &cell](Cell* clickedCell) -> void
+		{
+			if (!currentCellMoves.empty())
+			{
+				for (const auto& cell : currentCellMoves)
+				{
+					if (cell->IsHighlighted) cell->SetHighlighted(false);
+				}
+				currentCellMoves.clear();
+			}
+
+			bool sameCellClickedAgain = currentSelected == clickedCell;
+			if (sameCellClickedAgain) currentSelected->ToggleHighlighted();
+			else
+			{
+				if (currentSelected != nullptr) currentSelected->SetHighlighted(false);
+
+				currentSelected = clickedCell;
+				currentSelected->SetHighlighted(true);
+			}
+
+			if (currentSelected->IsHighlighted)
+			{
+				std::unordered_set<MoveInfo> possibleMoves = Board::GetPossibleMovesForPieceAt(state, cell.first);
+				Utils::Log(Utils::LogType::Error, std::format("POSSIBLE MOVES: {}", std::to_string(possibleMoves.size())));
+
+				Cell* cellAtPosition = nullptr;
+				for (const auto& move : possibleMoves)
+				{
+					for (const auto& piecesMoved : move.PiecesMoved)
+					{
+						cellAtPosition = TryGetCellAtPosition(piecesMoved.NewPos);
+						if (cellAtPosition == nullptr) continue;
+
+						cellAtPosition->SetHighlighted(true);
+						currentCellMoves.push_back(cellAtPosition);
+					}
+				}
+			}
+		});
+	}
 }
 
 static void DisplayPieceMoves()

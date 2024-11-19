@@ -2,21 +2,20 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <functional>
 #include "Cell.hpp"
 #include "ResourceManager.hpp"
 
-static std::vector<Cell::CellCallbackType> onClickCallbacks;
-static bool updateImageSize = true;
-
 Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors)
 	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), _colors(colors), _bitMapDisplay(nullptr),
-	_isClickable(true), IsClickable(_isClickable), pieceHere(nullptr)
+	_isClickable(true), IsClickable(_isClickable), _isHighlighted(false), IsHighlighted(_isHighlighted),
+	pieceHere(nullptr), _onClickCallbacks()
 {
 	Bind(wxEVT_ENTER_WINDOW, &Cell::OnEnter, this);
 	Bind(wxEVT_LEAVE_WINDOW, &Cell::OnExit, this);
 	Bind(wxEVT_LEFT_DOWN, &Cell::OnClick, this);
 
-	SetBackgroundColour(colors.innerColor);
+	SetBackgroundColour(colors.InnerColor);
 }
 
 void Cell::OnEnter(wxMouseEvent& evt)
@@ -24,7 +23,10 @@ void Cell::OnEnter(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	SetBackgroundColour(_colors.hoverColor);
+	//If we are highlighted we do not want to return back until the caller says so
+	if (IsHighlighted) return;
+
+	SetBackgroundColour(_colors.HoverColor);
 	Refresh();
 }
 
@@ -33,29 +35,27 @@ void Cell::OnExit(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	SetBackgroundColour(_colors.innerColor);
+	//If we are highlighted we do not want to return back until the caller says so
+	if (IsHighlighted) return;
+
+	SetBackgroundColour(_colors.InnerColor);
 	Refresh();
 }
 
 void Cell::OnClick(wxMouseEvent& evt)
 {
-	if (!IsClickable) return;
-
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	for (const auto& callback : onClickCallbacks) callback(this);
+	for (const auto& callback : _onClickCallbacks) callback(this);
 
-	SetBackgroundColour(_colors.hoverColor);
 	Refresh();
-
-	wxLogMessage("Click");
+	//wxLogMessage("Click");
 }
 
-void Cell::AddOnClickCallback(const CellCallbackType& callback)
+void Cell::AddOnClickCallback(const std::function<void(Cell*)>& callback)
 {
-	onClickCallbacks.push_back(callback);
-
+	_onClickCallbacks.push_back(callback);
 }
 
 bool Cell::HasPiece(const Piece* outFoundPiece)
@@ -72,7 +72,7 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	wxSize startSize(image.GetWidth(), image.GetHeight());
 	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
 					  static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.y));
-	if (updateImageSize && startSize!=targetSize)
+	if (_UPDATE_IMAGE_SIZE && startSize!=targetSize)
 	{
 		float newWidthScale =  static_cast<float>(targetSize.x)/ startSize.x;
 		float newHeightScale = static_cast<float>(targetSize.y)/ startSize.y;
@@ -115,4 +115,20 @@ bool Cell::TryRemovePiece()
 void Cell::UpdateCanClick(bool isClickable)
 {
 	isClickable = isClickable;
+}
+
+void Cell::SetHighlighted(bool doHighlight)
+{
+	_isHighlighted = doHighlight;
+	/*if (doHighlight) wxLogMessage("Highlgihted");
+	else wxLogMessage("Not highlighted!");*/
+
+	if (doHighlight) SetBackgroundColour(_colors.HighlightedColor);
+	else SetBackgroundColour(_colors.InnerColor);
+	Refresh();
+}
+
+void Cell::ToggleHighlighted()
+{
+	SetHighlighted(!_isHighlighted);
 }

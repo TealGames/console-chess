@@ -79,6 +79,35 @@ public:
 	MoveInfo& operator=(const MoveInfo& otherInfo);
 };
 
+namespace std
+{
+	template<> struct hash<MoveInfo>
+	{
+		//TODO: improve hasing algorithm to include all members
+		std::size_t operator()(const MoveInfo& moveInfo) const noexcept
+		{
+			std::size_t hashValue = 0;
+
+			/*for (const auto& pieceData : moveInfo.PiecesMoved) {
+				hashValue ^= std::hash<MovePiecePositionData>()(pieceData) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+			}*/
+
+			//Note: 0x9e3779b9 is golden ratio as hex and can add some irregularity to the hashing algorithm to avoid collisions
+			hashValue ^= std::hash<std::string>()(moveInfo.BoardNotation) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+			hashValue ^= std::hash<int>()(static_cast<int>(moveInfo.SpecialMoveFlags)) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+
+			/*if (moveInfo.PiecePromotion.has_value()) {
+				hashValue ^= std::hash<Piece*>()(moveInfo.PiecePromotion.value()) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+			}*/
+
+			hashValue ^= std::hash<bool>()(moveInfo.IsCheck) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+			hashValue ^= std::hash<bool>()(moveInfo.IsCheckmate) + 0x9e3779b9 + (hashValue << 6) + (hashValue >> 2);
+
+			return hashValue;
+		}
+	};
+}
+
 using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 struct GameState
 {

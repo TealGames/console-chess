@@ -55,6 +55,12 @@ namespace Utils
 
 	void Log(const LogType& logType, const std::string& str);
 
+	/// <summary>
+	/// Logs a message as a default LOG type
+	/// </summary>
+	/// <param name="str"></param>
+	void Log(const std::string& str);
+
 
 	template <typename T>
 	constexpr bool IS_NUMERIC = std::is_arithmetic_v<T>;

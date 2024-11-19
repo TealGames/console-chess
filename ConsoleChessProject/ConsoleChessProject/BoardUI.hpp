@@ -7,6 +7,9 @@
 #include "GameState.hpp"
 
 void CreateBoardCells(wxWindow* parent);
+void BindCellEventsForGameState(const GameState& state);
+Cell* TryGetCellAtPosition(const Utils::Point2DInt point);
+
 bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const PieceTypeInfo& pieceInfo);
 bool TryRenderAllPieces(const GameState& state);
 void UpdateInteractablePieces(const ColorTheme& interactableColor);

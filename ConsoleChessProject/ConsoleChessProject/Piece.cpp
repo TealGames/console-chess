@@ -8,9 +8,12 @@
 #include "FrozenMap.hpp"
 
 static constexpr double INF = std::numeric_limits<double>::infinity();
+
+//Note: if capture dirs are not defined for a piece they are assumed the default move dirs
+//and if any capture dirs are provided the move dirs are NOT included (and must be explicitly defined then)
 static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
 	std::unordered_map<PieceType, PieceStaticInfo> {
-		{PieceType::Pawn, {1, 'P', {{1,0}, {1, 1}, {-1,-1}}, {}}},
+		{PieceType::Pawn, { 1, 'P', {{0,1}}, {{-1, 1}, {1, 1}} }},
 		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
 		{PieceType::Bishop, {3, 'B', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
 		{PieceType::Rook, {5, 'R', {{0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
@@ -101,7 +104,10 @@ const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return PIECE_INFO.at(type).MoveDirs;
+
+	const PieceStaticInfo& infoForType = PIECE_INFO.at(type);
+	if (infoForType.CaptureDirs.empty()) return infoForType.MoveDirs;
+	else return infoForType.CaptureDirs;
 }
 
 char GetNotationSymbolForPiece(const PieceType type)

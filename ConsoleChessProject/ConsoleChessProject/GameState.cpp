@@ -46,6 +46,7 @@ MovePiecePositionData& MovePiecePositionData::operator=(const MovePiecePositionD
 	_piece = other._piece;
 	_oldPos = other._oldPos;
 	_newPos = other._newPos;
+	return *this;
 }
 
 bool MovePiecePositionData::operator==(const MovePiecePositionData& other) const

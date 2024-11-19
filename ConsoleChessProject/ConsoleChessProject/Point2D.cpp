@@ -82,4 +82,15 @@ namespace Utils
 		}
 		else return *this;
 	}
+
+	Point2D& Point2D::operator=(Point2D&& other) noexcept
+	{
+		if (this == &other)
+			return *this;
+
+		_x = std::exchange(other._x, 0);
+		_y = std::exchange(other._y, 0);
+
+		return *this;
+	}
 }

@@ -48,7 +48,7 @@ namespace Utils
 		double GetMagnitude() const;
 		Vector2D GetNormalized() const;
 
-		std::string ToString(const VectorForm form = VectorForm::MagnitudeDirection);
+		std::string ToString(const VectorForm form = VectorForm::MagnitudeDirection) const;
 
 		Vector2D operator+(const Vector2D&) const;
 		Vector2D operator-(const Vector2D&) const;

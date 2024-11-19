@@ -1,6 +1,7 @@
 #include <format>
 #include <queue>
 #include <vector>
+#include <unordered_set>
 #include <optional>
 #include <algorithm>
 #include "BoardManager.hpp"
@@ -269,6 +270,21 @@ namespace Board
 		return false;
 	}
 
+	static bool EraseMoveInfoWithData(std::unordered_set<MoveInfo>& allMoveInfo, const std::function<bool(MoveInfo)> iterationCheck)
+	{
+		int index = 0;
+		for (const auto& moveInfo : allMoveInfo)
+		{
+			if (iterationCheck(moveInfo))
+			{
+				int removedElements= allMoveInfo.erase(moveInfo);
+				return removedElements > 0;
+			}
+			index++;
+		}
+		return false;
+	}
+
 	//Will check if the position is within bounds of the board
 	bool IsWithinBounds(const Utils::Point2DInt& pos)
 	{
@@ -328,7 +344,7 @@ namespace Board
 	static CheckOrMateResult IsCheckOrMateAtPiece(const GameState& state, const Utils::Point2DInt& posAttemptingCheck)
 	{
 		const Piece* pieceAttemptingCheck = TryGetPieceAtPosition(state, posAttemptingCheck);
-		const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, posAttemptingCheck);
+		const std::unordered_set<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, posAttemptingCheck);
 
 		const Piece* pieceChecked = nullptr;
 		bool inCheckResult = false;
@@ -365,7 +381,7 @@ namespace Board
 				Utils::Log(Utils::LogType::Error, error);
 				return { false, false };
 			}
-			const std::vector<MoveInfo> kingMoves = GetPossibleMovesForPieceAt(state, kingPositions[0].Pos);
+			const std::unordered_set<MoveInfo> kingMoves = GetPossibleMovesForPieceAt(state, kingPositions[0].Pos);
 			inCheckmateResult = kingMoves.size() == 0;
 		}
 
@@ -766,29 +782,45 @@ namespace Board
 		return TryGetCapturePiece(state, currentData, newPos) != nullptr;
 	}
 
-	std::vector<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& startPos)
+	std::unordered_set<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& startPos)
 	{
 		if (!IsWithinBounds(startPos))
+		{
+			//Utils::Log("Out of bounds");
 			return {};
-
+		}
+			
 		const Piece* movedPiece = nullptr;
 		if ((movedPiece = TryGetPieceAtPosition(state, startPos)) == nullptr)
+		{
+			//Utils::Log("Not found");
 			return {};
+		}
 
-		std::vector<MoveInfo> possibleMoves;
+		std::unordered_set<MoveInfo> possibleMoves;
+
 		Utils::Point2DInt moveNewPos;
-		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->pieceType);
+		std::string start = moveNewPos.ToString();
+		moveNewPos= Utils::Point2DInt(5, 6);
+		std::string end = moveNewPos.ToString();
+		Utils::Log(std::format("Test before: {} after {}", start, end));
+		
+		//Utils::Log(std::format("MOVE DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->pieceType).size())));
 		for (auto& movePos : GetMoveDirsForPiece(movedPiece->pieceType))
 		{
 			moveNewPos = GetVectorEndPoint(startPos, movePos);
-			if (!HasPieceWithinPositionRange(state, startPos, moveNewPos, false) && IsWithinBounds(moveNewPos))
+			/*Utils::Log(std::format("Is {} (start: {} new pos: {}) within bounds move: {} piece in range: {}", 
+				startPos.ToString(), movePos.ToString(Utils::Vector2D::VectorForm::Component), moveNewPos.ToString(), 
+				std::to_string(IsWithinBounds(moveNewPos)), 
+				std::to_string(HasPieceWithinPositionRange(state, startPos, moveNewPos, false))));*/
+			if (IsWithinBounds(moveNewPos) && !HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
 			{
 				//We have to check if it is a capture because capture moves might not be different
 				//from move dirs so we might capture during regualar moves
 				SpecialMove specialMove = TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos) ?
 					SpecialMove::Capture : SpecialMove::None;
 
-				possibleMoves.emplace_back(
+				possibleMoves.emplace(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, moveNewPos)
@@ -802,12 +834,14 @@ namespace Board
 			}
 		}
 
+		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->pieceType);
 		for (auto& captureMove : captureMoves)
 		{
 			moveNewPos = GetVectorEndPoint(startPos, captureMove);
-			if (!HasPieceWithinPositionRange(state, startPos, moveNewPos, false) && IsWithinBounds(moveNewPos))
+			if (IsWithinBounds(moveNewPos) && TryGetPieceAtPosition(state, moveNewPos)!=nullptr &&
+				!HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
 			{
-				possibleMoves.emplace_back(
+				possibleMoves.emplace(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, moveNewPos)
@@ -826,7 +860,7 @@ namespace Board
 		{
 			if (castleInfo.isKingSide)
 			{
-				possibleMoves.emplace_back(
+				possibleMoves.emplace(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.kingSideCastleMove)
@@ -840,7 +874,7 @@ namespace Board
 			}
 			else if (castleInfo.isQueenSide)
 			{
-				possibleMoves.emplace_back(
+				possibleMoves.emplace(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.queenSideCastleMove)
@@ -890,7 +924,7 @@ namespace Board
 		if (!IsWithinBounds(newPos))
 			return { newPos, false, std::format("Tried to move to a place outside the board") };
 
-		const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, currentPos);
+		const std::unordered_set<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, currentPos);
 		if (!possibleMoves.size() == 0)
 			return { newPos, false, std::format("There are no possible moves for this piece") };
 

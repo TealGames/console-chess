@@ -51,6 +51,11 @@ namespace Utils
 #endif
 	}
 
+	void Log(const std::string& str)
+	{
+		Log(LogType::Log, str);
+	}
+
 	double ToRadians(const double deg)
 	{
 		return deg * (std::numbers::pi / 180.0);
