@@ -78,7 +78,7 @@ namespace Utils
 		return diff < std::numeric_limits<double>().epsilon();
 	}
 
-	bool IsInifinity(double value)
+	bool IsPosInifinity(double value)
 	{
 		//Note: sign bit returns true if negative value
 		return std::isinf(value) && !std::signbit(value);

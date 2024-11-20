@@ -49,6 +49,11 @@ MovePiecePositionData& MovePiecePositionData::operator=(const MovePiecePositionD
 	return *this;
 }
 
+std::string MovePiecePositionData::ToString() const
+{
+	return std::format("[Piece: {}, old: {} -> new: {}]", PieceRef.ToString(), OldPos.ToString(), NewPos.ToString());
+}
+
 bool MovePiecePositionData::operator==(const MovePiecePositionData& other) const
 {
 	return PieceRef == other.PieceRef && OldPos == other.OldPos && NewPos == other.NewPos;
@@ -62,6 +67,38 @@ MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const 
 {
 }
 
+MoveInfo::MoveInfo(const MoveInfo& other) noexcept:
+_piecesMoved(other.PiecesMoved), PiecesMoved(_piecesMoved), _boardNotation(other.BoardNotation), BoardNotation(_boardNotation),
+_specialMoveFlags(other.SpecialMoveFlags), SpecialMoveFlags(_specialMoveFlags), _piecePromotion(other.PiecePromotion), PiecePromotion(_piecePromotion),
+_isCheck(other.IsCheck), IsCheck(_isCheck), _isCheckmate(other.IsCheckmate), IsCheckmate(_isCheckmate)
+{
+}
+
+MoveInfo::MoveInfo(MoveInfo&& other) noexcept:
+	_piecesMoved(std::move(other._piecesMoved)), _boardNotation(std::move(other._boardNotation)),
+	_specialMoveFlags(other._specialMoveFlags), _piecePromotion(std::move(other._piecePromotion)),
+	_isCheck(other._isCheck), _isCheckmate(other._isCheckmate),
+	PiecesMoved(_piecesMoved), BoardNotation(_boardNotation),
+	SpecialMoveFlags(_specialMoveFlags), PiecePromotion(_piecePromotion),
+	IsCheck(_isCheck), IsCheckmate(_isCheckmate) 
+{
+	other._piecesMoved = {};
+	other._boardNotation = "";
+	other._specialMoveFlags = SpecialMove::None;
+	other._piecePromotion = std::nullopt;
+	other._isCheck = false;
+	other._isCheckmate = false;
+}
+
+std::string MoveInfo::ToString() const
+{
+	return std::format("[PiecesMoved:{} SpecialMove:{} Piece Promoted:{} IsCheck:{} IsCheckmate: {}]", 
+		Utils::ToStringIterable<const std::vector<MovePiecePositionData>,MovePiecePositionData>(PiecesMoved), 
+		std::to_string(static_cast<unsigned int>(SpecialMoveFlags)), 
+		PiecePromotion.has_value()? PiecePromotion.value()->ToString() : "NULL", 
+		std::to_string(IsCheck), std::to_string(IsCheckmate));
+}
+
 bool MoveInfo::operator==(const MoveInfo& otherInfo) const
 {
 	return PiecesMoved == otherInfo.PiecesMoved && BoardNotation == otherInfo.BoardNotation &&
@@ -69,7 +106,7 @@ bool MoveInfo::operator==(const MoveInfo& otherInfo) const
 		IsCheck == otherInfo.IsCheck && IsCheckmate == otherInfo.IsCheckmate;
 }
 
-MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo)
+MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo) noexcept
 {
 	if (otherInfo == *this) return *this;
 

@@ -5,7 +5,7 @@
 #include <vector>
 #include <optional>
 #include <unordered_map>
-#include <unordered_set>
+#include <set>
 #include "HelperFunctions.hpp"
 #include "Point2DInt.hpp"
 #include "Vector2D.hpp"
@@ -132,7 +132,7 @@ namespace Board
 	const MoveInfo* GetPieceFirstMove(const GameState& state, const ColorTheme& color, const PieceType& type);
 	bool HasMovedPiece(const GameState& state, const ColorTheme& color, const PieceType& type);
 
-	std::unordered_set<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& pos);
+	std::vector<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& pos);
 	MoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);
 
 	std::string CleanInput(const std::string& input);

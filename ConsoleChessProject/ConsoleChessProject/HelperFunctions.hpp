@@ -303,7 +303,7 @@ namespace Utils
 	//example: 5 -> 1, -5 -> -1, 0 -> 0
 	int GetSign(double);
 
-	bool IsInifinity(double);
+	bool IsPosInifinity(double);
 	bool IsNegInifinity(double);
 
 	inline bool IsNumber(char);

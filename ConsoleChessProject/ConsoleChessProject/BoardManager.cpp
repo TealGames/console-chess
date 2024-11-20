@@ -2,6 +2,7 @@
 #include <queue>
 #include <vector>
 #include <unordered_set>
+#include <set>
 #include <optional>
 #include <algorithm>
 #include "BoardManager.hpp"
@@ -262,23 +263,9 @@ namespace Board
 		{
 			if (iterationCheck(moveInfo))
 			{
-				allMoveInfo.erase(allMoveInfo.begin() + index);
+				auto startIt = allMoveInfo.begin() + index;
+				allMoveInfo.erase(startIt, startIt+1);
 				return true;
-			}
-			index++;
-		}
-		return false;
-	}
-
-	static bool EraseMoveInfoWithData(std::unordered_set<MoveInfo>& allMoveInfo, const std::function<bool(MoveInfo)> iterationCheck)
-	{
-		int index = 0;
-		for (const auto& moveInfo : allMoveInfo)
-		{
-			if (iterationCheck(moveInfo))
-			{
-				int removedElements= allMoveInfo.erase(moveInfo);
-				return removedElements > 0;
 			}
 			index++;
 		}
@@ -288,8 +275,8 @@ namespace Board
 	//Will check if the position is within bounds of the board
 	bool IsWithinBounds(const Utils::Point2DInt& pos)
 	{
-		if (pos.x < 0 || pos.y >= BOARD_DIMENSION) return false;
-		else if (pos.x < 0 || pos.y >= BOARD_DIMENSION) return false;
+		if (pos.x < 0 || pos.x >= BOARD_DIMENSION) return false;
+		else if (pos.y < 0 || pos.y >= BOARD_DIMENSION) return false;
 		return true;
 	}
 
@@ -344,7 +331,7 @@ namespace Board
 	static CheckOrMateResult IsCheckOrMateAtPiece(const GameState& state, const Utils::Point2DInt& posAttemptingCheck)
 	{
 		const Piece* pieceAttemptingCheck = TryGetPieceAtPosition(state, posAttemptingCheck);
-		const std::unordered_set<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, posAttemptingCheck);
+		const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, posAttemptingCheck);
 
 		const Piece* pieceChecked = nullptr;
 		bool inCheckResult = false;
@@ -381,7 +368,7 @@ namespace Board
 				Utils::Log(Utils::LogType::Error, error);
 				return { false, false };
 			}
-			const std::unordered_set<MoveInfo> kingMoves = GetPossibleMovesForPieceAt(state, kingPositions[0].Pos);
+			const std::vector<MoveInfo> kingMoves = GetPossibleMovesForPieceAt(state, kingPositions[0].Pos);
 			inCheckmateResult = kingMoves.size() == 0;
 		}
 
@@ -782,85 +769,113 @@ namespace Board
 		return TryGetCapturePiece(state, currentData, newPos) != nullptr;
 	}
 
-	std::unordered_set<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& startPos)
+	std::vector<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& startPos)
 	{
 		if (!IsWithinBounds(startPos))
 		{
-			//Utils::Log("Out of bounds");
+			Utils::Log("Out of bounds");
 			return {};
 		}
 			
 		const Piece* movedPiece = nullptr;
 		if ((movedPiece = TryGetPieceAtPosition(state, startPos)) == nullptr)
 		{
-			//Utils::Log("Not found");
+			Utils::Log("Not found");
 			return {};
 		}
 
-		std::unordered_set<MoveInfo> possibleMoves;
+		std::vector<MoveInfo> possibleMoves;
+		const auto isDuplicatePos = [&possibleMoves](const Utils::Point2DInt& pos) -> bool
+			{
+				for (const auto& moves : possibleMoves)
+				{
+					for (const auto& movePos : moves.PiecesMoved)
+					{
+						if (movePos.NewPos == pos) return true;
+					}
+				}
+				return false;
+			};
 
 		Utils::Point2DInt moveNewPos;
-		std::string start = moveNewPos.ToString();
-		moveNewPos= Utils::Point2DInt(5, 6);
-		std::string end = moveNewPos.ToString();
-		Utils::Log(std::format("Test before: {} after {}", start, end));
 		
-		//Utils::Log(std::format("MOVE DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->pieceType).size())));
-		for (auto& movePos : GetMoveDirsForPiece(movedPiece->pieceType))
+		Utils::Log(std::format("MOVE {} DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->pieceType).size()),
+			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(GetMoveDirsForPiece(movedPiece->pieceType))));
+
+		const std::vector<Utils::Vector2D> moveDirs = GetMoveDirsForPiece(movedPiece->pieceType);
+		const Piece* pieceAtNewPos = nullptr;
+		for (auto& movePos : moveDirs)
 		{
 			moveNewPos = GetVectorEndPoint(startPos, movePos);
-			/*Utils::Log(std::format("Is {} (start: {} new pos: {}) within bounds move: {} piece in range: {}", 
-				startPos.ToString(), movePos.ToString(Utils::Vector2D::VectorForm::Component), moveNewPos.ToString(), 
-				std::to_string(IsWithinBounds(moveNewPos)), 
-				std::to_string(HasPieceWithinPositionRange(state, startPos, moveNewPos, false))));*/
-			if (IsWithinBounds(moveNewPos) && !HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
+			pieceAtNewPos = TryGetPieceAtPosition(state, moveNewPos);
+
+			Utils::Log(std::format("Is {} (start: {} new pos: {}) within bounds move: {} piece in range: {} dupliate: {}",
+				startPos.ToString(), movePos.ToString(Utils::Vector2D::VectorForm::Component), moveNewPos.ToString(),
+				std::to_string(IsWithinBounds(moveNewPos)),
+				std::to_string(HasPieceWithinPositionRange(state, startPos, moveNewPos, false)),
+				std::to_string(isDuplicatePos(moveNewPos))));
+
+			bool isNoPieceOrOpposingPieceAtNewPos = pieceAtNewPos == nullptr || pieceAtNewPos->color != movedPiece->color;
+			if (IsWithinBounds(moveNewPos) && !isDuplicatePos(moveNewPos) && isNoPieceOrOpposingPieceAtNewPos)
 			{
 				//We have to check if it is a capture because capture moves might not be different
 				//from move dirs so we might capture during regualar moves
-				SpecialMove specialMove = TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos) ?
+				//and we can save some time by first making sure if there actually is a piece at the new pos
+				SpecialMove specialMove = SpecialMove::None;
+				if (pieceAtNewPos !=nullptr) TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos) ?
 					SpecialMove::Capture : SpecialMove::None;
 
-				possibleMoves.emplace(
+				
+				possibleMoves.emplace_back(
 					std::vector<MovePiecePositionData>
-				{
-					MovePiecePositionData(*movedPiece, startPos, moveNewPos)
-				},
+					{
+						MovePiecePositionData(*movedPiece, startPos, moveNewPos)
+					},
 					"",
 					specialMove,
 					std::nullopt,
 					false,
 					false
-				);
+					);
+
+				Utils::Log(std::format("RETURNING MOVES:{}",
+					Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
 			}
 		}
 
+		
 		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->pieceType);
-		for (auto& captureMove : captureMoves)
+		//Since capture moves return the same as move dirs if there are no special capture dirs
+		//there is no point repeating those moves if we already checking them for moving (and also check for capturing)
+		if (captureMoves != moveDirs)
 		{
-			moveNewPos = GetVectorEndPoint(startPos, captureMove);
-			if (IsWithinBounds(moveNewPos) && TryGetPieceAtPosition(state, moveNewPos)!=nullptr &&
-				!HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
+			for (auto& captureMove : captureMoves)
 			{
-				possibleMoves.emplace(
-					std::vector<MovePiecePositionData>
+				moveNewPos = GetVectorEndPoint(startPos, captureMove);
+				if (IsWithinBounds(moveNewPos) && TryGetPieceAtPosition(state, moveNewPos) != nullptr &&
+					!isDuplicatePos(moveNewPos) && !HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
 				{
-					MovePiecePositionData(*movedPiece, startPos, moveNewPos)
-				},
-					"",
-					SpecialMove::Capture,
-					std::nullopt,
-					false,
-					false
-				);
+					possibleMoves.emplace_back(
+						std::vector<MovePiecePositionData>
+					{
+						MovePiecePositionData(*movedPiece, startPos, moveNewPos)
+					},
+						"",
+						SpecialMove::Capture,
+						std::nullopt,
+						false,
+						false
+					);
+				}
 			}
 		}
 
 		CastleInfo castleInfo = CanCastle(state, movedPiece->color);
 		if (movedPiece->pieceType == PieceType::King && castleInfo.canCastle)
 		{
-			if (castleInfo.isKingSide)
+			if (castleInfo.isKingSide && !isDuplicatePos(castleInfo.kingSideCastleMove))
 			{
-				possibleMoves.emplace(
+				possibleMoves.emplace_back(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.kingSideCastleMove)
@@ -872,9 +887,9 @@ namespace Board
 					false
 				);
 			}
-			else if (castleInfo.isQueenSide)
+			else if (castleInfo.isQueenSide && !isDuplicatePos(castleInfo.queenSideCastleMove))
 			{
-				possibleMoves.emplace(
+				possibleMoves.emplace_back(
 					std::vector<MovePiecePositionData>
 				{
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.queenSideCastleMove)
@@ -906,7 +921,8 @@ namespace Board
 				}
 			}
 		}
-
+		
+		
 		return possibleMoves;
 	}
 
@@ -924,7 +940,7 @@ namespace Board
 		if (!IsWithinBounds(newPos))
 			return { newPos, false, std::format("Tried to move to a place outside the board") };
 
-		const std::unordered_set<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, currentPos);
+		const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, currentPos);
 		if (!possibleMoves.size() == 0)
 			return { newPos, false, std::format("There are no possible moves for this piece") };
 

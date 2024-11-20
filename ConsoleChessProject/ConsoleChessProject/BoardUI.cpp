@@ -1,6 +1,7 @@
 #include <wx/wx.h>
 #include <format>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include "BoardUI.hpp"
 #include "UIGlobals.hpp"
@@ -98,8 +99,9 @@ void BindCellEventsForGameState(const GameState& state)
 
 			if (currentSelected->IsHighlighted)
 			{
-				std::unordered_set<MoveInfo> possibleMoves = Board::GetPossibleMovesForPieceAt(state, cell.first);
-				Utils::Log(Utils::LogType::Error, std::format("POSSIBLE MOVES: {}", std::to_string(possibleMoves.size())));
+				std::vector<MoveInfo> possibleMoves = Board::GetPossibleMovesForPieceAt(state, cell.first);
+				Utils::Log(Utils::LogType::Error, std::format("POSSIBLE {} MOVES: {}", 
+					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
 
 				Cell* cellAtPosition = nullptr;
 				for (const auto& move : possibleMoves)

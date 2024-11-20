@@ -6,15 +6,19 @@
 #include "Vector2D.hpp"
 #include "HelperFunctions.hpp"
 #include "FrozenMap.hpp"
+#include "Globals.hpp"
 
 static constexpr double INF = std::numeric_limits<double>::infinity();
 
 //Note: if capture dirs are not defined for a piece they are assumed the default move dirs
 //and if any capture dirs are provided the move dirs are NOT included (and must be explicitly defined then)
+
+//NOTE: POSITIONS AND CAPTURE IS (ROW, COL) so it would be (Y, X)
+// row positions UP DECREASE (since row index decreeases) and row positions DOWN INCREASE
 static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
 	std::unordered_map<PieceType, PieceStaticInfo> {
-		{PieceType::Pawn, { 1, 'P', {{0,1}}, {{-1, 1}, {1, 1}} }},
-		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, 1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
+		{PieceType::Pawn, { 1, 'P', {{-1,0}}, {{-1, -1}, {-1, 1}} }},
+		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
 		{PieceType::Bishop, {3, 'B', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
 		{PieceType::Rook, {5, 'R', {{0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
 
@@ -91,7 +95,74 @@ const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 		Utils::Log(Utils::LogType::Error, err);
 		return {};
 	}
-	return PIECE_INFO.at(type).MoveDirs;
+	std::vector<Utils::Vector2D> allMoveDirs;
+
+	//NOTE: endX must be one past limit to ensure at least one input for elements that 
+	//are not infinity or neg infinity
+	int currentX = 0, endX = 0, currentY = 0, endY = 0;
+	for (const auto& moveDir : PIECE_INFO.at(type).MoveDirs)
+	{
+		if (std::isinf(moveDir.x) && std::isinf(moveDir.y))
+		{
+			currentX = Utils::IsPosInifinity(moveDir.x) ? 1 : -1;
+			endX = Utils::IsPosInifinity(moveDir.x) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+			currentY = Utils::IsPosInifinity(moveDir.y) ? 1 : -1;
+			endY = Utils::IsPosInifinity(moveDir.y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+
+			while (std::abs(currentX) < std::abs(endX) && std::abs(currentY) < std::abs(endY))
+			{
+				allMoveDirs.emplace_back(currentX, currentY);
+				auto vec = Utils::Vector2D(currentX, currentY);
+				Utils::Log(std::format("ADDING INF X: {} Y: {} POS: {}", std::to_string(Utils::IsPosInifinity(moveDir.x)),
+					std::to_string(Utils::IsPosInifinity(moveDir.y)),  vec.ToString(Utils::Vector2D::VectorForm::Component)));
+				currentX += endX > 0 ? 1 : -1;
+				currentY += endY > 0 ? 1 : -1;
+			}
+		}
+		else if (std::isinf(moveDir.x))
+		{
+			currentX = Utils::IsPosInifinity(moveDir.x) ? 1 : -1;
+			endX = Utils::IsPosInifinity(moveDir.x) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+
+			while (std::abs(currentX) < std::abs(endX))
+			{
+				allMoveDirs.emplace_back(currentX, moveDir.y);
+				currentX += endX > 0 ? 1 : -1;
+			}
+		}
+		else if (std::isinf(moveDir.y))
+		{
+			currentY = Utils::IsPosInifinity(moveDir.y) ? 1 : -1;
+			endY = Utils::IsPosInifinity(moveDir.y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+
+			while (std::abs(currentY) < std::abs(endY))
+			{
+				allMoveDirs.emplace_back(moveDir.x, currentY);
+				currentY += endY > 0 ? 1 : -1;
+			}
+		}
+		else
+		{
+			allMoveDirs.emplace_back(moveDir.x, moveDir.y);
+			
+		}
+	}
+
+	std::string allVecsStr;
+	int count = 0;
+	for (const auto& element : allMoveDirs)
+	{
+		allVecsStr += element.ToString(Utils::Vector2D::VectorForm::Component);
+		if (count == 8)
+		{
+			//Utils::Log(std::format("All Move dirs for piece {} is {}", ToString(type), allVecsStr));
+			allVecsStr = "";
+			count = 0;
+		}
+		else count++;
+	}
+	
+	return allMoveDirs;
 }
 
 const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
@@ -152,9 +223,9 @@ bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 	{
 		if (delta == moveDir) return true;
 
-		bool xPosInifinity = Utils::IsInifinity(moveDir.x);
+		bool xPosInifinity = Utils::IsPosInifinity(moveDir.x);
 		bool xNegInifinity = Utils::IsNegInifinity(moveDir.x);
-		bool yPosInfinity = Utils::IsInifinity(moveDir.y);
+		bool yPosInfinity = Utils::IsPosInifinity(moveDir.y);
 		bool yNegInfinity = Utils::IsNegInifinity(moveDir.y);
 
 		//Note: since indices ascend downward for row, the delta's will be flipped from what expected
