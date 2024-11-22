@@ -46,10 +46,17 @@ namespace std
 	};
 }
 
+//TODO: possible optimization could be to provide ptrs to static info for each instance
+//to reduce the amount of lookups for static info
 struct PieceStaticInfo
 {
 	const double ScoreValue;
 	const char MoveNotationCharacter;
+
+	//If true, it means it can hop over other pieces for its moveset
+	//as long as move space is clear. If false, new pos must be clear
+	//AND there must be no piece in the way of getting there
+	const bool CanMoveOverPieces;
 	const std::vector<Utils::Vector2D> MoveDirs;
 	const std::vector<Utils::Vector2D> CaptureDirs;
 };
@@ -88,6 +95,7 @@ public:
 };
 
 double GetValueForPiece(const PieceType piece);
+bool CanPieceMoveOverPieces(const PieceType piece);
 const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType piece);
 const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType piece);
 char GetNotationSymbolForPiece(const PieceType piece);

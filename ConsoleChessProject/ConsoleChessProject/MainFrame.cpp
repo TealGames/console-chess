@@ -16,6 +16,8 @@ static constexpr int TITLE_Y_OFFSET = 50;
 static constexpr int BUTTON_START_Y = 150;
 static constexpr int BUTTON_SPACING = 70;
 
+static const wxSize SIDE_PANEL_SIZE(0.1*WIDTH, 0.8*HEIGHT);
+
 MainFrame::MainFrame(GameManagement::GameManager& gameManager, const wxString& title)
 	: wxFrame(nullptr, wxID_ANY, title), WindowName(title), manager(gameManager), _currentState(std::nullopt)
 {
@@ -28,7 +30,7 @@ MainFrame::MainFrame(GameManagement::GameManager& gameManager, const wxString& t
 
 void MainFrame::DrawStatic()
 {
-	this->SetBackgroundColour(wxColour(DARK_GRAY));
+	this->SetBackgroundColour(wxColour(BACKGROUND_COLOR));
 	wxStaticText* titleText = new wxStaticText(this, wxID_ANY, "CHESS", wxPoint(0, TITLE_Y_OFFSET),
 		wxSize(WIDTH, 100), wxALIGN_CENTER_HORIZONTAL);
 	titleText->SetForegroundColour(wxColour(248, 248, 248));
@@ -76,8 +78,21 @@ void MainFrame::DrawGame()
 	_cellParent = new wxPanel(gameRoot);
 	CreateBoardCells(_cellParent);
 
-	wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
-	rootSizer->Add(_cellParent, 0, wxALIGN_CENTER | wxTOP, 0);
+	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, {450, 0}, SIDE_PANEL_SIZE);
+	sidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+
+	wxBoxSizer* sidePanelSizer = new wxBoxSizer(wxVERTICAL);
+	sidePanelSizer->Add(sidePanel, 0, wxEXPAND | wxALIGN_RIGHT, 0);
+	//sidePanelSizer->AddStretchSpacer(1);
+	//sidePanelSizer->AddSpacer(50);
+	sidePanel->SetSizer(sidePanelSizer);
+
+	//sidePanel->SetSize(SIDE_PANEL_SIZE);
+	//sidePanel->SetPosition(wxPoint(500, 0));
+
+	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
+	rootSizer->Add(_cellParent, 0, wxCENTER | wxTOP, 0);
+	//rootSizer->Add(sidePanel, 0, wxRIGHT | wxTOP, 0);
 	gameRoot->SetSizer(rootSizer);
 
 	_pages->AddPage(gameRoot, "Game");

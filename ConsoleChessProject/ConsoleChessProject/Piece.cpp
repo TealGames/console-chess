@@ -17,15 +17,15 @@ static constexpr double INF = std::numeric_limits<double>::infinity();
 // row positions UP DECREASE (since row index decreeases) and row positions DOWN INCREASE
 static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
 	std::unordered_map<PieceType, PieceStaticInfo> {
-		{PieceType::Pawn, { 1, 'P', {{-1,0}}, {{-1, -1}, {-1, 1}} }},
-		{PieceType::Knight, {3, 'N', {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}}, {}}},
-		{PieceType::Bishop, {3, 'B', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
-		{PieceType::Rook, {5, 'R', {{0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
+		{PieceType::Pawn, { 1, 'P', false, {{-1,0}}, {{-1, -1}, {-1, 1}} }},
+		{PieceType::Knight, {3, 'N', true, {{2, 1}, {1, 2}, {2, -1}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {-1, 2}}, {}}},
+		{PieceType::Bishop, {3, 'B', false, {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF}}, {}}},
+		{PieceType::Rook, {5, 'R', false, {{0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
 
-		{PieceType::Queen, {9, 'Q', {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF},
+		{PieceType::Queen, {9, 'Q', false, {{INF, INF}, {INF, -INF}, {-INF, INF}, {-INF, -INF},
 								 {0, INF}, {INF, 0}, {0, -INF}, {-INF, 0}}, {}}},
 
-		{PieceType::King, {INF, 'K', {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
+		{PieceType::King, {INF, 'K', false, {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
 	});
 
 std::string PieceTypeInfo::ToString() const
@@ -83,6 +83,19 @@ double GetValueForPiece(const PieceType type)
 		return 0;
 	}
 	return PIECE_INFO.at(type).ScoreValue;
+}
+
+bool CanPieceMoveOverPieces(const PieceType type)
+{
+	bool hasType = HasPieceTypeDefined(type);
+	if (!hasType)
+	{
+		std::string err = std::format("Tried to get bool if piece type {} "
+			"can move over other peices but type has no defined info", ToString(type));
+		Utils::Log(Utils::LogType::Error, err);
+		return 0;
+	}
+	return PIECE_INFO.at(type).CanMoveOverPieces;
 }
 
 const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)

@@ -14,19 +14,21 @@ static wxImage* pieceSpriteMap= nullptr;
 
 static const std::unordered_map<PieceTypeInfo, Utils::Point2DInt> PIECE_POSITIONS =
 {
-	{{ColorTheme::Light, PieceType::Queen},		{0,0}},
-	{{ColorTheme::Light, PieceType::King},		{0,1}},
+	{{ColorTheme::Light, PieceType::King},		{0,0}},
+	{{ColorTheme::Light, PieceType::Queen},		{0,1}},
 	{{ColorTheme::Light, PieceType::Bishop},	{0,2}},
 	{{ColorTheme::Light, PieceType::Knight},	{0,3}},
 	{{ColorTheme::Light, PieceType::Rook},		{0,4}},
 	{{ColorTheme::Light, PieceType::Pawn},		{0,5}},
-	{{ColorTheme::Dark,  PieceType::Queen},		{1,0}},
-	{{ColorTheme::Dark,  PieceType::King},		{1,1}},
+	{{ColorTheme::Dark,  PieceType::King},		{1,0}},
+	{{ColorTheme::Dark,  PieceType::Queen},		{1,1}},
 	{{ColorTheme::Dark,  PieceType::Bishop},	{1,2}},
 	{{ColorTheme::Dark,  PieceType::Knight},	{1,3}},
 	{{ColorTheme::Dark,  PieceType::Rook},		{1,4}},
 	{{ColorTheme::Dark,  PieceType::Pawn},		{1,5}},
 };
+
+static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
 
 //Updates and adds an image handler if it is a new handler
 static bool HasValidImageHandler(const wxBitmapType& resourceType)
@@ -116,4 +118,25 @@ void ResizePreserveAspect(wxImage& resourceImage, const wxSize& newSize, const w
 wxImage GetSubImage(const wxImage& resourceImage, const wxPoint& position, const wxSize& size)
 {
 	return resourceImage.GetSubImage(wxRect(position.x, position.y, size.x, size.y));
+}
+
+bool TryCacheAllSprites()
+{
+	if (!pieceSprites.empty()) return false;
+	if (!TryLoadAllPieceImages(&pieceSprites))
+	{
+		const std::string error = std::format("Tried to cache all piece sprites "
+			"but failed to load all from resource manager");
+		Utils::Log(Utils::LogType::Error, error);
+		return false;
+	}
+	return true;
+}
+
+std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
+{
+	TryCacheAllSprites();
+	auto spriteIt = pieceSprites.find(info);
+	if (spriteIt == pieceSprites.end()) return std::nullopt;
+	else return spriteIt->second;
 }

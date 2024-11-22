@@ -93,6 +93,8 @@ struct GameState
 	PiecePositionMapType PiecePositions;
 	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves;
 
+	std::vector<Piece> CapturedPieces;
+
 	bool InCheckmate;
 	bool InCheck;
 

@@ -136,6 +136,9 @@ namespace Board
 	MoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);
 
 	std::string CleanInput(const std::string& input);
+
+	using PieceMoveCallbackType = std::function<void(const GameState&)>;
+	void AddPieceMoveCallback(const PieceMoveCallbackType& callback);
 	//TODO: add parse/serialization method to convert moveinfo to chess notation input
 }
 

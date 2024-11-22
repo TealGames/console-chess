@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <functional>
 #include "Cell.hpp"
+#include "HelperFunctions.hpp"
 #include "ResourceManager.hpp"
 
 Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors)
@@ -58,16 +59,33 @@ void Cell::AddOnClickCallback(const std::function<void(Cell*)>& callback)
 	_onClickCallbacks.push_back(callback);
 }
 
-bool Cell::HasPiece(const Piece* outFoundPiece)
+bool Cell::IsRenderingPiece() const
 {
-	outFoundPiece = pieceHere;
+	return _bitMapDisplay!=nullptr;
+}
+
+bool Cell::HasPieceStored(const Piece** outFoundPiece)
+{
+	outFoundPiece = &pieceHere;
+	Utils::Log(std::format("HAS PIECE STORED: {} OUT: {}", 
+		pieceHere == nullptr ? "NULL" : pieceHere->ToString(),
+		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));
+
 	return pieceHere != nullptr;
+}
+
+bool Cell::HasPiece(const Piece** outFoundPiece)
+{
+	if (pieceHere!=nullptr) Utils::Log(std::format("Has piece check existing data: {}", pieceHere->ToString()));
+	return HasPieceStored(outFoundPiece) || IsRenderingPiece();
 }
 
 void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 {
 	//pieceHere = &piece;
+	//TODO: assignment does nto work since it is not defined for Piece so peiceHere is always NULL!
 	pieceHere = piece;
+	Utils::Log(std::format("UPDATE PIECE NOW: {}", pieceHere==nullptr? "NULL" : pieceHere->ToString()));
 	
 	wxSize startSize(image.GetWidth(), image.GetHeight());
 	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
@@ -107,9 +125,24 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 
 bool Cell::TryRemovePiece()
 {
-	if (!HasPiece()) return false;
-	pieceHere = nullptr;
-	return true;
+	bool renderingOrPieceRemoved = false;
+	if (IsRenderingPiece())
+	{
+		delete _bitMapDisplay;
+		_bitMapDisplay = nullptr;
+		renderingOrPieceRemoved = true;
+		Utils::Log(std::format("PIECE CHECK TRY REMOVE PIECE: {}",
+			pieceHere == nullptr ? "NULL" : pieceHere->ToString()));
+	}
+
+	if (HasPieceStored(nullptr))
+	{
+		pieceHere = nullptr;
+		if (!renderingOrPieceRemoved) 
+			renderingOrPieceRemoved = true;
+	}
+	
+	return renderingOrPieceRemoved;
 }
 
 void Cell::UpdateCanClick(bool isClickable)
