@@ -140,3 +140,32 @@ std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
 	if (spriteIt == pieceSprites.end()) return std::nullopt;
 	else return spriteIt->second;
 }
+
+wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize)
+{
+	wxSize startSize(image.GetWidth(), image.GetHeight());
+	if (startSize != targetSize)
+	{
+		float newWidthScale = static_cast<float>(targetSize.x) / startSize.x;
+		float newHeightScale = static_cast<float>(targetSize.y) / startSize.y;
+		float totalScale = std::max(newWidthScale, newHeightScale);
+		wxSize size(image.GetWidth() * totalScale, image.GetHeight() * totalScale);
+
+		Resize(image, size);
+		std::string m = std::format("Start: ({}, {})  END: ({}, {}) target: {} {}", std::to_string(startSize.x), std::to_string(startSize.y),
+			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()), std::to_string(targetSize.x), std::to_string(targetSize.y));
+		wxLogMessage(m.c_str());
+	}
+
+	return wxBitmap{ image };
+}
+
+std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize)
+{
+	std::optional<wxImage> maybeImage = TryGetSpriteFromPiece(info);
+	if (!maybeImage.has_value()) return std::nullopt;
+
+	//TODO: maybe potential issue here where we use a reference to a local value that 
+	//will go out of scope and is used for returning structure
+	return GetBitMapFromSprite(maybeImage.value(), targetSize);
+}

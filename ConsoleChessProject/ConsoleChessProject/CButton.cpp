@@ -8,7 +8,7 @@ CButton::CButton(wxWindow* parent, const wxString& buttonText, const wxPoint& po
 {
 	SetBackgroundColour(LIGHT_GREEN);
 	SetFont(BUTTON_FONT);
-	SetOwnForegroundColour(MUDDY_WHITE);
+	SetOwnForegroundColour(MUTED_WHITE);
 
 	Bind(wxEVT_ENTER_WINDOW, &CButton::OnEnter, this);
 	Bind(wxEVT_LEAVE_WINDOW, &CButton::OnExit, this);
@@ -20,7 +20,7 @@ void CButton::OnEnter(wxMouseEvent& event)
 	if (!button) return;
 
 	button->SetBackgroundColour(DARKER_LIGHT_GREEN);
-	button->SetOwnForegroundColour(DARKER_MUDDY_WHITE);
+	button->SetOwnForegroundColour(DARKER_MUTED_WHITE);
 	button->Refresh();
 }
 
@@ -30,7 +30,7 @@ void CButton::OnExit(wxMouseEvent& event)
 	if (!button) return;
 
 	button-> SetBackgroundColour(LIGHT_GREEN);
-	button->SetOwnForegroundColour(MUDDY_WHITE);
+	button->SetOwnForegroundColour(MUTED_WHITE);
 	button->Refresh();
 }
 

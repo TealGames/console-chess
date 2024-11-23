@@ -15,3 +15,6 @@ wxImage GetSubImage(const wxImage& resourceImage, const wxPoint& position, const
 
 bool TryCacheAllSprites();
 std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info);
+
+wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize);
+std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize);

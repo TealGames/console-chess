@@ -90,6 +90,7 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	wxSize startSize(image.GetWidth(), image.GetHeight());
 	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
 					  static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.y));
+	/*
 	if (_UPDATE_IMAGE_SIZE && startSize!=targetSize)
 	{
 		float newWidthScale =  static_cast<float>(targetSize.x)/ startSize.x;
@@ -101,9 +102,9 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 		std::string m = std::format("Start: ({}, {})  END: ({}, {}) target: {} {}", std::to_string(startSize.x), std::to_string(startSize.y),
 			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()), std::to_string(targetSize.x), std::to_string(targetSize.y));
 		wxLogMessage(m.c_str());
-	}
+	}*/
 	
-	wxBitmap map(image);
+	wxBitmap map = GetBitMapFromSprite(image, targetSize);
 	_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
 	_bitMapDisplay->Center();
 
