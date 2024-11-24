@@ -9,9 +9,15 @@
 
 Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors)
 	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), _colors(colors), _bitMapDisplay(nullptr),
-	_isClickable(true), IsClickable(_isClickable), _isHighlighted(false), IsHighlighted(_isHighlighted),
-	pieceHere(nullptr), _onClickCallbacks()
+	_isClickable(true), IsClickable(_isClickable), _hasOverlayImage(false), HasOverlayImage(_hasOverlayImage), 
+	_highlightedType(std::nullopt), _pieceHere(nullptr), _onClickCallbacks()
 {
+	_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
+	_bitMapDisplay->Enable(false);
+
+	_overlayPanel = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
+	_overlayPanel->Enable(false);
+
 	Bind(wxEVT_ENTER_WINDOW, &Cell::OnEnter, this);
 	Bind(wxEVT_LEAVE_WINDOW, &Cell::OnExit, this);
 	Bind(wxEVT_LEFT_DOWN, &Cell::OnClick, this);
@@ -24,11 +30,26 @@ void Cell::OnEnter(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	//If we are highlighted we do not want to return back until the caller says so
-	if (IsHighlighted) return;
+	
+	if (IsHighlighted()) return;
 
-	SetBackgroundColour(_colors.HoverColor);
+	_lastColor = GetBackgroundColour();
+	int currentRed = static_cast<int>(_lastColor.Red());
+	int currentGreen = static_cast<int>(_lastColor.Green());
+	int currentBlue = static_cast<int>(_lastColor.Blue());
+
+	int newRed = std::clamp(static_cast<int>(1.2 * currentRed), 0, 255);
+	int newGreen = std::clamp(static_cast<int>(1.2 * currentGreen), 0, 255);
+	int newBlue = std::clamp(static_cast<int>(1.2 * currentBlue), 0, 255);
+	wxColour newColor = wxColour(newRed, newGreen, newBlue);
+
+	SetBackgroundColour(newColor);
+	//If we are highlighted we do not want to return back until the caller says so
+	
+
+	//SetBackgroundColour(_colors.HoverColor);
 	Refresh();
+	
 }
 
 void Cell::OnExit(wxMouseEvent& evt)
@@ -37,9 +58,10 @@ void Cell::OnExit(wxMouseEvent& evt)
 	if (!cell) return;
 
 	//If we are highlighted we do not want to return back until the caller says so
-	if (IsHighlighted) return;
+	if (IsHighlighted()) return;
 
-	SetBackgroundColour(_colors.InnerColor);
+	//SetBackgroundColour(_colors.InnerColor);
+	SetBackgroundColour(_lastColor);
 	Refresh();
 }
 
@@ -59,6 +81,16 @@ void Cell::AddOnClickCallback(const std::function<void(Cell*)>& callback)
 	_onClickCallbacks.push_back(callback);
 }
 
+bool Cell::IsHighlighted() const
+{
+	return _highlightedType != std::nullopt;
+}
+
+std::optional<HighlightColorType> Cell::GetHighlightedColorType() const
+{
+	return _highlightedType;
+}
+
 bool Cell::IsRenderingPiece() const
 {
 	return _bitMapDisplay!=nullptr;
@@ -66,17 +98,17 @@ bool Cell::IsRenderingPiece() const
 
 bool Cell::HasPieceStored(const Piece** outFoundPiece)
 {
-	outFoundPiece = &pieceHere;
+	outFoundPiece = &_pieceHere;
 	Utils::Log(std::format("HAS PIECE STORED: {} OUT: {}", 
-		pieceHere == nullptr ? "NULL" : pieceHere->ToString(),
+		_pieceHere == nullptr ? "NULL" : _pieceHere->ToString(),
 		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));
 
-	return pieceHere != nullptr;
+	return _pieceHere != nullptr;
 }
 
 bool Cell::HasPiece(const Piece** outFoundPiece)
 {
-	if (pieceHere!=nullptr) Utils::Log(std::format("Has piece check existing data: {}", pieceHere->ToString()));
+	if (_pieceHere!=nullptr) Utils::Log(std::format("Has piece check existing data: {}", _pieceHere->ToString()));
 	return HasPieceStored(outFoundPiece) || IsRenderingPiece();
 }
 
@@ -84,8 +116,8 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 {
 	//pieceHere = &piece;
 	//TODO: assignment does nto work since it is not defined for Piece so peiceHere is always NULL!
-	pieceHere = piece;
-	Utils::Log(std::format("UPDATE PIECE NOW: {}", pieceHere==nullptr? "NULL" : pieceHere->ToString()));
+	_pieceHere = piece;
+	Utils::Log(std::format("UPDATE PIECE NOW: {}", _pieceHere==nullptr? "NULL" : _pieceHere->ToString()));
 	
 	wxSize startSize(image.GetWidth(), image.GetHeight());
 	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
@@ -105,7 +137,8 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	}*/
 	
 	wxBitmap map = GetBitMapFromSprite(image, targetSize);
-	_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
+	_bitMapDisplay->SetBitmap(map);
+	//_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
 	_bitMapDisplay->Center();
 
 	std::string posCenter = std::to_string(_bitMapDisplay->GetPosition().x)+std::to_string(_bitMapDisplay->GetPosition().y);
@@ -116,7 +149,7 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	_bitMapDisplay->Bind(wxEVT_LEFT_DOWN, &Cell::SkipMouseEvent, this);*/
 
 	//This is done to allow events to be ignored by the child so it would reach the parent (the cell)
-	_bitMapDisplay->Enable(false);
+	//_bitMapDisplay->Enable(false);
 
 	/*wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
 	sizer->Add(_bitMapDisplay, 0, wxCENTER, 0);
@@ -133,12 +166,12 @@ bool Cell::TryRemovePiece()
 		_bitMapDisplay = nullptr;
 		renderingOrPieceRemoved = true;
 		Utils::Log(std::format("PIECE CHECK TRY REMOVE PIECE: {}",
-			pieceHere == nullptr ? "NULL" : pieceHere->ToString()));
+			_pieceHere == nullptr ? "NULL" : _pieceHere->ToString()));
 	}
 
 	if (HasPieceStored(nullptr))
 	{
-		pieceHere = nullptr;
+		_pieceHere = nullptr;
 		if (!renderingOrPieceRemoved) 
 			renderingOrPieceRemoved = true;
 	}
@@ -151,18 +184,51 @@ void Cell::UpdateCanClick(bool isClickable)
 	isClickable = isClickable;
 }
 
-void Cell::SetHighlighted(bool doHighlight)
+const wxColour& Cell::GetHighlightColor(const HighlightColorType highlightType) const
 {
-	_isHighlighted = doHighlight;
-	/*if (doHighlight) wxLogMessage("Highlgihted");
-	else wxLogMessage("Not highlighted!");*/
+	if (highlightType == HighlightColorType::Selected) return _colors.SelectedColor;
+	else if (highlightType == HighlightColorType::PossibleMove) return _colors.PossibleMoveColor;
+	else if (highlightType == HighlightColorType::PreviousMove) return _colors.PreviousMoveColor;
+	else
+	{
+		const std::string err = std::format("Tried to get highlight color for a type "
+			"that is not defined with its own color!");
+		Utils::Log(Utils::LogType::Error, err);
+		return {};
+	}
+}
 
-	if (doHighlight) SetBackgroundColour(_colors.HighlightedColor);
-	else SetBackgroundColour(_colors.InnerColor);
+void Cell::Highlight(const HighlightColorType& highlightType)
+{
+	_highlightedType = highlightType;
+	SetBackgroundColour(GetHighlightColor(highlightType));
 	Refresh();
 }
 
-void Cell::ToggleHighlighted()
+void Cell::Dehighlight()
 {
-	SetHighlighted(!_isHighlighted);
+	_highlightedType = std::nullopt;
+	SetBackgroundColour(_colors.InnerColor);
+	Refresh();
+}
+
+void Cell::ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle)
+{
+	if (IsHighlighted()) Dehighlight();
+	else Highlight(highlightTypeIfToggle);
+}
+
+void Cell::SetOverlaySprite(const wxBitmap& bitmap)
+{
+	_hasOverlayImage = true;
+	_overlayPanel->SetBitmap(bitmap);
+	_overlayPanel->Center();
+	Refresh();
+}
+
+void Cell::RemoveOverlaySprite()
+{
+	_hasOverlayImage = false;
+	_overlayPanel->SetBitmap({});
+	Refresh();
 }

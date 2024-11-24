@@ -1,5 +1,6 @@
 #include <wx/wx.h>
 #include <string>
+#include <optional>
 #include <filesystem>
 #include "ResourceManager.hpp"
 #include "Piece.hpp"
@@ -8,27 +9,40 @@
 
 //Size/spacing is row, col
 const wxSize SPRITE_SIZE(101, 101);
-const wxSize SPRITE_SPACING(21, 21);
-const std::filesystem::path PIECES_PATH = "chess_pieces.png";
-static wxImage* pieceSpriteMap= nullptr;
 
-static const std::unordered_map<PieceTypeInfo, Utils::Point2DInt> PIECE_POSITIONS =
+static SpriteMap<PieceTypeInfo> PieceSprites
 {
-	{{ColorTheme::Light, PieceType::King},		{0,0}},
-	{{ColorTheme::Light, PieceType::Queen},		{0,1}},
-	{{ColorTheme::Light, PieceType::Bishop},	{0,2}},
-	{{ColorTheme::Light, PieceType::Knight},	{0,3}},
-	{{ColorTheme::Light, PieceType::Rook},		{0,4}},
-	{{ColorTheme::Light, PieceType::Pawn},		{0,5}},
-	{{ColorTheme::Dark,  PieceType::King},		{1,0}},
-	{{ColorTheme::Dark,  PieceType::Queen},		{1,1}},
-	{{ColorTheme::Dark,  PieceType::Bishop},	{1,2}},
-	{{ColorTheme::Dark,  PieceType::Knight},	{1,3}},
-	{{ColorTheme::Dark,  PieceType::Rook},		{1,4}},
-	{{ColorTheme::Dark,  PieceType::Pawn},		{1,5}},
+	"chess_pieces.png", nullptr, wxSize(21, 21),
+	std::unordered_map<PieceTypeInfo, SubSpriteData>{
+	{{ColorTheme::Light, PieceType::King},		{{0,0}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Light, PieceType::Queen},		{{0,1}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Light, PieceType::Bishop},	{{0,2}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Light, PieceType::Knight},	{{0,3}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Light, PieceType::Rook},		{{0,4}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Light, PieceType::Pawn},		{{0,5}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::King},		{{1,0}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::Queen},		{{1,1}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::Bishop},	{{1,2}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::Knight},	{{1,3}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::Rook},		{{1,4}, SPRITE_SIZE, std::nullopt}},
+	{{ColorTheme::Dark,  PieceType::Pawn},		{{1,5}, SPRITE_SIZE, std::nullopt}}}
 };
 
-static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
+//const std::filesystem::path PIECES_PATH = "chess_pieces.png";
+//static wxImage* pieceSpriteMap = nullptr;
+//static const std::unordered_map<PieceTypeInfo, Utils::Point2DInt> PIECE_POSITIONS =
+//{
+//	
+//};
+//static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
+
+static SpriteMap<SpriteSymbolType> IconSprites
+{
+	"chess_symbols.png", nullptr, wxSize(0, 0),
+	std::unordered_map<SpriteSymbolType, SubSpriteData>{
+	{SpriteSymbolType::MoveSpot,				{{0,0}, {200, 200}, std::nullopt}},
+	{SpriteSymbolType::DisabledOverlay,		{{0,1}, {200, 200}, std::nullopt}}}
+};
 
 //Updates and adds an image handler if it is a new handler
 static bool HasValidImageHandler(const wxBitmapType& resourceType)
@@ -46,16 +60,24 @@ static bool HasValidImageHandler(const wxBitmapType& resourceType)
 	return true;
 }
 
-bool TryLoad(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType, wxImage* outImage)
+bool TryLoadResource(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType, wxImage* outImage)
 {
 	//Checks to make sure the image type has a handler
-	if (!HasValidImageHandler(resourceType)) return false;
+	if (!HasValidImageHandler(resourceType))
+	{
+		Utils::Log("PIECE CHECK Invalid image handelr");
+		return false;
+	}
 
 	bool result = false;
 	const std::string fullpath = resourcePath.string();
-	if (outImage != nullptr) result = outImage->LoadFile(fullpath, resourceType);
+	if (outImage != nullptr)
+	{
+		result = outImage->LoadFile(fullpath, resourceType);
+	}
 	else
 	{
+		Utils::Log("LOADING Out image is nullptr so local failed!");
 		outImage = new wxImage();
 		result= outImage->LoadFile(fullpath, resourceType);
 	}
@@ -66,41 +88,86 @@ bool TryLoad(const std::filesystem::path& resourcePath, const wxBitmapType& reso
 		Utils::Log(Utils::LogType::Error, err);
 		wxLogError(err.c_str());
 	}
-	std::string mess = fullpath + "Has result" + std::to_string(result) + std::to_string(outImage!=nullptr);
-	wxLogMessage(mess.c_str());
 	return result;
 }
 
-bool TryLoadAllPieceImages(std::unordered_map<PieceTypeInfo, wxImage>* outImages)
+bool TryLoadSubImageFromResource(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType,
+	const wxPoint& startPos, const wxSize& size, wxImage* outImage)
 {
-	if (outImages != nullptr) outImages->clear();
+	wxImage resourceLoadOutImage;
+	if (!TryLoadResource(resourcePath, resourceType, &resourceLoadOutImage)) return false;
+	wxImage subImage= GetSubImage(resourceLoadOutImage, startPos, size);
+	*outImage = subImage;
+	return true;
+}
 
-	if (pieceSpriteMap == nullptr)
+/*
+bool TryLoadAllPieceImages()
+{
+	if (PieceSprites.MapImage == nullptr)
 	{
-		pieceSpriteMap = new wxImage();
-		if (!TryLoad(PIECES_PATH, wxBITMAP_TYPE_PNG, pieceSpriteMap)) return false;
+		PieceSprites.MapImage = new wxImage();
+		Utils::Log(std::format("LOADING state of temp image: {}", std::to_string(PieceSprites.MapImage != nullptr)));
+		if (!TryLoadResource(PieceSprites.Path, wxBITMAP_TYPE_PNG, PieceSprites.MapImage)) return false;
+	}
+	
+	wxImage currentSubImage;
+	wxPoint tileMapPos;
+	int r = 0;
+	int c = 0;
+	bool foundAtLeastOnePiece = false;
+	for (const auto& pieceSpriteData : PieceSprites.SpriteData)
+	{
+		foundAtLeastOnePiece = true;
+		r = pieceSpriteData.second.Position.x;
+		c = pieceSpriteData.second.Position.y;
+		tileMapPos = { c * SPRITE_SIZE.x + c * SPRITE_SPACING.x, r * SPRITE_SIZE.y + r * SPRITE_SPACING.y };
+
+		std::string message = std::format("LOADING {},{} Pos: {} {} has map: {} state of image: {}", std::to_string(r), std::to_string(c),
+			std::to_string(tileMapPos.x), std::to_string(tileMapPos.y), std::to_string(PieceSprites.MapImage != nullptr),
+			std::to_string(PieceSprites.SpriteData.at(pieceSpriteData.first).Position.x));
+		wxLogMessage(message.c_str());
+		PieceSprites.SpriteData.at(pieceSpriteData.first).MaybeImage = GetSubImage(*PieceSprites.MapImage, tileMapPos, SPRITE_SIZE);
+		//wxImage result = GetSubImage(*PieceSprites.MapImage, tileMapPos, SPRITE_SIZE);
+	}
+	return foundAtLeastOnePiece;
+}
+*/
+
+template<typename T>
+bool TryLoadAllSpriteMapImages(SpriteMap<T>& map)
+{
+	if (map.MapImage == nullptr)
+	{
+		map.MapImage = new wxImage();
+		//Utils::Log(std::format("LOADING state of temp image: {}", std::to_string(PieceSprites.MapImage != nullptr)));
+		if (!TryLoadResource(map.Path, wxBITMAP_TYPE_PNG, map.MapImage)) return false;
 	}
 
 	wxImage currentSubImage;
 	wxPoint tileMapPos;
 	int r = 0;
 	int c = 0;
+
+	wxSize spriteSize;
+	wxSize spriteSpacing;
 	bool foundAtLeastOnePiece = false;
-	for (const auto& piecePos : PIECE_POSITIONS)
+	for (const auto& pieceSpriteData : map.SpriteData)
 	{
 		foundAtLeastOnePiece = true;
-		if (outImages != nullptr)
-		{
-			r = piecePos.second.x;
-			c = piecePos.second.y;
-			tileMapPos = { c * SPRITE_SIZE.x + c * SPRITE_SPACING.x, r * SPRITE_SIZE.y + r * SPRITE_SPACING.y };
+		r = pieceSpriteData.second.Position.x;
+		c = pieceSpriteData.second.Position.y;
 
-			/*std::string message = std::format("Piece {} Pos: {} {}", piecePos.first.ToString(), 
-				std::to_string(tileMapPos.x), std::to_string(tileMapPos.y));
-			wxLogMessage(message.c_str());*/
-			outImages->emplace(piecePos.first, GetSubImage(*pieceSpriteMap, tileMapPos, SPRITE_SIZE));
-		}
-		else break;
+		spriteSize = pieceSpriteData.second.Size;
+		spriteSpacing = map.SpriteSpacing;
+		tileMapPos = { c * spriteSize.x + c * spriteSpacing.x, r * spriteSize.y + r * spriteSpacing.y };
+
+		/*std::string message = std::format("LOADING {},{} Pos: {} {} has map: {} state of image: {}", std::to_string(r), std::to_string(c),
+			std::to_string(tileMapPos.x), std::to_string(tileMapPos.y), std::to_string(PieceSprites.MapImage != nullptr),
+			std::to_string(PieceSprites.SpriteData.at(pieceSpriteData.first).Position.x));
+		wxLogMessage(message.c_str());*/
+		map.SpriteData.at(pieceSpriteData.first).MaybeImage = GetSubImage(*map.MapImage, tileMapPos, spriteSize);
+		//wxImage result = GetSubImage(*PieceSprites.MapImage, tileMapPos, SPRITE_SIZE);
 	}
 	return foundAtLeastOnePiece;
 }
@@ -122,23 +189,21 @@ wxImage GetSubImage(const wxImage& resourceImage, const wxPoint& position, const
 
 bool TryCacheAllSprites()
 {
-	if (!pieceSprites.empty()) return false;
-	if (!TryLoadAllPieceImages(&pieceSprites))
+	if (!PieceSprites.HasSpritesStored() && !TryLoadAllSpriteMapImages(PieceSprites))
 	{
 		const std::string error = std::format("Tried to cache all piece sprites "
 			"but failed to load all from resource manager");
 		Utils::Log(Utils::LogType::Error, error);
 		return false;
 	}
+	else if (!IconSprites.HasSpritesStored() && !TryLoadAllSpriteMapImages(IconSprites))
+	{
+		const std::string error = std::format("Tried to cache all sprite icons "
+			"but failed to load all from resource manager");
+		Utils::Log(Utils::LogType::Error, error);
+		return false;
+	}
 	return true;
-}
-
-std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
-{
-	TryCacheAllSprites();
-	auto spriteIt = pieceSprites.find(info);
-	if (spriteIt == pieceSprites.end()) return std::nullopt;
-	else return spriteIt->second;
 }
 
 wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize)
@@ -160,6 +225,14 @@ wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize)
 	return wxBitmap{ image };
 }
 
+std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
+{
+	TryCacheAllSprites();
+	std::optional<SubSpriteData> maybeData = PieceSprites.TryGetSpriteFromID(info);
+	if (!maybeData.has_value()) return std::nullopt;
+	else return maybeData->MaybeImage;
+}
+
 std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize)
 {
 	std::optional<wxImage> maybeImage = TryGetSpriteFromPiece(info);
@@ -168,4 +241,16 @@ std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const w
 	//TODO: maybe potential issue here where we use a reference to a local value that 
 	//will go out of scope and is used for returning structure
 	return GetBitMapFromSprite(maybeImage.value(), targetSize);
+}
+
+std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, const wxSize& targetSize)
+{
+	TryCacheAllSprites();
+	std::optional<SubSpriteData> maybeData = IconSprites.TryGetSpriteFromID(symbolType);
+	if (!maybeData.has_value()) return std::nullopt;
+	else if (!maybeData.value().MaybeImage.has_value()) return std::nullopt;
+
+	//TODO: maybe potential issue here where we use a reference to a local value that 
+	//will go out of scope and is used for returning structure
+	return GetBitMapFromSprite(maybeData.value().MaybeImage.value(), targetSize);
 }

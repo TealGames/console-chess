@@ -9,9 +9,9 @@
 #include "BoardUI.hpp"
 #include "Color.hpp"
 #include "GameManager.hpp"
+#include "BoardManager.hpp"
 #include "GameState.hpp"
-
-static const wxFont TITLE_FONT(30, wxFONTFAMILY_SCRIPT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+#include "UIGlobals.hpp"
 
 static constexpr int TITLE_Y_OFFSET = 50;
 static constexpr int BUTTON_START_Y = 150;

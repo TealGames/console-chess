@@ -22,7 +22,7 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "PIECE CHECK";
+	const std::string LOG_ONLY_MESSAGE = "LOADING";
 	void Log(const LogType& logType, const std::string& str)
 	{
 		if (logType==LogType::Log && str.substr(0, LOG_ONLY_MESSAGE.size()) != LOG_ONLY_MESSAGE) return;
@@ -117,6 +117,32 @@ namespace Utils
 	std::string CollapseToSingleString(const std::vector<std::string>& vec)
 	{
 		return std::accumulate(vec.begin(), vec.end(), std::string());
+	}
+
+	bool ExecuteIfTrue(const std::function<void()>& function, const std::function<bool()>& predicate)
+	{
+		bool executeFunc = predicate();
+		if (executeFunc) function();
+		return executeFunc;
+	}
+
+	bool ExecuteIfTrue(const std::function<void()>& function, const bool condition)
+	{
+		return ExecuteIfTrue(function, [&condition]() -> bool {return condition; });
+	}
+
+	bool ExecuteFromCondition(const std::function<bool()>& predicate,
+		const std::function<void()>& trueFunc, const std::function<void()>& falseFunc)
+	{
+		bool isTrue = predicate();
+		isTrue ? trueFunc() : falseFunc();
+		return isTrue;
+	}
+
+	bool ExecuteFromCondition(const bool condition, const std::function<void()>& trueFunc, 
+		const std::function<void()>& falseFunc)
+	{
+		return ExecuteFromCondition([&condition]()-> bool {return condition; }, trueFunc, falseFunc);
 	}
 
 	std::filesystem::path CleanPath(const std::filesystem::path& path)

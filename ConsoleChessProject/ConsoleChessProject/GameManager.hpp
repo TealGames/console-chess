@@ -6,7 +6,6 @@
 
 namespace GameManagement
 {
-
 	struct EndGameInfo
 	{
 		const ColorTheme& WinningPlayer;
@@ -15,6 +14,8 @@ namespace GameManagement
 	class GameManager
 	{
 	public:
+		static constexpr bool ADVANCE_TURN = true;
+
 		Utils::Event<void> GameStartEvent;
 		Utils::Event<void, EndGameInfo> GameEndEvent;
 		Utils::Event<void, const ColorTheme> TurnChangeEvent;

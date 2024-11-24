@@ -8,22 +8,25 @@
 #include "Color.hpp"
 #include "UIGlobals.hpp"
 #include "DirectionalLayout.hpp"
+#include "GridLayout.hpp"
 #include "WXHelperFunctions.hpp"
 
-static wxPanel* lightPanelPieces;
-static wxPanel* darkPanelPieces;
+static GridLayout* lightPanelPieces;
+static GridLayout* darkPanelPieces;
 
-static const wxSize PANEL_SIZE(100, 200);
-static const wxSize CAPTURED_SPRITE_SIZE{30, 30};
+//The panel that encompases a sprite
+static const wxSize SPRITE_PANEL_SIZE(30, 30);
+static const wxSize SPRITE_SIZE(30, 30);
 
 static void UpdateDisplay(const GameState& state)
 {
-	if (lightPanelPieces!=nullptr) lightPanelPieces->DestroyChildren();
-	if (darkPanelPieces!=nullptr) darkPanelPieces->DestroyChildren();
+	if (lightPanelPieces != nullptr) lightPanelPieces->DestroyLayout();
+	if (darkPanelPieces!=nullptr) darkPanelPieces->DestroyLayout();
 
+	GridLayout* currentLayout = nullptr;
 	for (const auto& capturedPiece : state.CapturedPieces)
 	{
-		std::optional<wxBitmap> maybeMap = TryGetBitMapFromPiece(PieceTypeInfo{capturedPiece.color, capturedPiece.pieceType}, CAPTURED_SPRITE_SIZE);
+		std::optional<wxBitmap> maybeMap = TryGetBitMapFromPiece(PieceTypeInfo{capturedPiece.color, capturedPiece.pieceType}, SPRITE_SIZE);
 		if (!maybeMap.has_value())
 		{
 			const std::string err = std::format("Tried to update capture display for pieces "
@@ -32,48 +35,68 @@ static void UpdateDisplay(const GameState& state)
 			return;
 		}
 		
+		bool hasCapturedDark = capturedPiece.color == ColorTheme::Dark;
+		currentLayout = hasCapturedDark ? lightPanelPieces : darkPanelPieces;
+
+		wxPanel* piecePanel = new wxPanel(currentLayout, wxID_ANY, wxDefaultPosition, SPRITE_PANEL_SIZE);
+		piecePanel->SetBackgroundColour(hasCapturedDark? LIGHT_CELL_COLOR : DARK_CELL_COLOR);
+		piecePanel->CenterOnParent();
+		currentLayout->AddChild(piecePanel);
+
 		//Remember the light teamn captures dark pieces and vice versa
-		wxStaticBitmap* bitmapDisplay = new wxStaticBitmap(capturedPiece.color==ColorTheme::Dark? 
-			lightPanelPieces : darkPanelPieces, wxID_ANY, maybeMap.value());
+		wxStaticBitmap* bitmapDisplay = new wxStaticBitmap(piecePanel, wxID_ANY, maybeMap.value());
+
 		bitmapDisplay->Center();
 	}
 }
 
 void CreateCaptureDisplay(wxWindow* parent)
 {
-	//TODO: create a horizontal or vertical layout component that basically hides the whole box sizer creation
-	//and this compoennt should be a panel that basically manages the children (allowing for not needing to add sizer everytime)
-	wxPanel* displayRoot = new wxPanel(parent, wxID_ANY, wxDefaultPosition, parent->GetSize());
-	const wxSize layoutSize(0.8 * displayRoot->GetSize().x, 0.2 * displayRoot->GetSize().y);
+	DirectionalLayout* displayRoot = new DirectionalLayout(parent, LayoutType::Vertical, wxDefaultPosition, parent->GetSize());
+	const wxSize LAYOUT_SIZE(0.8 * displayRoot->GetSize().x, 0.2 * displayRoot->GetSize().y);
 
 	DirectionalLayout* lightLayout= new DirectionalLayout(displayRoot, LayoutType::Vertical, 
-		wxPoint((displayRoot->GetSize().x-layoutSize.x)/2, 0), layoutSize);
-	lightLayout->SetBackgroundColour(LIGHTER_SECONDARY_COLOR_2);
+		wxPoint((displayRoot->GetSize().x- LAYOUT_SIZE.x)/2, 0), LAYOUT_SIZE);
+	lightLayout->SetBackgroundColour(BACKGROUND_COLOR);
 
-	wxStaticText* lightTitle = new wxStaticText(lightLayout, wxID_ANY, "WHITE CAPTURED");
-	lightTitle->CenterOnParent();
-	lightTitle->SetSize(wxSize(lightLayout->GetBestSize()));
+	wxStaticText* lightTitle = new wxStaticText(lightLayout, wxID_ANY, "WHITE CAPTURED", 
+		wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	lightTitle->SetFont(HEADING_FONT);
+	//lightTitle->CenterOnParent();
+	lightTitle->SetSize(wxSize(lightLayout->GetSize().x, lightTitle->GetBestSize().y));
 	lightTitle->SetForegroundColour(MUTED_WHITE);
-	lightLayout->AddChild(lightTitle, SpacingType::Top, 0);
+	//lightTitle->SetBacckgroundColour(LIGHT_GREEN);
+	lightLayout->AddChild(lightTitle, 0, SPACING_ALL_SIDES, 10);
 
-	const wxSize panelPiecesSize(0.8 * lightLayout->GetSize().x, 0.6 * lightLayout->GetSize().y);
-	lightPanelPieces = new wxPanel(lightLayout, wxID_ANY, wxDefaultPosition, panelPiecesSize);
-	lightLayout->AddChild(lightPanelPieces, SpacingType::Center);
+	const wxSize PANEL_PIECES_SIZE(0.8 * lightLayout->GetSize().x, 0.6 * lightLayout->GetSize().y);
+	const int LAYOUT_SPACING = 20;
+	const wxSize spriteGridRowCols = wxSize(PANEL_PIECES_SIZE.y / SPRITE_PANEL_SIZE.y, PANEL_PIECES_SIZE.x/SPRITE_PANEL_SIZE.x);
+	Utils::Log(std::format("PIECE CHECK: rwos: {} cols: {}", std::to_string(spriteGridRowCols.x), std::to_string(spriteGridRowCols.y)));
+	const wxSize spriteMargins = wxSize(5, 5);
 
-
+	lightPanelPieces = new GridLayout(lightLayout, spriteGridRowCols, spriteMargins, wxDefaultPosition, PANEL_PIECES_SIZE);
+	lightPanelPieces->SetBackgroundColour(LIGHT_GREEN);
+	lightLayout->AddChild(lightPanelPieces, 1, SpacingType::Center);
+	displayRoot->AddChild(lightLayout, 1, SpacingType::Center | SPACING_ALL_SIDES, LAYOUT_SPACING);
 
 	DirectionalLayout* darkLayout = new DirectionalLayout(displayRoot, LayoutType::Vertical,
-		wxPoint((displayRoot->GetSize().x - layoutSize.x) / 2, 0), layoutSize);
-	lightLayout->SetBackgroundColour(LIGHTER_SECONDARY_COLOR_2);
+		wxPoint((displayRoot->GetSize().x - LAYOUT_SIZE.x) / 2, 0), LAYOUT_SIZE);
+	darkLayout->SetBackgroundColour(BACKGROUND_COLOR);
 
-	wxStaticText* darkTitle = new wxStaticText(darkLayout, wxID_ANY, "DARK CAPTURED");
-	darkTitle->CenterOnParent();
+	wxStaticText* darkTitle = new wxStaticText(darkLayout, wxID_ANY, "DARK CAPTURED", 
+		wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	darkTitle->SetFont(HEADING_FONT);
+	//darkTitle->CenterOnParent();
 	darkTitle->SetSize(wxSize(darkLayout->GetBestSize()));
-	darkTitle->SetForegroundColour(BACKGROUND_COLOR);
-	darkLayout->AddChild(darkTitle, SpacingType::Top, 50);
+	darkTitle->SetForegroundColour(LIGHTER_SECONDARY_COLOR_2);
+	//darkTitle->SetBackgroundColour(LIGHT_GREEN);
+	darkLayout->AddChild(darkTitle, 0, SPACING_ALL_SIDES, 10);
 
-	darkPanelPieces = new wxPanel(darkLayout, wxID_ANY, wxDefaultPosition, panelPiecesSize);
-	darkLayout->AddChild(darkPanelPieces, SpacingType::Center);*/
+	darkPanelPieces = new GridLayout(darkLayout, spriteGridRowCols, spriteMargins, wxDefaultPosition, PANEL_PIECES_SIZE);
+	darkPanelPieces->SetBackgroundColour(LIGHT_GREEN);
+	darkLayout->AddChild(darkPanelPieces, 1, SpacingType::Center);
+	displayRoot->AddChild(darkLayout, 1, SpacingType::Center | SPACING_ALL_SIDES, LAYOUT_SPACING);
+
 
 	/*wxBoxSizer* lightPanelSizer = new wxBoxSizer(wxHORIZONTAL);
 	lightPanelSizer->Add(lightPanelPieces, 0, wxEXPAND, 0);

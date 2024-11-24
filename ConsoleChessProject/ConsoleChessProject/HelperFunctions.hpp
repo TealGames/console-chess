@@ -375,6 +375,15 @@ namespace Utils
 		return parsedVal;
 	}
 
+	bool ExecuteIfTrue(const std::function<void()>& function, const std::function<bool()>& predicate);
+	bool ExecuteIfTrue(const std::function<void()>& function, const bool condition);
+
+	bool ExecuteFromCondition(const std::function<bool()>& predicate, 
+		const std::function<void()>& trueFunc, const std::function<void()>& falseFunc);
+
+	bool ExecuteFromCondition(const bool condition, const std::function<void()>& 
+		trueFunc, const std::function<void()>& falseFunc);
+
 	template<typename Type1, typename Type2>
 	bool AreSameType()
 	{

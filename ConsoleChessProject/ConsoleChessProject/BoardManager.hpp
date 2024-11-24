@@ -139,6 +139,9 @@ namespace Board
 
 	using PieceMoveCallbackType = std::function<void(const GameState&)>;
 	void AddPieceMoveCallback(const PieceMoveCallbackType& callback);
+
+	using MoveExecutedCallbackType = std::function<void()>;
+	void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback);
 	//TODO: add parse/serialization method to convert moveinfo to chess notation input
 }
 

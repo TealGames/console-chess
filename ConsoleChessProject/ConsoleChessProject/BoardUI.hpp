@@ -36,4 +36,3 @@ bool TryRenderAllPieces(const GameState& state);
 bool TryRenderUpdateCells(const GameState& state, std::vector<Utils::Point2DInt> positions);
 void UpdateInteractablePieces(const ColorTheme& interactableColor);
 void EndCleanup();
-

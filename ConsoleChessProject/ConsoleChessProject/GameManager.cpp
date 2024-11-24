@@ -32,6 +32,8 @@ namespace GameManagement
 
 	void GameManager::AdvanceTurn(GameState& state)
 	{
+		if (!ADVANCE_TURN) return;
+
 		std::optional<ColorTheme> maybeOtherPlayer = TryGetOtherPlayer(state);
 		if (!maybeOtherPlayer.has_value())
 		{

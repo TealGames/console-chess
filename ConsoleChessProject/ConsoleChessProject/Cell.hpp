@@ -7,11 +7,20 @@
 const wxSize CELL_SIZE{ 50, 50 };
 constexpr float ICON_SIZE_TO_CELL = 0.7;
 
+enum class HighlightColorType
+{
+	Selected,
+	PossibleMove,
+	PreviousMove,
+};
+
 struct CellColors
 {
 	wxColour InnerColor;
 	wxColour HoverColor;
-	wxColour HighlightedColor;
+	wxColour SelectedColor;
+	wxColour PossibleMoveColor;
+	wxColour PreviousMoveColor;
 };
 
 //class Cell;
@@ -19,24 +28,28 @@ struct CellColors
 class Cell : public wxPanel
 {
 private:
-	std::vector<std::function<void(Cell*)>> _onClickCallbacks;
-
-	const CellColors _colors;	
-	wxStaticBitmap* _bitMapDisplay;
-	bool _isClickable;
-
-	bool _isHighlighted;
-
-	const Piece* pieceHere;
-
 	static constexpr bool _UPDATE_IMAGE_SIZE = true;
+	
+	std::vector<std::function<void(Cell*)>> _onClickCallbacks;
+	bool _isClickable;
+	bool _hasOverlayImage;
+
+	const CellColors& _colors;	
+	wxColour _lastColor;
+	
+	std::optional<HighlightColorType> _highlightedType;
+	const Piece* _pieceHere;
+
+	wxStaticBitmap* _bitMapDisplay = nullptr;
+	wxStaticBitmap* _overlayPanel = nullptr;
 
 public:
 	const bool& IsClickable;
-	const bool& IsHighlighted;
+	const bool& HasOverlayImage;
 
 private:
-	
+	const wxColour& GetHighlightColor(const HighlightColorType highlightType) const;
+
 	void OnEnter(wxMouseEvent& evt);
 	void OnExit(wxMouseEvent& evt);
 	void OnClick(wxMouseEvent& evt);
@@ -45,6 +58,9 @@ private:
 
 public:
 	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors);
+
+	bool IsHighlighted() const;
+	std::optional<HighlightColorType> GetHighlightedColorType() const;
 
 	/// <summary>
 	/// Will return true if a piece is rendered in the cell
@@ -83,8 +99,18 @@ public:
 
 	void AddOnClickCallback(const std::function<void(Cell*)>& callback);
 	
-	void SetHighlighted(bool doHighlight);
-	void ToggleHighlighted();
+	/// <summary>
+	/// Will highlight the cell with a color based on the type.
+	/// </summary>
+	/// <param name="highlightType"></param>
+	/// <param name="actionCondition"></param>
+	void Highlight(const HighlightColorType& highlightType);
+	void Dehighlight();
+
+	void ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle);
 	void UpdateCanClick(bool isClickable);
+
+	void SetOverlaySprite(const wxBitmap& bitmap);
+	void RemoveOverlaySprite();
 };
 

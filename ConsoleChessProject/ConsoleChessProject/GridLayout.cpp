@@ -1,29 +1,21 @@
-#include <wx/wx.h>
-#include "DirectionalLayout.hpp"
+#include <wx/wx.h>x
+#include "GridLayout.hpp"
 #include "WXHelperFunctions.hpp"
 
-DirectionalLayout::DirectionalLayout(wxWindow* parent, const LayoutType& type, 
-	const wxPoint& position, const wxSize& size, const long style)
-	: wxPanel(parent, wxID_ANY, position, size, style)
+GridLayout::GridLayout(wxWindow* parent, const wxSize& rowsCols, const wxSize& margins, const wxPoint& position,
+	const wxSize& size, const long style) : wxPanel(parent, wxID_ANY, position, size, style)
 {
-	int orientation = 0;
-	if (type == LayoutType::Horizontal) orientation = wxHORIZONTAL;
-	else if (type == LayoutType::Vertical) orientation = wxVERTICAL;
-
-	_sizer = new wxBoxSizer(orientation);
+	_sizer = new wxGridSizer(rowsCols.x, rowsCols.y, margins.x, margins.y);
 	Sizer = _sizer;
 	this->SetSizer(_sizer);
 }
 
-DirectionalLayout::~DirectionalLayout()
+GridLayout::~GridLayout()
 {
-	/*delete _sizer;
-	delete Sizer;
-	_sizer = nullptr;
-	Sizer = nullptr;*/
+
 }
 
-void DirectionalLayout::AddChild(wxWindow* child, const int proportion, const SpacingType spacingType, const int spacing)
+void GridLayout::AddChild(wxWindow* child, const int proportion, const SpacingType spacingType, const int spacing)
 {
 	int spacingFlags = 0;
 	if ((spacingType & SpacingType::Expand) != SpacingType::None) spacingFlags |= wxEXPAND;
@@ -37,12 +29,12 @@ void DirectionalLayout::AddChild(wxWindow* child, const int proportion, const Sp
 	this->Layout();
 }
 
-void DirectionalLayout::ClearAll()
+void GridLayout::ClearAll()
 {
 	_sizer->Clear();
 }
 
-void DirectionalLayout::DestroyLayout()
+void GridLayout::DestroyLayout()
 {
 	ClearAll();
 	DestroyChildren();

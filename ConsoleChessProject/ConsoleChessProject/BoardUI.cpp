@@ -8,14 +8,24 @@
 #include "UIGlobals.hpp"
 #include "BoardManager.hpp"
 #include "ResourceManager.hpp"
-#include "GameManager.hpp"
+//#include "GameManager.hpp"
 #include "Point2D.hpp"
 #include "Piece.hpp"
 #include "Cell.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
-static Cell* currentSelected;
+static Cell* lastSelected;
+static std::vector<Cell*> previousMoveCells;
 static std::vector<Cell*> currentCellMoves;
+static const std::unordered_map<ColorTheme, CellColors> cellColorData =
+{
+	{ColorTheme::Light, CellColors{LIGHT_CELL_COLOR, LIGHT_CELL_HOVER_COLOR, LIGHT_CELL_SELECTED_COLOR, 
+								   LIGHT_CELL_MOVE_COLOR, LIGHT_CELL_PREVIOUS_MOVE_COLOR}},
+	{ColorTheme::Dark, CellColors{DARK_CELL_COLOR, DARK_CELL_HOVER_COLOR, DARK_CELL_SELECTED_COLOR,
+								   DARK_CELL_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
+};
+
+static std::optional<wxBitmap> movePositionIcon;
 
 Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
 {
@@ -60,14 +70,18 @@ void CreateBoardCells(wxWindow* parent)
 	{
 		for (int c = 0; c < BOARD_DIMENSION; c++)
 		{
-			CellColors cellColors;
 			bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
-			cellColors.InnerColor = isDarkCell ? DARK_CELL_COLOR : LIGHT_CELL_COLOR;
-			cellColors.HoverColor = isDarkCell ? DARK_CELL_HOVER_COLOR : LIGHT_CELL_HOVER_COLOR;
-			cellColors.HighlightedColor = isDarkCell ? DARK_CELL_HIGHLIGHT_COLOR : LIGHT_CELL_HIGHLIGHT_COLOR;
+			auto cellColorDataIt = cellColorData.find(isDarkCell? ColorTheme::Dark : ColorTheme::Light);
+			if (cellColorDataIt == cellColorData.end())
+			{
+				const std::string err = std::format("Tried to get color data for tile color but was not found");
+				Utils::Log(Utils::LogType::Error, err);
+				return;
+			}
+
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
-			auto emplaced= cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColors));
+			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second));
 			if (!emplaced.second)
 			{
 				const std::string error = std::format("Tried to place cell at row {} col {}"
@@ -84,18 +98,58 @@ void CreateBoardCells(wxWindow* parent)
 	//CreateDefaultBoard();
 }
 
+static bool IsStoredAsPreviousMove(const Cell* cellCheck)
+{
+	if (previousMoveCells.empty()) return false;
+	for (const auto& cell : previousMoveCells)
+	{
+		if (cell== cellCheck) return true;
+	}
+	return false;
+}
+
 static void DeselectHighlightedCells()
 {
 	if (currentCellMoves.empty()) return;
 
 	for (const auto& cell : currentCellMoves)
 	{
-		if (cell->IsHighlighted)
+		if (cell->IsHighlighted() && !IsStoredAsPreviousMove(cell))
 		{
-			cell->SetHighlighted(false);
+			cell->Dehighlight();
 		}
+		if (cell->HasOverlayImage) cell->RemoveOverlaySprite();
 	}
 	currentCellMoves.clear();
+}
+
+static wxBitmap& GetMoveIcon()
+{
+	if (!movePositionIcon.has_value())
+	{
+		movePositionIcon = TryGetBitMapForIcon(SpriteSymbolType::MoveSpot, CELL_SIZE);
+	}
+	Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
+	return movePositionIcon.value();
+}
+
+static void PrintCells()
+{
+	std::vector<Utils::Point2DInt> cellPositionsWith;
+	for (const auto& element : cells)
+	{
+		if (element.second->HasOverlayImage) cellPositionsWith.push_back(element.first);
+	}
+
+	std::vector<Utils::Point2DInt> cellMoves;
+	for (const auto& cell : currentCellMoves)
+	{
+		cellMoves.push_back(TryGetPositionOfCell(*cell).value());
+	}
+	const std::string str = std::format("LOADING: positions with overlay: {}. Current move pos: {}", 
+		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellPositionsWith),
+		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellMoves));
+	Utils::Log(str);
 }
 
 void BindCellEventsForGameState(GameState& state)
@@ -104,6 +158,7 @@ void BindCellEventsForGameState(GameState& state)
 	{
 		cell.second->AddOnClickCallback([&state, &cell](Cell* clickedCell) -> void
 		{
+#pragma region Move Updating
 			if (!currentCellMoves.empty())
 			{
 				for (const auto& cell : currentCellMoves)
@@ -111,62 +166,105 @@ void BindCellEventsForGameState(GameState& state)
 					Utils::Log(Utils::LogType::Error, std::format("SELECTED {} MOVES: {} CLICKED: {}",
 						std::to_string(currentCellMoves.size()), Utils::ToStringIterable<std::vector<Cell*>, Cell*>(currentCellMoves),
 						std::to_string(cell == clickedCell)));
+					 
+					if (!cell->HasOverlayImage && cell != clickedCell || lastSelected == nullptr) continue;
 
-					if (cell->IsHighlighted && cell==clickedCell && currentSelected!=nullptr)
+					std::optional<Utils::Point2DInt> startPos = TryGetPositionOfCell(*lastSelected);
+					if (startPos == std::nullopt)
 					{
-						std::optional<Utils::Point2DInt> startPos = TryGetPositionOfCell(*currentSelected);
-						if (startPos == std::nullopt)
-						{
-							const std::string error = std::format("Tried find start pos for move to cell "
-								"but failed to be retrieved!");
-							Utils::Log(Utils::LogType::Error, error);
-						}
-
-						std::optional<Utils::Point2DInt> endPos = TryGetPositionOfCell(*clickedCell);
-						if (endPos == std::nullopt)
-						{
-							const std::string error = std::format("Tried find end pos for move to cell "
-								"but failed to be retrieved!");
-							Utils::Log(Utils::LogType::Error, error);
-						}
-
-						Board::MoveResult result = Board::TryMove(state, startPos.value(), endPos.value());
-						if (!result.IsValidMove)
-						{
-							const std::string error = std::format("Tried update the the move of piece state from pos "
-								"{} -> {} but failed! Info: {}", startPos.value().ToString(), 
-								endPos.value().ToString(), result.Info);
-							Utils::Log(Utils::LogType::Error, error);
-						}
-
-						DeselectHighlightedCells();
-						currentSelected->SetHighlighted(false);
-						if (!TryRenderUpdateCells(state, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
-						{
-							const std::string error = std::format("Tried update the rendering for cells "
-								"{} -> {} but failed!", startPos.value().ToString(), endPos.value().ToString());
-							Utils::Log(Utils::LogType::Error, error);
-						}
-						return;
+						const std::string error = std::format("Tried find start pos for move to cell "
+							"but failed to be retrieved!");
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
 					}
+
+					std::optional<Utils::Point2DInt> endPos = TryGetPositionOfCell(*clickedCell);
+					if (endPos == std::nullopt)
+					{
+						const std::string error = std::format("Tried find end pos for move to cell "
+							"but failed to be retrieved!");
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					Board::MoveResult result = Board::TryMove(state, startPos.value(), endPos.value());
+					if (!result.IsValidMove)
+					{
+						const std::string error = std::format("Tried update the the move of piece state from pos "
+							"{} -> {} but failed! Info: {}", startPos.value().ToString(),
+							endPos.value().ToString(), result.Info);
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					if (!TryRenderUpdateCells(state, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
+					{
+						const std::string error = std::format("Tried update the rendering for cells "
+							"{} -> {} but failed!", startPos.value().ToString(), endPos.value().ToString());
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					if (!previousMoveCells.empty())
+					{
+						for (const auto& cell : previousMoveCells) cell->Dehighlight();
+						previousMoveCells.clear();
+					}
+
+					DeselectHighlightedCells();
+					lastSelected->Highlight(HighlightColorType::PreviousMove);
+					clickedCell->Highlight(HighlightColorType::PreviousMove);
+
+					//We need to store the cell that was last selected (the start pos of move)
+					//so we can disable it on next move since it is not stored definitively anywhere else
+					previousMoveCells.push_back(lastSelected);
+					previousMoveCells.push_back(clickedCell);
+					lastSelected = clickedCell;
+					return;
 				}
 			}
 			DeselectHighlightedCells();
+#pragma endregion
+
+			//We don't want to do any highlighting if it is a cell with no pieces
+			if (!clickedCell->HasPiece())
+			{
+				lastSelected = clickedCell;
+				return;
+			}
+
+			//TODO: for each cell try to create states to check like highlighted, selected, previous moves shown, etc
+			//to obfuscate what changes actually occur from state
 
 #pragma region Toggling Highlight
-			bool sameCellClickedAgain = currentSelected == clickedCell;
-			if (sameCellClickedAgain) currentSelected->ToggleHighlighted();
+			bool sameCellClickedAgain = lastSelected == clickedCell;
+
+			//We want to preserve previous old move highlighted status
+			//so we must check for what type is highlighted and what to set as new
+			if (sameCellClickedAgain)
+			{
+				if (IsStoredAsPreviousMove(lastSelected))
+				{
+					if (lastSelected->GetHighlightedColorType() == HighlightColorType::PreviousMove)
+						lastSelected->Highlight(HighlightColorType::Selected);
+					else lastSelected->Highlight(HighlightColorType::PreviousMove);
+				}
+				else lastSelected->ToggleHighlighted(HighlightColorType::Selected);
+			}
 			else
 			{
-				if (currentSelected != nullptr) currentSelected->SetHighlighted(false);
+				if (lastSelected != nullptr)
+				{
+					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->Highlight(HighlightColorType::PreviousMove);
+					else lastSelected->Dehighlight();
+				}
 
-				currentSelected = clickedCell;
-				currentSelected->SetHighlighted(true);
+				clickedCell->Highlight(HighlightColorType::Selected);
 			}
 #pragma endregion
 
-#pragma region Move Highlighting
-			if (currentSelected->IsHighlighted)
+#pragma region Possible Move Highlighting
+			if (clickedCell->IsHighlighted())
 			{
 				std::vector<MoveInfo> possibleMoves = Board::GetPossibleMovesForPieceAt(state, cell.first);
 				//if (possibleMoves.empty()) wxLogMessage("Poop");
@@ -181,17 +279,23 @@ void BindCellEventsForGameState(GameState& state)
 						cellAtPosition = TryGetCellAtPosition(piecesMoved.NewPos);
 						if (cellAtPosition == nullptr) continue;
 
-						cellAtPosition->SetHighlighted(true);
+						//cellAtPosition->Highlight(HighlightColorType::PossibleMove);
+						cellAtPosition->SetOverlaySprite(GetMoveIcon());
 						currentCellMoves.push_back(cellAtPosition);
 					}
 				}
-
-				//To prevent moving to the same spot as piece clicked on
-				if (!currentCellMoves.empty())
-				{
-					currentSelected->SetHighlighted(false);
-				}
+				PrintCells();
 			}
+
+			//We make sure to rehighlight them as previous moves
+			//in case one might have been selected as a possible move before
+			else
+			{
+				for (const auto& cell : previousMoveCells) 
+					cell->Highlight(HighlightColorType::PreviousMove);
+			}
+
+			lastSelected = clickedCell;
 #pragma endregion
 		});
 	}

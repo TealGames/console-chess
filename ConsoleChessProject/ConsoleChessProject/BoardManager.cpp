@@ -31,6 +31,7 @@ namespace Board
 	static bool inCheck;*/
 	static std::vector<Utils::Point2DInt> _allPossiblePositions;
 	static std::vector<PieceMoveCallbackType> _pieceMoveEvent;
+	static std::vector<MoveExecutedCallbackType> _successfulMoveEvent;
 
 	static void InvokePieceMoveEvent(const GameState& state)
 	{
@@ -43,6 +44,19 @@ namespace Board
 	void AddPieceMoveCallback(const PieceMoveCallbackType& callback)
 	{
 		_pieceMoveEvent.push_back(callback);
+	}
+
+	static void InvokeSuccessfulMoveEvent()
+	{
+		for (const auto& callback : _successfulMoveEvent)
+		{
+			callback();
+		}
+	}
+
+	void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback)
+	{
+		_successfulMoveEvent.push_back(callback);
 	}
 
 	static std::vector<Utils::Point2DInt> GetAllPositionsOnBoard()
@@ -1114,6 +1128,7 @@ namespace Board
 				if (move.NewPos == newPos)
 				{
 					TryUpdatePiecePosition(state, PiecePositionData{ *movedPiece, currentPos }, newPos, moveInfo);
+					InvokeSuccessfulMoveEvent();
 					return { newPos, true };
 				}
 			}
