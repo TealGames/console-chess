@@ -7,6 +7,7 @@
 #include "Cell.hpp"
 #include "Piece.hpp"
 #include "GameState.hpp"
+#include "GameManager.hpp"
 
 void CreateBoardCells(wxWindow* parent);
 
@@ -15,17 +16,18 @@ void CreateBoardCells(wxWindow* parent);
 /// and update the game state
 /// </summary>
 /// <param name="state"></param>
-void BindCellEventsForGameState(GameState& state);
+void BindCellEventsForGameState(Core::GameManager& manager, const std::string& gameStateId);
 Cell* TryGetCellAtPosition(const Utils::Point2DInt point);
 std::optional<Utils::Point2DInt> TryGetPositionOfCell(const Cell& cell);
 
-bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const Piece* pieceInfo);
+bool TryRenderPieceAtPos(const Core::GameManager& manager, 
+	const Utils::Point2DInt& pos, const Piece* pieceInfo);
 /// <summary>
 /// Will go through all pieces in current state and render them in their respective cells
 /// </summary>
 /// <param name="state"></param>
 /// <returns></returns>
-bool TryRenderAllPieces(const GameState& state);
+bool TryRenderAllPieces(const Core::GameManager& manager, const GameState& state);
 
 /// <summary>
 /// Will update the cells positions based on the new piece data
@@ -33,6 +35,8 @@ bool TryRenderAllPieces(const GameState& state);
 /// <param name="state"></param>
 /// <param name="positions"></param>
 /// <returns></returns>
-bool TryRenderUpdateCells(const GameState& state, std::vector<Utils::Point2DInt> positions);
+bool TryRenderUpdateCells(const Core::GameManager& manager, 
+	const GameState& gameState, std::vector<Utils::Point2DInt> positions);
+
 void UpdateInteractablePieces(const ColorTheme& interactableColor);
 void EndCleanup();

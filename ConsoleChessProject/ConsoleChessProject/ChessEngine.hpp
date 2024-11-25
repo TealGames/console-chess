@@ -7,10 +7,10 @@ class ChessEngine
 {
 private:
 	std::vector<MainFrame*> m_Windows;
+	Core::GameManager GameManager;
 
 public:
-	GameManagement::GameManager GameManager;
-
+	
 private:
 	
 	

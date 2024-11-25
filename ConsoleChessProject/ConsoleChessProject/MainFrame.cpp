@@ -2,6 +2,7 @@
 #include <wx/stdpaths.h>
 #include <wx/simplebook.h>
 #include <functional>
+#include <string>
 #include "MainFrame.hpp"
 #include "CapturedPiecesUI.hpp"
 #include "CButton.hpp"
@@ -13,20 +14,26 @@
 #include "GameState.hpp"
 #include "UIGlobals.hpp"
 
+static const std::string GAME_STATE_ID = "main_state";
+
 static constexpr int TITLE_Y_OFFSET = 50;
 static constexpr int BUTTON_START_Y = 150;
 static constexpr int BUTTON_SPACING = 70;
 
 static const wxSize SIDE_PANEL_SIZE(0.2*WIDTH, 0.8*HEIGHT);
 
-MainFrame::MainFrame(GameManagement::GameManager& gameManager, const wxString& title)
-	: wxFrame(nullptr, wxID_ANY, title), WindowName(title), manager(gameManager), _currentState(std::nullopt)
+MainFrame::MainFrame(Core::GameManager& gameManager, const wxString& title)
+	: wxFrame(nullptr, wxID_ANY, title), WindowName(title), _manager(gameManager), _currentState(nullptr)
 {
 	DrawStatic();
 	DrawMainMenu();
 	DrawGame();
 
 	TogglePage(Page::MainMenu);
+	std::cout << &_manager;
+	wxLogMessage("Pointer value ADDRESS GAME MANAGER: %p", &_manager);
+	Utils::Log(std::format("TOGGLE PAGE on main frame. Current game states: {}",
+		std::to_string(_manager.TotalGameStatesCount())));
 }
 
 void MainFrame::DrawStatic()
@@ -72,6 +79,8 @@ void MainFrame::DrawMainMenu()
 	wxLogMessage("Draw Main Menu");
 	//mainMenuRoot->SetSizer(mainMenuSizer);
 	_pages->AddPage(mainMenuRoot, "MainMenu");
+
+	Utils::Log(std::format("DRAW MAIN MENU on main frame. Current game states: {}", std::to_string(_manager.TotalGameStatesCount())));
 }
 
 void MainFrame::DrawGame()
@@ -109,20 +118,24 @@ void MainFrame::TogglePage(const Page& togglePage)
 
 bool MainFrame::TryUpdateBoard()
 {
-	if (!_currentState.has_value())
+	if (_currentState==nullptr)
 	{
 		const std::string err = std::format("Tried to update board display in main frame "
 			"but there is no current game state!");
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}
-	return TryRenderAllPieces(_currentState.value());
+	return TryRenderAllPieces(_manager, *_currentState);
 }
 
 void MainFrame::StartGame()
 {
-	_currentState = manager.StartNewGame();
-	if (!_currentState.has_value())
+	wxLogMessage("Pointer value ADDRESS GAME MANAGER LATER: %p", &_manager);
+	Utils::Log(std::format("Start game on main frame. Current game states: {}", std::to_string(_manager.TotalGameStatesCount())));
+	_currentState = &(_manager.StartNewGame(GAME_STATE_ID));
+	
+	/*
+	if (_currentState==nullptr)
 	{
 		const std::string err = std::format("Tried to start game in main frame"
 			" but there is no current game state!");
@@ -131,16 +144,15 @@ void MainFrame::StartGame()
 	}
 	//std::string str = "State of Game: "+_currentState.value().ToString();
 	//Utils::Log(Utils::LogType::Warning, str);
-	BindCellEventsForGameState(_currentState.value());
+	BindCellEventsForGameState(manager, GAME_STATE_ID);
 	TogglePage(Page::Game);
-
-	//return;
-
+	
 	if (!TryUpdateBoard())
 	{
 		const std::string err = std::format("Tried to render all pieces but failed!");
 		Utils::Log(Utils::LogType::Error, err);
 	}
+	*/
 	
 	//TODO: function listeners adding crashes app!
 	/*std::function<void(ColorTheme)> turnChangeFunc = [this](const ColorTheme color) -> void 

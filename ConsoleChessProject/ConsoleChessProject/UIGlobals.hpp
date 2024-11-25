@@ -20,6 +20,8 @@ static const wxColour DARKER_MUTED_WHITE = wxColour(220, 220, 220);
 static const wxColour MUTED_BRIGHT_YELLOW = wxColour(198, 167, 42);
 static const wxColour BRIGHT_YELLOW= wxColour(225, 190, 51, 128);
 
+static const wxColour RED = wxColour(167, 70, 71);
+
 static const wxColour LIGHT_GRAY_BLUE = wxColour(152, 201, 236, 128);
 static const wxColour GRAY_BLUE= wxColour(114, 166, 204);
 static const wxColour DARKER_GRAY_BLUE = wxColour(86, 127, 157);
@@ -37,12 +39,14 @@ static const wxColour LIGHT_CELL_COLOR = DARKER_GRAY_BLUE;
 static const wxColour LIGHT_CELL_HOVER_COLOR = GRAY_BLUE;
 static const wxColour LIGHT_CELL_SELECTED_COLOR = LIGHT_GRAY_BLUE;
 static const wxColour LIGHT_CELL_MOVE_COLOR = BRIGHT_YELLOW;
+static const wxColour LIGHT_CELL_CAPTURE_MOVE_COLOR = RED;
 static const wxColour LIGHT_CELL_PREVIOUS_MOVE_COLOR = MUTED_BRIGHT_YELLOW;
 
 static const wxColour DARK_CELL_COLOR = DARKER_DEEP_BLUE;
 static const wxColour DARK_CELL_HOVER_COLOR = DEEP_BLUE;
 static const wxColour DARK_CELL_SELECTED_COLOR = LIGHT_DEEP_BLUE;
 static const wxColour DARK_CELL_MOVE_COLOR = BRIGHT_YELLOW;
+static const wxColour DARK_CELL_CAPTURE_MOVE_COLOR = RED;
 static const wxColour DARK_CELL_PREVIOUS_MOVE_COLOR = MUTED_BRIGHT_YELLOW;
 
 

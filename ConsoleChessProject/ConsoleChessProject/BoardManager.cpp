@@ -14,15 +14,10 @@
 #include "StringUtil.hpp"
 #include "Globals.hpp"
 #include "GameState.hpp"
+#include "PieceMoveResult.hpp"
 
 namespace Board
 {
-	MoveResult::MoveResult(const Utils::Point2DInt& pos, const bool isValid, const std::string& info)
-		:AttemptedPositions({ pos }), IsValidMove(isValid), Info(info) {}
-
-	MoveResult::MoveResult(const std::vector<Utils::Point2DInt>& positions, const bool isValid, const std::string& info)
-		:AttemptedPositions(positions), IsValidMove(isValid), Info(info) {}
-
 	/*using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 	static PiecePositionMapType piecePositions;
 	static std::unordered_map<ColorTheme, std::vector<MoveInfo>> previousMoves;
@@ -1102,7 +1097,7 @@ namespace Board
 
 	//Will check if it is possible to move to that point using a variety of bounds checks,
 	//valid moves, and special move checks
-	MoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos)
+	PieceMoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos)
 	{
 		if (!IsWithinBounds(currentPos))
 			return { newPos, false, std::format("Tried to move from a place outside the board") };

@@ -1,16 +1,38 @@
 #include <wx/wx.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <optional>
 #include <algorithm>
 #include <functional>
 #include "Cell.hpp"
 #include "HelperFunctions.hpp"
 #include "ResourceManager.hpp"
 
-Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors)
-	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), _colors(colors), _bitMapDisplay(nullptr),
-	_isClickable(true), IsClickable(_isClickable), _hasOverlayImage(false), HasOverlayImage(_hasOverlayImage), 
-	_highlightedType(std::nullopt), _pieceHere(nullptr), _onClickCallbacks()
+std::string ToString(const CellVisualState& state)
+{
+	if (state == CellVisualState::Default) 
+		return "Default";
+	else if (state == CellVisualState::Disabled) 
+		return "Disabled";
+	else if (state == CellVisualState::PossibleMoveHighlighted) 
+		return "Possible Move Highlighted";
+	else if (state == CellVisualState::PreviousMoveHighlighted) 
+		return "Previous Move Highlighted";
+	else if (state == CellVisualState::Selected) 
+		return "Selected";
+	else return "NULL";
+}
+
+Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors,
+	const std::unordered_map<CellVisualState, wxBitmap*>& stateSprites)
+	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), _colors(colors), _bitMapDisplay(nullptr), 
+	_isRenderingPiece(false),
+	_isClickable(true), IsClickable(_isClickable),
+	_hasOverlayImage(false), HasOverlayImage(_hasOverlayImage), 
+	//_highlightedType(std::nullopt), 
+	_visualState(CellVisualState::Default), VisualState(_visualState), _stateSprites(stateSprites),
+	_pieceHere(nullptr), _onClickCallbacks()
 {
 	_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
 	_bitMapDisplay->Enable(false);
@@ -30,7 +52,6 @@ void Cell::OnEnter(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	
 	if (IsHighlighted()) return;
 
 	_lastColor = GetBackgroundColour();
@@ -45,7 +66,6 @@ void Cell::OnEnter(wxMouseEvent& evt)
 
 	SetBackgroundColour(newColor);
 	//If we are highlighted we do not want to return back until the caller says so
-	
 
 	//SetBackgroundColour(_colors.HoverColor);
 	Refresh();
@@ -72,7 +92,7 @@ void Cell::OnClick(wxMouseEvent& evt)
 
 	for (const auto& callback : _onClickCallbacks) callback(this);
 
-	Refresh();
+	//Refresh();
 	//wxLogMessage("Click");
 }
 
@@ -83,22 +103,37 @@ void Cell::AddOnClickCallback(const std::function<void(Cell*)>& callback)
 
 bool Cell::IsHighlighted() const
 {
-	return _highlightedType != std::nullopt;
+	return _visualState == CellVisualState::PossibleMoveHighlighted ||
+		_visualState == CellVisualState::PreviousMoveHighlighted ||
+		_visualState == CellVisualState::Selected;
 }
 
-std::optional<HighlightColorType> Cell::GetHighlightedColorType() const
-{
-	return _highlightedType;
-}
+//std::optional<HighlightColorType> Cell::GetHighlightedColorType() const
+//{
+//	return _highlightedType;
+//}
+
+//std::optional<const wxColour*> Cell::TryGetColorForState(const CellVisualState& state)
+//{
+//	if (state == CellVisualState::Default) return &_colors.InnerColor;
+//	else if (state == CellVisualState::Selected) return &_colors.SelectedColor;
+//	else if (state == CellVisualState::PossibleMoveHighlighted)
+//	{
+//		if (HasPiece()) return &_colors.PossibleCaptureColor;
+//		return &_colors.PossibleMoveColor;
+//	}
+//	else if (state == CellVisualState::PreviousMoveHighlighted) return &_colors.PreviousMoveColor;
+//	else return std::nullopt;
+//}
 
 bool Cell::IsRenderingPiece() const
 {
-	return _bitMapDisplay!=nullptr;
+	return _isRenderingPiece;
 }
 
 bool Cell::HasPieceStored(const Piece** outFoundPiece)
 {
-	outFoundPiece = &_pieceHere;
+	if (_pieceHere!=nullptr) outFoundPiece = &_pieceHere;
 	Utils::Log(std::format("HAS PIECE STORED: {} OUT: {}", 
 		_pieceHere == nullptr ? "NULL" : _pieceHere->ToString(),
 		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));
@@ -112,7 +147,7 @@ bool Cell::HasPiece(const Piece** outFoundPiece)
 	return HasPieceStored(outFoundPiece) || IsRenderingPiece();
 }
 
-void Cell::UpdatePiece(const Piece* piece, wxImage& image)
+void Cell::SetPiece(const Piece* piece, wxImage& image)
 {
 	//pieceHere = &piece;
 	//TODO: assignment does nto work since it is not defined for Piece so peiceHere is always NULL!
@@ -140,6 +175,7 @@ void Cell::UpdatePiece(const Piece* piece, wxImage& image)
 	_bitMapDisplay->SetBitmap(map);
 	//_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
 	_bitMapDisplay->Center();
+	_isRenderingPiece = true;
 
 	std::string posCenter = std::to_string(_bitMapDisplay->GetPosition().x)+std::to_string(_bitMapDisplay->GetPosition().y);
 	wxLogMessage(posCenter.c_str());
@@ -162,8 +198,8 @@ bool Cell::TryRemovePiece()
 	bool renderingOrPieceRemoved = false;
 	if (IsRenderingPiece())
 	{
-		delete _bitMapDisplay;
-		_bitMapDisplay = nullptr;
+		_bitMapDisplay->SetBitmap({});
+		_isRenderingPiece = false;
 		renderingOrPieceRemoved = true;
 		Utils::Log(std::format("PIECE CHECK TRY REMOVE PIECE: {}",
 			_pieceHere == nullptr ? "NULL" : _pieceHere->ToString()));
@@ -177,45 +213,6 @@ bool Cell::TryRemovePiece()
 	}
 	
 	return renderingOrPieceRemoved;
-}
-
-void Cell::UpdateCanClick(bool isClickable)
-{
-	isClickable = isClickable;
-}
-
-const wxColour& Cell::GetHighlightColor(const HighlightColorType highlightType) const
-{
-	if (highlightType == HighlightColorType::Selected) return _colors.SelectedColor;
-	else if (highlightType == HighlightColorType::PossibleMove) return _colors.PossibleMoveColor;
-	else if (highlightType == HighlightColorType::PreviousMove) return _colors.PreviousMoveColor;
-	else
-	{
-		const std::string err = std::format("Tried to get highlight color for a type "
-			"that is not defined with its own color!");
-		Utils::Log(Utils::LogType::Error, err);
-		return {};
-	}
-}
-
-void Cell::Highlight(const HighlightColorType& highlightType)
-{
-	_highlightedType = highlightType;
-	SetBackgroundColour(GetHighlightColor(highlightType));
-	Refresh();
-}
-
-void Cell::Dehighlight()
-{
-	_highlightedType = std::nullopt;
-	SetBackgroundColour(_colors.InnerColor);
-	Refresh();
-}
-
-void Cell::ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle)
-{
-	if (IsHighlighted()) Dehighlight();
-	else Highlight(highlightTypeIfToggle);
 }
 
 void Cell::SetOverlaySprite(const wxBitmap& bitmap)
@@ -232,3 +229,95 @@ void Cell::RemoveOverlaySprite()
 	_overlayPanel->SetBitmap({});
 	Refresh();
 }
+
+void Cell::UpdateCanClick(bool isClickable)
+{
+	_isClickable = isClickable;
+	if (_isClickable) SetVisualState(CellVisualState::Default);
+	else SetVisualState(CellVisualState::Disabled);
+}	
+
+void Cell::SetVisualState(const CellVisualState& state)
+{
+	auto stateSpriteIt = _stateSprites.find(state);
+	bool hasStateSprite = stateSpriteIt != _stateSprites.end();
+	Utils::Log(std::format("LOADING State sprite it: {} for state: {}", 
+		std::to_string(_stateSprites.find(state) != _stateSprites.end()), ToString(state)));
+	//return;
+	
+	//std::optional<const wxColour*> maybeStateColor = TryGetColorForState(state);
+	if (HasOverlayImage) RemoveOverlaySprite();
+
+	if (state == CellVisualState::Default)
+	{
+		SetBackgroundColour(_colors.InnerColor);
+	}
+	else if (state == CellVisualState::Selected)
+	{
+		SetBackgroundColour(_colors.SelectedColor);
+	}
+	else if (state == CellVisualState::PossibleMoveHighlighted)
+	{
+		if (HasPiece()) SetBackgroundColour(_colors.PossibleCaptureColor);
+		else if (hasStateSprite) SetOverlaySprite(*(stateSpriteIt->second));
+	}
+	else if (state == CellVisualState::PreviousMoveHighlighted)
+	{
+		SetBackgroundColour(_colors.PreviousMoveColor);
+	}
+	else
+	{
+		const std::string err = std::format("Tried to update visual state for cell for a type "
+			"that is not defined with its own instructions!");
+		Utils::Log(Utils::LogType::Error, err);
+		return;
+	}
+
+	_visualState = state;
+	Refresh();
+}
+
+void Cell::ToggleVisualState(const CellVisualState& state)
+{
+	if (_visualState == CellVisualState::Default) SetVisualState(state);
+	else SetVisualState(CellVisualState::Default);
+}
+
+void Cell::ResetVisualToDefault()
+{
+	return SetVisualState(CellVisualState::Default);
+}
+
+//const wxColour& Cell::GetHighlightColor(const HighlightColorType highlightType) const
+//{
+//	if (highlightType == HighlightColorType::Selected) return _colors.SelectedColor;
+//	else if (highlightType == HighlightColorType::PossibleMove) return _colors.PossibleMoveColor;
+//	else if (highlightType == HighlightColorType::PreviousMove) return _colors.PreviousMoveColor;
+//	else
+//	{
+//		const std::string err = std::format("Tried to get highlight color for a type "
+//			"that is not defined with its own color!");
+//		Utils::Log(Utils::LogType::Error, err);
+//		return {};
+//	}
+//}
+
+//void Cell::Highlight(const HighlightColorType& highlightType)
+//{
+//	_highlightedType = highlightType;
+//	SetBackgroundColour(GetHighlightColor(highlightType));
+//	Refresh();
+//}
+//
+//void Cell::Dehighlight()
+//{
+//	_highlightedType = std::nullopt;
+//	SetBackgroundColour(_colors.InnerColor);
+//	Refresh();
+//}
+//
+//void Cell::ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle)
+//{
+//	if (IsHighlighted()) Dehighlight();
+//	else Highlight(highlightTypeIfToggle);
+//}

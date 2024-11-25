@@ -1,6 +1,7 @@
 #include <wx/wx.h>
 #include "ChessEngine.hpp"
 #include "MainFrame.hpp"
+#include "GameManager.hpp"
 
 ChessEngine::ChessEngine() : m_Windows(), GameManager()
 {

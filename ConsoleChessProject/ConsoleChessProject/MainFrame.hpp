@@ -13,7 +13,8 @@ private:
 	wxSimplebook* _pages;
 	wxPanel* _cellParent;
 
-	std::optional<GameState> _currentState;
+	const GameState* _currentState;
+	Core::GameManager& _manager;
 
 public:
 
@@ -24,7 +25,7 @@ public:
 	};
 
 	const std::string WindowName;
-	GameManagement::GameManager& manager;
+	
 
 private:
 	void DrawStatic();
@@ -37,6 +38,6 @@ private:
 	void StartGame();
 
 public:
-	MainFrame(GameManagement::GameManager& gameManager, const wxString& title);
+	MainFrame(Core::GameManager& gameManager, const wxString& title);
 };
 

@@ -6,12 +6,12 @@
 #include <unordered_map>
 #include "BoardUI.hpp"
 #include "UIGlobals.hpp"
-#include "BoardManager.hpp"
 #include "ResourceManager.hpp"
-//#include "GameManager.hpp"
+#include "GameManager.hpp"
 #include "Point2D.hpp"
 #include "Piece.hpp"
 #include "Cell.hpp"
+#include "PieceMoveResult.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
 static Cell* lastSelected;
@@ -20,12 +20,22 @@ static std::vector<Cell*> currentCellMoves;
 static const std::unordered_map<ColorTheme, CellColors> cellColorData =
 {
 	{ColorTheme::Light, CellColors{LIGHT_CELL_COLOR, LIGHT_CELL_HOVER_COLOR, LIGHT_CELL_SELECTED_COLOR, 
-								   LIGHT_CELL_MOVE_COLOR, LIGHT_CELL_PREVIOUS_MOVE_COLOR}},
+								   LIGHT_CELL_MOVE_COLOR, LIGHT_CELL_CAPTURE_MOVE_COLOR, LIGHT_CELL_PREVIOUS_MOVE_COLOR}},
 	{ColorTheme::Dark, CellColors{DARK_CELL_COLOR, DARK_CELL_HOVER_COLOR, DARK_CELL_SELECTED_COLOR,
-								   DARK_CELL_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
+								   DARK_CELL_MOVE_COLOR, DARK_CELL_CAPTURE_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
 };
 
 static std::optional<wxBitmap> movePositionIcon;
+
+static wxBitmap& GetMoveIcon()
+{
+	if (!movePositionIcon.has_value())
+	{
+		movePositionIcon = TryGetBitMapForIcon(SpriteSymbolType::MoveSpot, CELL_SIZE);
+	}
+	Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
+	return movePositionIcon.value();
+}
 
 Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
 {
@@ -81,7 +91,8 @@ void CreateBoardCells(wxWindow* parent)
 
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
-			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second));
+			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
+				{{CellVisualState::PossibleMoveHighlighted , &GetMoveIcon()}}));
 			if (!emplaced.second)
 			{
 				const std::string error = std::format("Tried to place cell at row {} col {}"
@@ -108,29 +119,21 @@ static bool IsStoredAsPreviousMove(const Cell* cellCheck)
 	return false;
 }
 
-static void DeselectHighlightedCells()
+static void ResetCellVisuals()
 {
 	if (currentCellMoves.empty()) return;
 
 	for (const auto& cell : currentCellMoves)
 	{
-		if (cell->IsHighlighted() && !IsStoredAsPreviousMove(cell))
+		/*if (cell->IsHighlighted() && !IsStoredAsPreviousMove(cell))
 		{
 			cell->Dehighlight();
 		}
-		if (cell->HasOverlayImage) cell->RemoveOverlaySprite();
+		if (cell->HasOverlayImage) cell->RemoveOverlaySprite();*/
+		if (cell->VisualState != CellVisualState::Default &&
+			!IsStoredAsPreviousMove(cell)) cell->ResetVisualToDefault();
 	}
 	currentCellMoves.clear();
-}
-
-static wxBitmap& GetMoveIcon()
-{
-	if (!movePositionIcon.has_value())
-	{
-		movePositionIcon = TryGetBitMapForIcon(SpriteSymbolType::MoveSpot, CELL_SIZE);
-	}
-	Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
-	return movePositionIcon.value();
 }
 
 static void PrintCells()
@@ -152,11 +155,11 @@ static void PrintCells()
 	Utils::Log(str);
 }
 
-void BindCellEventsForGameState(GameState& state)
+void BindCellEventsForGameState(Core::GameManager& manager, const std::string& gameStateId)
 {
 	for (const auto& cell : cells)
 	{
-		cell.second->AddOnClickCallback([&state, &cell](Cell* clickedCell) -> void
+		cell.second->AddOnClickCallback([&gameStateId, &cell, &manager](Cell* clickedCell) -> void
 		{
 #pragma region Move Updating
 			if (!currentCellMoves.empty())
@@ -187,7 +190,7 @@ void BindCellEventsForGameState(GameState& state)
 						continue;
 					}
 
-					Board::MoveResult result = Board::TryMove(state, startPos.value(), endPos.value());
+					PieceMoveResult result = manager.TryMoveForState(gameStateId, startPos.value(), endPos.value());
 					if (!result.IsValidMove)
 					{
 						const std::string error = std::format("Tried update the the move of piece state from pos "
@@ -197,7 +200,17 @@ void BindCellEventsForGameState(GameState& state)
 						continue;
 					}
 
-					if (!TryRenderUpdateCells(state, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
+					const GameState* maybeGameState = manager.TryGetGameState(gameStateId);
+					if (maybeGameState == nullptr)
+					{
+						const std::string error = std::format("Tried update the the move of piece state from pos "
+							"{} -> {} but faile because game state for id: {} was not found", startPos.value().ToString(),
+							endPos.value().ToString(), gameStateId);
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					if (!TryRenderUpdateCells(manager, *maybeGameState, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
 					{
 						const std::string error = std::format("Tried update the rendering for cells "
 							"{} -> {} but failed!", startPos.value().ToString(), endPos.value().ToString());
@@ -207,14 +220,17 @@ void BindCellEventsForGameState(GameState& state)
 
 					if (!previousMoveCells.empty())
 					{
-						for (const auto& cell : previousMoveCells) cell->Dehighlight();
+						//for (const auto& cell : previousMoveCells) cell->Dehighlight();
+						for (const auto& cell : previousMoveCells) cell->ResetVisualToDefault();
 						previousMoveCells.clear();
 					}
 
-					DeselectHighlightedCells();
-					lastSelected->Highlight(HighlightColorType::PreviousMove);
-					clickedCell->Highlight(HighlightColorType::PreviousMove);
-
+					ResetCellVisuals();
+					//lastSelected->Highlight(HighlightColorType::PreviousMove);
+					//clickedCell->Highlight(HighlightColorType::PreviousMove);
+					lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+					clickedCell->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+					
 					//We need to store the cell that was last selected (the start pos of move)
 					//so we can disable it on next move since it is not stored definitively anywhere else
 					previousMoveCells.push_back(lastSelected);
@@ -223,7 +239,7 @@ void BindCellEventsForGameState(GameState& state)
 					return;
 				}
 			}
-			DeselectHighlightedCells();
+			ResetCellVisuals();
 #pragma endregion
 
 			//We don't want to do any highlighting if it is a cell with no pieces
@@ -243,30 +259,46 @@ void BindCellEventsForGameState(GameState& state)
 			//so we must check for what type is highlighted and what to set as new
 			if (sameCellClickedAgain)
 			{
-				if (IsStoredAsPreviousMove(lastSelected))
+				/*if (IsStoredAsPreviousMove(lastSelected))
 				{
 					if (lastSelected->GetHighlightedColorType() == HighlightColorType::PreviousMove)
 						lastSelected->Highlight(HighlightColorType::Selected);
 					else lastSelected->Highlight(HighlightColorType::PreviousMove);
 				}
-				else lastSelected->ToggleHighlighted(HighlightColorType::Selected);
+				else lastSelected->ToggleHighlighted(HighlightColorType::Selected);*/
+
+				if (IsStoredAsPreviousMove(lastSelected))
+				{
+					if (lastSelected->VisualState == CellVisualState::PreviousMoveHighlighted)
+						lastSelected->SetVisualState(CellVisualState::Selected);
+					else lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+				}
+				else lastSelected->ToggleVisualState(CellVisualState::Selected);
 			}
 			else
 			{
 				if (lastSelected != nullptr)
 				{
-					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->Highlight(HighlightColorType::PreviousMove);
-					else lastSelected->Dehighlight();
+					/*if (IsStoredAsPreviousMove(lastSelected)) lastSelected->Highlight(HighlightColorType::PreviousMove);
+					else lastSelected->Dehighlight();*/
+
+					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+					else lastSelected->ResetVisualToDefault();
 				}
 
-				clickedCell->Highlight(HighlightColorType::Selected);
+				//clickedCell->Highlight(HighlightColorType::Selected);
+				clickedCell->SetVisualState(CellVisualState::Selected);
 			}
 #pragma endregion
 
 #pragma region Possible Move Highlighting
-			if (clickedCell->IsHighlighted())
+			bool isClickedCellSelected = clickedCell->VisualState == CellVisualState::Selected;
+
+			//Double clicking on a cell with possible moves will toggle it off
+			if (sameCellClickedAgain && isClickedCellSelected && !currentCellMoves.empty()) ResetCellVisuals();
+			else if (isClickedCellSelected)
 			{
-				std::vector<MoveInfo> possibleMoves = Board::GetPossibleMovesForPieceAt(state, cell.first);
+				std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
 				//if (possibleMoves.empty()) wxLogMessage("Poop");
 				Utils::Log(Utils::LogType::Error, std::format("POSSIBLE {} MOVES: {}",
 					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
@@ -280,7 +312,8 @@ void BindCellEventsForGameState(GameState& state)
 						if (cellAtPosition == nullptr) continue;
 
 						//cellAtPosition->Highlight(HighlightColorType::PossibleMove);
-						cellAtPosition->SetOverlaySprite(GetMoveIcon());
+						//cellAtPosition->SetOverlaySprite(GetMoveIcon());
+						cellAtPosition->SetVisualState(CellVisualState::PossibleMoveHighlighted);
 						currentCellMoves.push_back(cellAtPosition);
 					}
 				}
@@ -292,7 +325,7 @@ void BindCellEventsForGameState(GameState& state)
 			else
 			{
 				for (const auto& cell : previousMoveCells) 
-					cell->Highlight(HighlightColorType::PreviousMove);
+					cell->SetVisualState(CellVisualState::PossibleMoveHighlighted);
 			}
 
 			lastSelected = clickedCell;
@@ -306,10 +339,10 @@ static void DisplayPieceMoves()
 	//TODO: add display piece moves logic
 }
 
-bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const Piece* pieceInfo)
+bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DInt& pos, const Piece* pieceInfo)
 {
 	//TryCacheAllSprites();
-	if (!Board::IsWithinBounds(pos))
+	if (!manager.IsPositionWithinBounds(pos))
 	{
 		std::string err = std::format("Tried to render piece {} at pos {} "
 			"but it is out of board bounds", pieceInfo->ToString(), pos.ToString());
@@ -346,11 +379,11 @@ bool TryRenderPieceAtPos(const Utils::Point2DInt& pos, const Piece* pieceInfo)
 
 	//TODO: change from nullptr to actual piece
 	Utils::Log(std::format("PIECE CHECK Need to update render sprite for piece {} at pos: {}", pieceInfo->ToString(), pos.ToString()));
-	cellIt->second->UpdatePiece(pieceInfo, maybeSprite.value());
+	cellIt->second->SetPiece(pieceInfo, maybeSprite.value());
 	return true;
 }
 
-bool TryRenderAllPieces(const GameState& state)
+bool TryRenderAllPieces(const Core::GameManager& manager, const GameState& state)
 {
 	const std::unordered_map<Utils::Point2DInt, Piece>& pieces = state.PiecePositions;
 	const std::string message = std::format("A total of pieces: {}", std::to_string(pieces.size()));
@@ -359,7 +392,7 @@ bool TryRenderAllPieces(const GameState& state)
 	{
 		//PieceTypeInfo pieceInfo = {pieceData.second.color, pieceData.second.pieceType};
 		Utils::Log(std::format("Try render all pieces piece: {} {}", pieceData.first.ToString(), pieceData.second.ToString()));
-		if (!TryRenderPieceAtPos(pieceData.first, &pieceData.second))
+		if (!TryRenderPieceAtPos(manager, pieceData.first, &pieceData.second))
 		{
 			const std::string err = std::format("Tried to render all pieces but failed to do it for piece {} at {}", 
 				pieceData.second.ToString(), pieceData.first.ToString());
@@ -370,7 +403,7 @@ bool TryRenderAllPieces(const GameState& state)
 	return true;
 }
 
-bool TryRenderUpdateCells(const GameState& state, std::vector<Utils::Point2DInt> positions)
+bool TryRenderUpdateCells(const Core::GameManager& manager, const GameState& gameState, std::vector<Utils::Point2DInt> positions)
 {
 	for (const auto& updatePos : positions)
 	{
@@ -384,17 +417,26 @@ bool TryRenderUpdateCells(const GameState& state, std::vector<Utils::Point2DInt>
 			return false;
 		}
 
-		auto piecePairIt = state.PiecePositions.find(updatePos);
-		Utils::Log(std::format("Piece positions: {}", Utils::ToStringIterable(state.PiecePositions)));
+		/*const GameState* gameState = manager.TryGetGameState(gameStateID);
+		if (gameState == nullptr)
+		{
+			std::string err = std::format("Tried to update render for cell at pos {} "
+				"but game state was not found for ID: {}", updatePos.ToString(), gameStateID);
+			Utils::Log(Utils::LogType::Error, err);
+			return false;
+		}*/
+
+		auto piecePairIt = gameState.PiecePositions.find(updatePos);
+		Utils::Log(std::format("Piece positions: {}", Utils::ToStringIterable(gameState.PiecePositions)));
 		
 		const Piece* updatedPiecePtr = &(piecePairIt->second);
-		if (piecePairIt != state.PiecePositions.end())
+		if (piecePairIt != gameState.PiecePositions.end())
 			Utils::Log(std::format("Piece At new pos: {} is {}", updatePos.ToString(), updatedPiecePtr->ToString()));
 
 		Utils::Log(std::format("Try render update cells for pos: {} current: {} old has: {} new has: {}", 
 			Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(positions),
 			updatePos.ToString(), std::to_string(cellPairIt->second->HasPiece(nullptr)),
-			std::to_string(piecePairIt != state.PiecePositions.end())));
+			std::to_string(piecePairIt != gameState.PiecePositions.end())));
 
 		const Piece* cellOldDataPtr = nullptr;
 		const Piece** cellOldDataPtrPtr = &cellOldDataPtr;
@@ -404,18 +446,18 @@ bool TryRenderUpdateCells(const GameState& state, std::vector<Utils::Point2DInt>
 			updatePos.ToString(), cellOldDataPtrPtr == nullptr ? "NULL PTR" : *cellOldDataPtrPtr == nullptr ? "NULL" : (*cellOldDataPtrPtr)->ToString()));
 
 		//If the new data does not have piece here, we remove sprite
-		if (piecePairIt == state.PiecePositions.end() && cellAlreadyHasPiece)
+		if (piecePairIt == gameState.PiecePositions.end() && cellAlreadyHasPiece)
 		{
 			Utils::Log(std::format("PIECE CHECK removing piece at pos {}", updatePos.ToString()));
 			cellPairIt->second->TryRemovePiece();
 		}
 
 		//If new data has new piece here we update sprite
-		else if ((piecePairIt != state.PiecePositions.end() && !cellAlreadyHasPiece) || 
+		else if ((piecePairIt != gameState.PiecePositions.end() && !cellAlreadyHasPiece) ||
 			(cellAlreadyHasPiece && cellOldDataPtrPtr != nullptr && *cellOldDataPtrPtr != updatedPiecePtr))
 		{
 			Utils::Log(std::format("PIECE CHECK udpate or add rendering piece at pos {}", updatePos.ToString()));
-			TryRenderPieceAtPos(updatePos, updatedPiecePtr);
+			TryRenderPieceAtPos(manager, updatePos, updatedPiecePtr);
 		}
 
 	}

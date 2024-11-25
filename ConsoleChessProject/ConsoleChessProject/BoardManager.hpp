@@ -13,20 +13,10 @@
 #include "Piece.hpp"
 #include "Color.hpp"
 #include "GameState.hpp"
+#include "PieceMoveResult.hpp"
 
 namespace Board
 {
-	class MoveResult
-	{
-	public:
-		const bool IsValidMove;
-		const std::vector<Utils::Point2DInt> AttemptedPositions;
-		const std::string Info;
-
-		MoveResult(const Utils::Point2DInt&, const bool, const std::string& info = "");
-		MoveResult(const std::vector<Utils::Point2DInt>&, const bool, const std::string& info = "");
-	};
-
 	/*enum class SpecialMove : unsigned int
 	{
 		None = 0,
@@ -133,7 +123,7 @@ namespace Board
 	bool HasMovedPiece(const GameState& state, const ColorTheme& color, const PieceType& type);
 
 	std::vector<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& pos);
-	MoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);
+	PieceMoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);
 
 	std::string CleanInput(const std::string& input);
 

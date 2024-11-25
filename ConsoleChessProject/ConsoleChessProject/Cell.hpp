@@ -1,18 +1,34 @@
 #pragma once
 #include <wx/wx.h>
 #include <vector>
+#include <string>
+#include <optional>
+#include <unordered_map> 
 #include <functional>
 #include "Piece.hpp"
 
 const wxSize CELL_SIZE{ 50, 50 };
 constexpr float ICON_SIZE_TO_CELL = 0.7;
 
-enum class HighlightColorType
+//TODO: change cell system to use states rather than knowing about the implementation
+//of different types of highlighting and symbol setting
+enum class CellVisualState
 {
+	Default,
 	Selected,
-	PossibleMove,
-	PreviousMove,
+	PossibleMoveHighlighted,
+	PreviousMoveHighlighted,
+	Disabled,
 };
+
+std::string ToString(const CellVisualState& state);
+
+//enum class HighlightColorType
+//{
+//	Selected,
+//	PossibleMove,
+//	PreviousMove,
+//};
 
 struct CellColors
 {
@@ -20,6 +36,7 @@ struct CellColors
 	wxColour HoverColor;
 	wxColour SelectedColor;
 	wxColour PossibleMoveColor;
+	wxColour PossibleCaptureColor;
 	wxColour PreviousMoveColor;
 };
 
@@ -33,11 +50,15 @@ private:
 	std::vector<std::function<void(Cell*)>> _onClickCallbacks;
 	bool _isClickable;
 	bool _hasOverlayImage;
+	bool _isRenderingPiece;
 
 	const CellColors& _colors;	
 	wxColour _lastColor;
 	
-	std::optional<HighlightColorType> _highlightedType;
+	const std::unordered_map<CellVisualState, wxBitmap*> _stateSprites;
+	CellVisualState _visualState;
+
+	//std::optional<HighlightColorType> _highlightedType;
 	const Piece* _pieceHere;
 
 	wxStaticBitmap* _bitMapDisplay = nullptr;
@@ -46,21 +67,26 @@ private:
 public:
 	const bool& IsClickable;
 	const bool& HasOverlayImage;
+	const CellVisualState& VisualState;
 
 private:
-	const wxColour& GetHighlightColor(const HighlightColorType highlightType) const;
+	//const wxColour& GetHighlightColor(const HighlightColorType highlightType) const;
+	//std::optional<const wxColour*> TryGetColorForState(const CellVisualState& state);
+	void SetOverlaySprite(const wxBitmap& bitmap);
+	void RemoveOverlaySprite();
 
 	void OnEnter(wxMouseEvent& evt);
 	void OnExit(wxMouseEvent& evt);
 	void OnClick(wxMouseEvent& evt);
 
-	void SkipMouseEvent(wxMouseEvent& evt);
+	//void SkipMouseEvent(wxMouseEvent& evt);
 
 public:
-	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors);
+	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors, 
+		const std::unordered_map<CellVisualState, wxBitmap*>& stateSprites);
 
 	bool IsHighlighted() const;
-	std::optional<HighlightColorType> GetHighlightedColorType() const;
+	//std::optional<HighlightColorType> GetHighlightedColorType() const;
 
 	/// <summary>
 	/// Will return true if a piece is rendered in the cell
@@ -94,23 +120,25 @@ public:
 	bool HasPiece(const Piece** outFoundPiece = nullptr);
 
 	//TODO: change from pointer to reference
-	void UpdatePiece(const Piece* piece, wxImage& image);
+	void SetPiece(const Piece* piece, wxImage& image);
 	bool TryRemovePiece();
 
+	void UpdateCanClick(bool isClickable);
 	void AddOnClickCallback(const std::function<void(Cell*)>& callback);
+
+	void SetVisualState(const CellVisualState& state);
+	void ToggleVisualState(const CellVisualState& state);
+	void ResetVisualToDefault();
+	
 	
 	/// <summary>
 	/// Will highlight the cell with a color based on the type.
 	/// </summary>
 	/// <param name="highlightType"></param>
 	/// <param name="actionCondition"></param>
-	void Highlight(const HighlightColorType& highlightType);
-	void Dehighlight();
+	//void Highlight(const HighlightColorType& highlightType);
+	//void Dehighlight();
 
-	void ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle);
-	void UpdateCanClick(bool isClickable);
-
-	void SetOverlaySprite(const wxBitmap& bitmap);
-	void RemoveOverlaySprite();
+	//void ToggleHighlighted(const HighlightColorType& highlightTypeIfToggle);
 };
 
