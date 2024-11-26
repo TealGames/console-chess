@@ -8,8 +8,8 @@ namespace Utils
 
 	StringUtil& StringUtil::Trim()
 	{
-		int startIndex = str.find_first_not_of(' ');
-		int endIndex = str.find_last_not_of(' ');
+		size_t startIndex = str.find_first_not_of(' ');
+		size_t endIndex = str.find_last_not_of(' ');
 
 		//If we did not find any for it, we just return early with no changes
 		if (startIndex < 0 || startIndex >= str.size() ||

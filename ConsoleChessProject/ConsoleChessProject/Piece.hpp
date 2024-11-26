@@ -71,18 +71,18 @@ public:
 		Captured,
 	};
 private:
-	const std::vector<Utils::Vector2D>& _moveDirs;
-	const std::vector<Utils::Vector2D>& _captureDirs;
+	const std::vector<Utils::Vector2D>& m_moveDirs;
+	const std::vector<Utils::Vector2D>& m_captureDirs;
 
-	const std::string _displayString;
-	State _state;
+	const std::string m_displayString;
+	State m_state;
 
 	bool HasDifferentCaptureMove();
 
 public:
-	const ColorTheme color;
-	const PieceType pieceType;
-	const State& state;
+	const ColorTheme m_Color;
+	const PieceType m_PieceType;
+	const State& m_State;
 
 	Piece();
 	Piece(const ColorTheme, const PieceType);

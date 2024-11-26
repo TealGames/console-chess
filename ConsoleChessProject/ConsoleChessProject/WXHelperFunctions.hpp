@@ -1,5 +1,6 @@
 #pragma once
 #include <wx/wx.h>
+#include <string>
 
 enum class SpacingType : unsigned int
 {
@@ -23,6 +24,7 @@ const SpacingType SPACING_ALL_SIDES = SpacingType::Top | SpacingType::Left
 namespace WXUtils
 {
 	void CenterX(wxWindow* element);
+	std::string ToString(const wxColour& color);
 }
 
 

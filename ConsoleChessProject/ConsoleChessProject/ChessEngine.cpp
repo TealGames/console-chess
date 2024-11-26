@@ -5,7 +5,7 @@
 
 ChessEngine::ChessEngine() : m_Windows(), GameManager()
 {
-	Initialize();
+	//Initialize();
 }
 
 ChessEngine::~ChessEngine()

@@ -7,6 +7,12 @@ wxIMPLEMENT_APP(App);
 
 bool App::OnInit()
 {
-	ChessEngine engine;
+	m_Engine.Initialize();
 	return true;
+}
+
+int App::OnExit()
+{
+	m_Engine.Shutdown();
+	return 0;
 }

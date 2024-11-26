@@ -41,7 +41,7 @@ static SpriteMap<SpriteSymbolType> IconSprites
 	"chess_symbols.png", nullptr, wxSize(0, 0),
 	std::unordered_map<SpriteSymbolType, SubSpriteData>{
 	{SpriteSymbolType::MoveSpot,				{{0,0}, {200, 200}, std::nullopt}},
-	{SpriteSymbolType::DisabledOverlay,		{{0,1}, {200, 200}, std::nullopt}}}
+	{SpriteSymbolType::DisabledOverlay,			{{0,1}, {200, 200}, std::nullopt}}}
 };
 
 //Updates and adds an image handler if it is a new handler

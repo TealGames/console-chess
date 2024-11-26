@@ -2,6 +2,7 @@
 #include <wx/stdpaths.h>
 #include <wx/simplebook.h>
 #include <functional>
+#include <format>
 #include <string>
 #include "MainFrame.hpp"
 #include "CapturedPiecesUI.hpp"
@@ -30,10 +31,10 @@ MainFrame::MainFrame(Core::GameManager& gameManager, const wxString& title)
 	DrawGame();
 
 	TogglePage(Page::MainMenu);
-	std::cout << &_manager;
-	wxLogMessage("Pointer value ADDRESS GAME MANAGER: %p", &_manager);
+	//std::cout << &_manager;
+	/*wxLogMessage("Pointer value ADDRESS GAME MANAGER: %p", &_manager);
 	Utils::Log(std::format("TOGGLE PAGE on main frame. Current game states: {}",
-		std::to_string(_manager.TotalGameStatesCount())));
+		std::to_string(_manager.TotalGameStatesCount())));*/
 }
 
 void MainFrame::DrawStatic()
@@ -80,7 +81,7 @@ void MainFrame::DrawMainMenu()
 	//mainMenuRoot->SetSizer(mainMenuSizer);
 	_pages->AddPage(mainMenuRoot, "MainMenu");
 
-	Utils::Log(std::format("DRAW MAIN MENU on main frame. Current game states: {}", std::to_string(_manager.TotalGameStatesCount())));
+	//Utils::Log(std::format("DRAW MAIN MENU on main frame. Current game states: {}", std::to_string(_manager.TotalGameStatesCount())));
 }
 
 void MainFrame::DrawGame()
@@ -97,7 +98,7 @@ void MainFrame::DrawGame()
 	//sidePanelSizer->AddStretchSpacer(1);
 	//sidePanelSizer->AddSpacer(50);
 	//sidePanel->SetSizer(sidePanelSizer);
-	CreateCaptureDisplay(sidePanel);
+	CreateCaptureDisplay(_manager, sidePanel);
 
 	//sidePanel->SetSize(SIDE_PANEL_SIZE);
 	//sidePanel->SetPosition(wxPoint(500, 0));
@@ -125,6 +126,9 @@ bool MainFrame::TryUpdateBoard()
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}
+
+	const std::string message = std::format("A total of pieces UPDATE BOARSD: {}", std::to_string(_currentState->PiecePositions.size()));
+	Utils::Log(message);
 	return TryRenderAllPieces(_manager, *_currentState);
 }
 
@@ -134,7 +138,6 @@ void MainFrame::StartGame()
 	Utils::Log(std::format("Start game on main frame. Current game states: {}", std::to_string(_manager.TotalGameStatesCount())));
 	_currentState = &(_manager.StartNewGame(GAME_STATE_ID));
 	
-	/*
 	if (_currentState==nullptr)
 	{
 		const std::string err = std::format("Tried to start game in main frame"
@@ -144,15 +147,16 @@ void MainFrame::StartGame()
 	}
 	//std::string str = "State of Game: "+_currentState.value().ToString();
 	//Utils::Log(Utils::LogType::Warning, str);
-	BindCellEventsForGameState(manager, GAME_STATE_ID);
+	BindCellEventsForGameState(_manager, GAME_STATE_ID);
 	TogglePage(Page::Game);
+	const std::string message = std::format("A total of pieces START GAME: {}", std::to_string(_currentState->PiecePositions.size()));
 	
 	if (!TryUpdateBoard())
 	{
 		const std::string err = std::format("Tried to render all pieces but failed!");
 		Utils::Log(Utils::LogType::Error, err);
 	}
-	*/
+	
 	
 	//TODO: function listeners adding crashes app!
 	/*std::function<void(ColorTheme)> turnChangeFunc = [this](const ColorTheme color) -> void 

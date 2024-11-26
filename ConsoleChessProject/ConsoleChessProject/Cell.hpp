@@ -95,6 +95,12 @@ public:
 	/// <returns></returns>
 	bool IsRenderingPiece() const;
 
+	/// <summary>
+	/// Return true if the state of this cell is disabled
+	/// </summary>
+	/// <returns></returns>
+	bool IsDisabled() const;
+
 	//TODO: maybe make a custom wrapper type called OutResult<> that can be used with pointers
 	//and prohibits nullptr so that out parameters can work as expected
 

@@ -3,7 +3,7 @@
 #include <vector>
 #include "CapturedPiecesUI.hpp"
 #include "ResourceManager.hpp"
-#include "BoardManager.hpp"
+#include "GameManager.hpp"
 #include "GameState.hpp"
 #include "Color.hpp"
 #include "UIGlobals.hpp"
@@ -26,7 +26,7 @@ static void UpdateDisplay(const GameState& state)
 	GridLayout* currentLayout = nullptr;
 	for (const auto& capturedPiece : state.CapturedPieces)
 	{
-		std::optional<wxBitmap> maybeMap = TryGetBitMapFromPiece(PieceTypeInfo{capturedPiece.color, capturedPiece.pieceType}, SPRITE_SIZE);
+		std::optional<wxBitmap> maybeMap = TryGetBitMapFromPiece(PieceTypeInfo{capturedPiece.m_Color, capturedPiece.m_PieceType}, SPRITE_SIZE);
 		if (!maybeMap.has_value())
 		{
 			const std::string err = std::format("Tried to update capture display for pieces "
@@ -35,7 +35,7 @@ static void UpdateDisplay(const GameState& state)
 			return;
 		}
 		
-		bool hasCapturedDark = capturedPiece.color == ColorTheme::Dark;
+		bool hasCapturedDark = capturedPiece.m_Color == ColorTheme::Dark;
 		currentLayout = hasCapturedDark ? lightPanelPieces : darkPanelPieces;
 
 		wxPanel* piecePanel = new wxPanel(currentLayout, wxID_ANY, wxDefaultPosition, SPRITE_PANEL_SIZE);
@@ -50,7 +50,7 @@ static void UpdateDisplay(const GameState& state)
 	}
 }
 
-void CreateCaptureDisplay(wxWindow* parent)
+void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 {
 	DirectionalLayout* displayRoot = new DirectionalLayout(parent, LayoutType::Vertical, wxDefaultPosition, parent->GetSize());
 	const wxSize LAYOUT_SIZE(0.8 * displayRoot->GetSize().x, 0.2 * displayRoot->GetSize().y);
@@ -148,5 +148,6 @@ void CreateCaptureDisplay(wxWindow* parent)
 	darkPanelSizer->Add(darkPanelPieces, 0, wxEXPAND, 0);
 	darkPanelPieces->SetSizer(darkPanelSizer);*/
 
-	Board::AddPieceMoveCallback(&UpdateDisplay);
+	//Board::AddPieceMoveCallback(&UpdateDisplay);
+	manager.AddEventCallback(Core::GameEventType::PieceMoved, &UpdateDisplay);
 }

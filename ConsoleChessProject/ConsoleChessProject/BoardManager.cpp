@@ -1,8 +1,5 @@
 #include <format>
-#include <queue>
 #include <vector>
-#include <unordered_set>
-#include <set>
 #include <optional>
 #include <algorithm>
 #include "BoardManager.hpp"
@@ -41,11 +38,11 @@ namespace Board
 		_pieceMoveEvent.push_back(callback);
 	}
 
-	static void InvokeSuccessfulMoveEvent()
+	static void InvokeSuccessfulMoveEvent(const GameState& state)
 	{
 		for (const auto& callback : _successfulMoveEvent)
 		{
-			callback();
+			callback(state);
 		}
 	}
 
@@ -243,13 +240,13 @@ namespace Board
 		bool checkState = targetState.has_value() && targetState.value().size() > 0;
 		for (const auto& piecePos : state.PiecePositions)
 		{
-			if (checkType && piecePos.second.pieceType != type.value()) continue;
+			if (checkType && piecePos.second.m_PieceType != type.value()) continue;
 			if (checkState)
 			{
 				bool pieceStateMatches = false;
 				for (const auto& state : targetState.value())
 				{
-					if (piecePos.second.state == state)
+					if (piecePos.second.m_State == state)
 					{
 						pieceStateMatches = true;
 						break;
@@ -258,7 +255,7 @@ namespace Board
 				if (!pieceStateMatches) continue;
 			}
 
-			if (piecePos.second.color == color)
+			if (piecePos.second.m_Color == color)
 				foundPieces.emplace_back(piecePos.second, piecePos.first);
 		}
 		return foundPieces;
@@ -376,7 +373,7 @@ namespace Board
 		//Standard chess rules would prohibit a king check or checkmating another king since a king
 		//would then be in attack range of another king, meaning your king would not be able to move
 		//there since then your king is at risk of check or mate
-		if (pieceAttemptingCheck->pieceType == PieceType::King) return { false, false };
+		if (pieceAttemptingCheck->m_PieceType == PieceType::King) return { false, false };
 
 		const std::vector<MoveInfo> possibleMoves = GetPossibleMovesForPieceAt(state, posAttemptingCheck);
 
@@ -393,8 +390,8 @@ namespace Board
 
 					//If the piece at the end of the path is a king of a different color it is a check
 					pieceChecked = TryGetPieceAtPosition(state, pieceMove.NewPos);
-					if (pieceChecked != nullptr && pieceChecked->pieceType == PieceType::King &&
-						pieceChecked->color != pieceAttemptingCheck->color)
+					if (pieceChecked != nullptr && pieceChecked->m_PieceType == PieceType::King &&
+						pieceChecked->m_Color != pieceAttemptingCheck->m_Color)
 					{
 						inCheckResult = true;
 						break;
@@ -406,7 +403,7 @@ namespace Board
 		bool inCheckmateResult = false;
 		if (inCheckResult)
 		{
-			std::vector<PiecePositionData> kingPositions = TryGetPiecesPosition(state, pieceAttemptingCheck->color ==
+			std::vector<PiecePositionData> kingPositions = TryGetPiecesPosition(state, pieceAttemptingCheck->m_Color ==
 				ColorTheme::Dark ? ColorTheme::Light : ColorTheme::Dark, PieceType::King,
 				std::vector<Piece::State>{ Piece::State::InPlay });
 			if (kingPositions.size() != 1)
@@ -447,7 +444,7 @@ namespace Board
 		std::vector<PiecePositionData> checkablePiecePositions;
 		for (const auto& piece : state.PiecePositions)
 		{
-			if (piece.second.color != color) continue;
+			if (piece.second.m_Color != color) continue;
 			CheckOrMateResult result = IsCheckOrMateByPieceAt(state, piece.first);
 			if (result.IsCheck || result.IsCheckmate)
 				checkablePiecePositions.emplace_back(piece.second, piece.first);
@@ -491,7 +488,7 @@ namespace Board
 		Piece* pieceAtNewPos = TryGetPieceAtPositionMutable(state, newPos);
 		if (pieceAtNewPos != nullptr)
 		{
-			if (pieceAtNewPos->color == currentData.PieceRef.color)
+			if (pieceAtNewPos->m_Color == currentData.PieceRef.m_Color)
 			{
 				std::string error = std::format("Tried to place board piece: {} at pos: {} "
 					"but piece of same team color exists at new pos: {}",
@@ -549,8 +546,8 @@ namespace Board
 			if (undoCaptureFunc != nullptr) undoCaptureFunc();
 			return false;
 		}
-		auto oldPos = state.PiecePositions;
-		auto oldCaptured = state.CapturedPieces;
+		PiecePositionMapType oldPos = state.PiecePositions;
+		std::vector<Piece> oldCaptured = state.CapturedPieces;
 
 		Utils::Log(std::format("PIECE CHECK TRY MOVE {} -> {} found piece: {}", currentData.Pos.ToString(), newPos.ToString(), currentData.PieceRef.ToString()));
 		Utils::Log(std::format("PIECE CHECK Updated piece position of {} from {} -> {}. Old:[pos:{}, captured:{}] New:[pos:{}, captured:{}],",
@@ -564,7 +561,7 @@ namespace Board
 	{
 		if (!TryUpdatePiecePosition(state, currentData, newPos)) return false;
 
-		ColorTheme color = currentData.PieceRef.color;
+		ColorTheme color = currentData.PieceRef.m_Color;
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end())
 		{
 			state.PreviousMoves.emplace(color, std::vector<MoveInfo>{moveInfo });
@@ -865,7 +862,7 @@ namespace Board
 	}
 	static CastleInfo IsCastleMove(const GameState& state, const PiecePositionData currentData, const Utils::Point2DInt& newPos)
 	{
-		if (currentData.PieceRef.pieceType != PieceType::King) return { false, false, false };
+		if (currentData.PieceRef.m_PieceType != PieceType::King) return { false, false, false };
 
 		int startCol = std::min(currentData.Pos.y, newPos.y);
 		int endCol = std::max(currentData.Pos.y, newPos.y);
@@ -875,7 +872,7 @@ namespace Board
 		int rookCol = delta > 0 ? BOARD_DIMENSION - 1 : 0;
 		//If in the direction moved is NOT a rook at the end, it means we do not have castle chance
 		if ((outPiece = TryGetPieceAtPosition(state, { currentData.Pos.x , rookCol })) == nullptr) return { false, false, false };
-		if (outPiece == nullptr || outPiece->pieceType != PieceType::Rook) return { false, false, false };
+		if (outPiece == nullptr || outPiece->m_PieceType != PieceType::Rook) return { false, false, false };
 
 		//If we move kingside it is 3, otherwise it is 4 diff
 		if (std::abs(delta) != 3 && std::abs(delta) != 4) return { false, false, false };
@@ -895,7 +892,7 @@ namespace Board
 		const Piece* pieceAtNewPos = nullptr;
 		if ((pieceAtNewPos = TryGetPieceAtPosition(state, newPos)) == nullptr) return nullptr;
 
-		if (!DoesMoveDeltaMatchCaptureMoves(currentData.PieceRef.pieceType, currentData.Pos, newPos))
+		if (!DoesMoveDeltaMatchCaptureMoves(currentData.PieceRef.m_PieceType, currentData.Pos, newPos))
 			return nullptr;
 
 		//TODO: are there any other checks to capture a piece
@@ -936,10 +933,10 @@ namespace Board
 
 		Utils::Point2DInt moveNewPos;
 		
-		Utils::Log(std::format("MOVE {} DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->pieceType).size()),
-			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(GetMoveDirsForPiece(movedPiece->pieceType))));
+		Utils::Log(std::format("MOVE {} DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->m_PieceType).size()),
+			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(GetMoveDirsForPiece(movedPiece->m_PieceType))));
 
-		const std::vector<Utils::Vector2D> moveDirs = GetMoveDirsForPiece(movedPiece->pieceType);
+		const std::vector<Utils::Vector2D> moveDirs = GetMoveDirsForPiece(movedPiece->m_PieceType);
 		const Piece* pieceAtNewPos = nullptr;
 		for (auto& movePos : moveDirs)
 		{
@@ -949,8 +946,8 @@ namespace Board
 			
 			//TODO: this is an issue with this if a piece can move any amount in a direction since they then might be able to 
 			//go though pieces of different opposing color
-			bool isNoPieceOrOpposingPieceAtNewPos = pieceAtNewPos == nullptr || pieceAtNewPos->color != movedPiece->color;
-			bool canMoveOverOthers = CanPieceMoveOverPieces(movedPiece->pieceType);
+			bool isNoPieceOrOpposingPieceAtNewPos = pieceAtNewPos == nullptr || pieceAtNewPos->m_Color != movedPiece->m_Color;
+			bool canMoveOverOthers = CanPieceMoveOverPieces(movedPiece->m_PieceType);
 			bool moveOverPiecesFollowsRules = canMoveOverOthers || 
 											 (!canMoveOverOthers && !HasPieceWithinPositionRange(state, startPos, moveNewPos, false));
 
@@ -991,9 +988,9 @@ namespace Board
 			}
 		}
 		
-		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->pieceType);
+		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->m_PieceType);
 		Utils::Log(Utils::LogType::Error, std::format("POSSIBLE {} {} CAPTURES: {}",
-			ToString(movedPiece->pieceType), std::to_string(possibleMoves.size()), 
+			ToString(movedPiece->m_PieceType), std::to_string(possibleMoves.size()), 
 			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(captureMoves)));
 
 		//Since capture moves return the same as move dirs if there are no special capture dirs
@@ -1005,7 +1002,7 @@ namespace Board
 				moveNewPos = GetVectorEndPoint(startPos, captureMove);
 				pieceAtNewPos = TryGetPieceAtPosition(state, moveNewPos);
 
-				bool isOpposingPieceAtNewPos = pieceAtNewPos != nullptr && pieceAtNewPos->color != movedPiece->color;
+				bool isOpposingPieceAtNewPos = pieceAtNewPos != nullptr && pieceAtNewPos->m_Color != movedPiece->m_Color;
 				if (IsWithinBounds(moveNewPos) && isOpposingPieceAtNewPos &&
 					!isDuplicatePos(moveNewPos) && !HasPieceWithinPositionRange(state, startPos, moveNewPos, false))
 				{
@@ -1024,13 +1021,13 @@ namespace Board
 			}
 		}
 
-		CastleInfo castleInfo = CanCastle(state, movedPiece->color);
-		Utils::Log(std::format("Checking {} castle: {} [k:{} move: {}] [q:{} move:{}]", ToString(movedPiece->color),
+		CastleInfo castleInfo = CanCastle(state, movedPiece->m_Color);
+		Utils::Log(std::format("Checking {} castle: {} [k:{} move: {}] [q:{} move:{}]", ToString(movedPiece->m_Color),
 			std::to_string(castleInfo.canCastle),
 			std::to_string(castleInfo.isKingSide), castleInfo.kingSideCastleMove.ToString(),
 			std::to_string(castleInfo.isQueenSide), castleInfo.queenSideCastleMove.ToString()));
 
-		if (movedPiece->pieceType == PieceType::King && castleInfo.canCastle)
+		if (movedPiece->m_PieceType == PieceType::King && castleInfo.canCastle)
 		{
 			if (castleInfo.isKingSide && !isDuplicatePos(castleInfo.kingSideCastleMove))
 			{
@@ -1070,11 +1067,11 @@ namespace Board
 			}
 		}
 
-		if (movedPiece->pieceType == PieceType::King)
+		if (movedPiece->m_PieceType == PieceType::King)
 		{
 			//Kings also get checked for any positions that are able to be checked
 			//and those positions are illegal and are removed
-			std::vector<PiecePositionData> checkPositions = GetPiecePositionsForcingCheckOrMate(state, movedPiece->color);
+			std::vector<PiecePositionData> checkPositions = GetPiecePositionsForcingCheckOrMate(state, movedPiece->m_Color);
 			if (checkPositions.size() != 0)
 			{
 				for (const auto& checkPos : checkPositions)
@@ -1123,7 +1120,7 @@ namespace Board
 				if (move.NewPos == newPos)
 				{
 					TryUpdatePiecePosition(state, PiecePositionData{ *movedPiece, currentPos }, newPos, moveInfo);
-					InvokeSuccessfulMoveEvent();
+					InvokeSuccessfulMoveEvent(state);
 					return { newPos, true };
 				}
 			}
@@ -1276,7 +1273,7 @@ namespace Board
 	//	return info;
 	//}
 
-	const std::vector<MoveInfo>& GetPreviousMoves(const GameState& state, const ColorTheme& color)
+	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ColorTheme& color)
 	{
 		if (state.PreviousMoves.size() == 0) return {};
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end()) return {};
@@ -1294,7 +1291,7 @@ namespace Board
 			if (move.PiecesMoved.size() == 0) continue;
 			for (const auto& piecesMoved : move.PiecesMoved)
 			{
-				if (piecesMoved.PieceRef.pieceType == type)
+				if (piecesMoved.PieceRef.m_PieceType == type)
 				{
 					return &move;
 				}

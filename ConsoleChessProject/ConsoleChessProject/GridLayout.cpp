@@ -1,4 +1,4 @@
-#include <wx/wx.h>x
+#include <wx/wx.h>
 #include "GridLayout.hpp"
 #include "WXHelperFunctions.hpp"
 

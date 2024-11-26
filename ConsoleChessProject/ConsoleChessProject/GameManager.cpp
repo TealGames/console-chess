@@ -17,19 +17,16 @@ namespace Core
 	GameManager::GameManager()
 		: _allGameStates() //,GameStartEvent(), GameEndEvent(), TurnChangeEvent()
 	{
-		Utils::Log(std::format("GAME MANAGER created Current game states: {}", std::to_string(TotalGameStatesCount())));
+		//Utils::Log(std::format("GAME MANAGER created Current game states: {}", std::to_string(TotalGameStatesCount())));
 	}
 
 	GameStateQueryResult GameManager::HasGameStateId(const std::string& gameStateId)
 	{
-		Utils::Log(std::format("Size of game states: {}", std::to_string(_allGameStates.size())));
-		return { false, std::nullopt };
-
 		if (_allGameStates.empty()) return {false, std::nullopt};
 
 		GameStateCollectionType::iterator gameStateIt = _allGameStates.find(gameStateId);
 		bool hasState = gameStateIt != _allGameStates.end();
-		return hasState ? GameStateQueryResult{ false, std::nullopt } : GameStateQueryResult{true, gameStateIt};
+		return hasState ? GameStateQueryResult{ true, gameStateIt } : GameStateQueryResult{ false, std::nullopt };
 	}
 
 	GameState* GameManager::TryGetGameStateMutable(const std::string& gameStateID)
@@ -51,12 +48,14 @@ namespace Core
 		return TryGetGameStateMutable(gameStateID);
 	}
 
-	static bool IsValidGameState(const GameState* state, const bool logError, const std::string& operationName)
+	bool GameManager::IsValidGameState(const GameState* state, const bool logError, const std::string& operationName)
 	{
 		if (state == nullptr)
 		{
+			std::vector<std::string> ids = Utils::GetKeysFromMap<std::string, GameState>(_allGameStates.begin(), _allGameStates.end());
 			const std::string err = std::format("[GAME_MANAGER]: Tried to execute operation: {} "
-				"but game state was NULL (probably not found)", operationName);
+				"but game state was NULL (probably not found). All active states ids: {}", operationName,
+				Utils::ToStringIterable<std::vector<std::string>, std::string>(ids));
 			Utils::Log(Utils::LogType::Error, err);
 			return false;
 		}
@@ -74,9 +73,7 @@ namespace Core
 			Utils::Log(Utils::LogType::Error, error);
 			return {};
 		}
-		return {};
 
-		/*
 		auto newStateIt= _allGameStates.emplace(newGameStateID, GameState{});
 		if (!newStateIt.second)
 		{
@@ -91,7 +88,6 @@ namespace Core
 		Board::CreateDefaultBoard(newState);
 		
 		return newState;
-		*/
 
 		//Utils::Log(Utils::LogType::Warning, std::format("GAME_MANAGER: Start game: {}", newState.ToString()));
 
@@ -116,7 +112,7 @@ namespace Core
 		const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos)
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
-		if (!IsValidGameState(maybeGameState, true, "TryMove"))
+		if (!IsValidGameState(maybeGameState, true, std::format("TryMove(id:{})", gameStateID)))
 		{
 			return { newPos, false, std::format("Failed to retrieve current game data") };
 		}
@@ -127,30 +123,35 @@ namespace Core
 	std::vector<MoveInfo> GameManager::TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos)
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
-		if (!IsValidGameState(maybeGameState, true, "GetPossibleMoves")) return {};
+		//Utils::Log(std::format("Try get possible moves game manager has state: {}", std::to_string(maybeGameState!=nullptr)));
+		if (!IsValidGameState(maybeGameState, true, std::format("GetPossibleMoves(id:{})", gameStateID)))
+		{
+			return {};
+		}
 		return Board::GetPossibleMovesForPieceAt(*maybeGameState, pos);
 	}
 
-	void GameManager::AdvanceTurn(const std::string& gameStateID)
+	std::optional<ColorTheme> GameManager::TryAdvanceTurn(const std::string& gameStateID)
 	{
-		if (!ADVANCE_TURN) return;
+		if (!ADVANCE_TURN) return std::nullopt;
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
-		if (!IsValidGameState(maybeGameState, true, "AdvanceTurn")) return;
+		if (!IsValidGameState(maybeGameState, true, std::format("AdvanceTurn(id:{})", gameStateID))) return std::nullopt;
 
 		std::optional<ColorTheme> maybeOtherPlayer = TryGetOtherPlayer(*maybeGameState);
 		if (!maybeOtherPlayer.has_value())
 		{
-			std::string error = std::format("Tried to change players turn in "
+			const std::string error = std::format("Tried to change players turn in "
 				"GameManager but there is empty player's turn! Current Player turn left unchanged: {}", 
 				ToString(maybeGameState->CurrentPlayer));
 			Utils::Log(Utils::LogType::Error, error);
-			return;
+			return std::nullopt;
 		}
 
 		maybeGameState->CurrentPlayer = maybeOtherPlayer.value();
 		if (maybeGameState->InCheckmate || Board::GetAvailablePieces(*maybeGameState, maybeGameState->CurrentPlayer) == 0)
 			EndGame(*maybeGameState);
 
+		return maybeGameState->CurrentPlayer;
 		//TurnChangeEvent.Invoke(maybeGameState->CurrentPlayer);
 	}
 
@@ -159,7 +160,7 @@ namespace Core
 		std::optional<ColorTheme> maybeOther= TryGetOtherPlayer(state);
 		if (!maybeOther.has_value())
 		{
-			std::string error = std::format("Tried to end the game in GameManager "
+			const std::string error = std::format("Tried to end the game in GameManager "
 				"but there is no player's turn!");
 			Utils::Log(Utils::LogType::Error, error);
 			return;
@@ -172,5 +173,18 @@ namespace Core
 	size_t GameManager::TotalGameStatesCount() const
 	{
 		return _allGameStates.size();
+	}
+
+	void GameManager::AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback)
+	{
+		if (eventType == GameEventType::PieceMoved) Board::AddPieceMoveCallback(callback);
+		else if (eventType == GameEventType::SuccessfulTurn) Board::AddMoveExecutedCallback(callback);
+		else
+		{
+			const std::string error = std::format("[GAME MANAGER]: Tried to add a game event callback"
+				" for a type that has no event actions defined!");
+			Utils::Log(Utils::LogType::Error, error);
+			return;
+		}
 	}
 }

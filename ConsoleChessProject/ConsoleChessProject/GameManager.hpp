@@ -25,6 +25,13 @@ namespace Core
 		const bool HasGameId;
 		std::optional<GameStateCollectionType::iterator> ResultIt;
 	};
+
+	using GameEventCallbackType = std::function<void(const GameState& state)>;
+	enum class GameEventType
+	{
+		PieceMoved,
+		SuccessfulTurn,
+	};
 		
 	class GameManager
 	{
@@ -44,6 +51,7 @@ namespace Core
 	private:
 		//This has to not be const because we need to get mutable iterator
 		GameStateQueryResult HasGameStateId(const std::string& gameStateId);
+		bool IsValidGameState(const GameState* state, const bool logError, const std::string& operationName);
 		GameState* TryGetGameStateMutable(const std::string& gameStateID);
 
 		std::optional<ColorTheme> TryGetOtherPlayer(const GameState& state) const;
@@ -56,12 +64,21 @@ namespace Core
 		const GameState& StartNewGame(const std::string& newGameStateID);
 		
 		bool IsPositionWithinBounds(const Utils::Point2DInt& pos) const;
-		void AdvanceTurn(const std::string& gameStateID);
+
+		/// <summary>
+		/// Makes the necesssary changes to the game state to advance turn
+		/// and returns the new player's turn
+		/// </summary>
+		/// <param name="gameStateID"></param>
+		/// <returns></returns>
+		std::optional<ColorTheme> TryAdvanceTurn(const std::string& gameStateID);
 
 		PieceMoveResult TryMoveForState(const std::string& gameStateID,
 			const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos);
 
 		std::vector<MoveInfo> TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos);
 		size_t TotalGameStatesCount() const;
+
+		void AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback);
 	};
 }

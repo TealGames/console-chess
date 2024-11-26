@@ -118,7 +118,7 @@ namespace Board
 	std::string GetPiecePositionsAsString(const GameState& state);
 	size_t GetAvailablePieces(const GameState& state, ColorTheme& color);
 
-	const std::vector<MoveInfo>& GetPreviousMoves(const GameState& state, const ColorTheme& color);
+	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ColorTheme& color);
 	const MoveInfo* GetPieceFirstMove(const GameState& state, const ColorTheme& color, const PieceType& type);
 	bool HasMovedPiece(const GameState& state, const ColorTheme& color, const PieceType& type);
 
@@ -130,7 +130,7 @@ namespace Board
 	using PieceMoveCallbackType = std::function<void(const GameState&)>;
 	void AddPieceMoveCallback(const PieceMoveCallbackType& callback);
 
-	using MoveExecutedCallbackType = std::function<void()>;
+	using MoveExecutedCallbackType = std::function<void(const GameState&)>;
 	void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback);
 	//TODO: add parse/serialization method to convert moveinfo to chess notation input
 }

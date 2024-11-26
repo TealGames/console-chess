@@ -22,7 +22,7 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "";
+	const std::string LOG_ONLY_MESSAGE = "TURN";
 	void Log(const LogType& logType, const std::string& str)
 	{
 		if (LOG_ONLY_MESSAGE!="" && logType == LogType::Log && 

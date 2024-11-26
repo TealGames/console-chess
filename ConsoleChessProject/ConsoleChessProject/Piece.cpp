@@ -40,26 +40,26 @@ bool PieceTypeInfo::operator==(const PieceTypeInfo& other) const
 }
 
 Piece::Piece()
-	: color(ColorTheme::Light), pieceType(PieceType::Pawn), _moveDirs(GetMoveDirsForPiece(pieceType)),
-	_captureDirs(GetCaptureMovesForPiece(pieceType)), _state(Piece::State::Undefined), state(_state) {}
+	: m_Color(ColorTheme::Light), m_PieceType(PieceType::Pawn), m_moveDirs(GetMoveDirsForPiece(m_PieceType)),
+	m_captureDirs(GetCaptureMovesForPiece(m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 Piece::Piece(const ColorTheme color, const PieceType piece)
-	: color(color), pieceType(piece), _moveDirs(GetMoveDirsForPiece(piece)),
-	_captureDirs(GetCaptureMovesForPiece(piece)), _state(Piece::State::Undefined), state(_state) {}
+	: m_Color(color), m_PieceType(piece), m_moveDirs(GetMoveDirsForPiece(piece)),
+	m_captureDirs(GetCaptureMovesForPiece(piece)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 Piece::Piece(const Piece& copy) 
-	: color(copy.color), pieceType(copy.pieceType), _moveDirs(GetMoveDirsForPiece(copy.pieceType)),
-	_captureDirs(GetCaptureMovesForPiece(copy.pieceType)), _state(Piece::State::Undefined), state(_state) {}
+	: m_Color(copy.m_Color), m_PieceType(copy.m_PieceType), m_moveDirs(GetMoveDirsForPiece(copy.m_PieceType)),
+	m_captureDirs(GetCaptureMovesForPiece(copy.m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 bool Piece::operator==(const Piece& piece) const
 {
-	return color == piece.color && pieceType == piece.pieceType && _moveDirs == piece._moveDirs &&
-		_captureDirs == piece._captureDirs && state == piece.state;
+	return m_Color == piece.m_Color && m_PieceType == piece.m_PieceType && m_moveDirs == piece.m_moveDirs &&
+		m_captureDirs == piece.m_captureDirs && m_State == piece.m_State;
 }
 
 bool Piece::HasDifferentCaptureMove()
 {
-	return _captureDirs.size() > 0;
+	return m_captureDirs.size() > 0;
 }
 
 bool HasPieceTypeDefined(const PieceType type)
@@ -69,7 +69,7 @@ bool HasPieceTypeDefined(const PieceType type)
 
 void Piece::UpdateState(const State& state)
 {
-	_state = state;
+	m_state = state;
 }
 
 double GetValueForPiece(const PieceType type)
@@ -273,8 +273,8 @@ bool DoesMoveDeltaMatchCaptureMoves(const PieceType type,
 
 std::string Piece::ToString(bool shorten) const
 {
-	std::string colorStr = ::ToString(color);
-	std::string pieceStr = ::ToString(pieceType);
+	std::string colorStr = ::ToString(m_Color);
+	std::string pieceStr = ::ToString(m_PieceType);
 	if (shorten)
 	{
 		colorStr = *colorStr.begin();

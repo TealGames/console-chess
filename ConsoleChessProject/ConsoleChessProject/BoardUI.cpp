@@ -25,16 +25,18 @@ static const std::unordered_map<ColorTheme, CellColors> cellColorData =
 								   DARK_CELL_MOVE_COLOR, DARK_CELL_CAPTURE_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
 };
 
-static std::optional<wxBitmap> movePositionIcon;
+static std::unordered_map<SpriteSymbolType, wxBitmap> spriteBitmaps;
 
-static wxBitmap& GetMoveIcon()
+static wxBitmap& GetSpriteIcon(const SpriteSymbolType symbolType)
 {
-	if (!movePositionIcon.has_value())
+	auto spriteMapIt = spriteBitmaps.find(symbolType);
+	if (!spriteBitmaps.empty() || spriteMapIt ==spriteBitmaps.end())
 	{
-		movePositionIcon = TryGetBitMapForIcon(SpriteSymbolType::MoveSpot, CELL_SIZE);
+		std::optional<wxBitmap> maybeBitmap= TryGetBitMapForIcon(SpriteSymbolType::MoveSpot, CELL_SIZE);
+		spriteBitmaps.emplace(symbolType, maybeBitmap.has_value() ? maybeBitmap.value() : wxBitmap());
 	}
-	Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
-	return movePositionIcon.value();
+	//Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
+	return spriteMapIt->second;
 }
 
 Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
@@ -61,10 +63,12 @@ void UpdateInteractablePieces(const ColorTheme& interactableColor)
 	const Piece* cellPiece = nullptr;
 	for (const auto& cell : cells)
 	{
-		if (!cell.second->HasPiece(&cellPiece) ||
-			cellPiece == nullptr) continue;
+		bool hasPiece = cell.second->HasPiece(&cellPiece);
+		//Utils::Log(std::format("TURN: updating interactable piece at pos {}: {} piece ptr: {}",
+		//	cell.first.ToString(), std::to_string(hasPiece), std::to_string(cellPiece!=nullptr)));
+		if (!hasPiece || cellPiece == nullptr) continue;
 
-		bool isInteractableColor = cellPiece->color == interactableColor;
+		bool isInteractableColor = cellPiece->m_Color == interactableColor;
 		cell.second->UpdateCanClick(isInteractableColor);
 	}
 }
@@ -92,7 +96,9 @@ void CreateBoardCells(wxWindow* parent)
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
 			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
-				{{CellVisualState::PossibleMoveHighlighted , &GetMoveIcon()}}));
+				{{CellVisualState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
+				 {CellVisualState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
+
 			if (!emplaced.second)
 			{
 				const std::string error = std::format("Tried to place cell at row {} col {}"
@@ -236,6 +242,18 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 					previousMoveCells.push_back(lastSelected);
 					previousMoveCells.push_back(clickedCell);
 					lastSelected = clickedCell;
+
+					std::optional<ColorTheme> newColor= manager.TryAdvanceTurn(gameStateId);
+					Utils::Log(std::format("TURN: Trying to advance turn for state: {}, has new color: {}", gameStateId, std::to_string(newColor.has_value())));
+					if (!newColor.has_value())
+					{
+						const std::string error = std::format("Tried advantce the turn in board UI when moving from"
+							"{} -> {} but failed since GameManager call returned a null new team!", 
+							startPos.value().ToString(), endPos.value().ToString());
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+					UpdateInteractablePieces(newColor.value());
 					return;
 				}
 			}
@@ -367,7 +385,7 @@ bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DI
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}*/
-	auto maybeSprite = TryGetSpriteFromPiece(PieceTypeInfo{ pieceInfo->color, pieceInfo->pieceType });
+	auto maybeSprite = TryGetSpriteFromPiece(PieceTypeInfo{ pieceInfo->m_Color, pieceInfo->m_PieceType });
 	if (!maybeSprite.has_value())
 	{
 		std::string err = std::format("Tried to render piece {} at pos {} but its sprite "
@@ -375,7 +393,6 @@ bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DI
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}
-
 
 	//TODO: change from nullptr to actual piece
 	Utils::Log(std::format("PIECE CHECK Need to update render sprite for piece {} at pos: {}", pieceInfo->ToString(), pos.ToString()));
@@ -386,7 +403,7 @@ bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DI
 bool TryRenderAllPieces(const Core::GameManager& manager, const GameState& state)
 {
 	const std::unordered_map<Utils::Point2DInt, Piece>& pieces = state.PiecePositions;
-	const std::string message = std::format("A total of pieces: {}", std::to_string(pieces.size()));
+	const std::string message = std::format("A total of pieces: {}", std::to_string(state.PiecePositions.size()));
 	wxLogMessage(message.c_str());
 	for (const auto& pieceData : pieces)
 	{

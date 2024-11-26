@@ -7,6 +7,7 @@
 #include <functional>
 #include "Cell.hpp"
 #include "HelperFunctions.hpp"
+#include "WXHelperFunctions.hpp"
 #include "ResourceManager.hpp"
 
 std::string ToString(const CellVisualState& state)
@@ -52,7 +53,7 @@ void Cell::OnEnter(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
-	if (IsHighlighted()) return;
+	if (IsHighlighted() || IsDisabled()) return;
 
 	_lastColor = GetBackgroundColour();
 	int currentRed = static_cast<int>(_lastColor.Red());
@@ -78,7 +79,7 @@ void Cell::OnExit(wxMouseEvent& evt)
 	if (!cell) return;
 
 	//If we are highlighted we do not want to return back until the caller says so
-	if (IsHighlighted()) return;
+	if (IsHighlighted() || IsDisabled()) return;
 
 	//SetBackgroundColour(_colors.InnerColor);
 	SetBackgroundColour(_lastColor);
@@ -131,12 +132,17 @@ bool Cell::IsRenderingPiece() const
 	return _isRenderingPiece;
 }
 
+bool Cell::IsDisabled() const
+{
+	return _visualState == CellVisualState::Disabled;
+}
+
 bool Cell::HasPieceStored(const Piece** outFoundPiece)
 {
-	if (_pieceHere!=nullptr) outFoundPiece = &_pieceHere;
-	Utils::Log(std::format("HAS PIECE STORED: {} OUT: {}", 
+	if (_pieceHere!=nullptr && outFoundPiece!=nullptr) *outFoundPiece = _pieceHere;
+	/*Utils::Log(std::format("TURN: HAS PIECE STORED: {} OUT: {}", 
 		_pieceHere == nullptr ? "NULL" : _pieceHere->ToString(),
-		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));
+		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));*/
 
 	return _pieceHere != nullptr;
 }
@@ -233,6 +239,8 @@ void Cell::RemoveOverlaySprite()
 void Cell::UpdateCanClick(bool isClickable)
 {
 	_isClickable = isClickable;
+
+	Utils::Log(std::format("TURN: Tried to make cell disabled"));
 	if (_isClickable) SetVisualState(CellVisualState::Default);
 	else SetVisualState(CellVisualState::Disabled);
 }	
@@ -264,6 +272,24 @@ void Cell::SetVisualState(const CellVisualState& state)
 	else if (state == CellVisualState::PreviousMoveHighlighted)
 	{
 		SetBackgroundColour(_colors.PreviousMoveColor);
+	}
+	else if (state == CellVisualState::Disabled)
+	{
+		int grayCoefficient = 0.3;
+		wxColour currentColor = _colors.InnerColor;
+		float averageRGB = (currentColor.Red() + currentColor.Green() + currentColor.Blue()) / 3;
+		float newR = currentColor.Red() + grayCoefficient * (averageRGB- currentColor.Red());
+		float newG= currentColor.Green() + grayCoefficient * (averageRGB - currentColor.Green());
+		float newB = currentColor.Blue() + grayCoefficient * (averageRGB - currentColor.Blue());
+
+		int newRInt = static_cast<int>(newR*255);
+		int newGInt = static_cast<int>(newG*255);
+		int newBInt = static_cast<int>(newB*255);
+
+		Utils::Log(std::format("TURN: Tried to make cell disabled with start color: {} new color:{}",
+			WXUtils::ToString(currentColor), WXUtils::ToString(wxColour(newRInt, newGInt, newBInt))));
+		SetBackgroundColour(wxColour(newRInt, newGInt, newBInt));
+		//SetOverlaySprite(*(stateSpriteIt->second));
 	}
 	else
 	{
