@@ -28,6 +28,10 @@ static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
 		{PieceType::King, {INF, 'K', false, {{1,0}, {0, 1}, {-1, 0}, {0, -1}}, {}}}
 	});
 
+//Since we do not want to duplicate the same piece movements but with flipped signs or something
+//we instead transform them with a multiplier for x and y. REMEMBER: {x= rows, y= cols}
+static const std::unordered_map<ColorTheme, Utils::Vector2D> COLOR_MOVE_CAPTURE_MULTUPLIERS = { {ColorTheme::Dark, Utils::Vector2D{-1, 1}} };
+
 std::string PieceTypeInfo::ToString() const
 {
 	std::string displayStr = std::format("[{}, {}]", ::ToString(Color), ::ToString(PieceType));
@@ -39,17 +43,26 @@ bool PieceTypeInfo::operator==(const PieceTypeInfo& other) const
 	return Color == other.Color && PieceType == other.PieceType;
 }
 
+PieceTypeInfo& PieceTypeInfo::operator=(const PieceTypeInfo& info)
+{
+	if (this == &info) return *this;
+
+	Color = info.Color;
+	PieceType = info.PieceType;
+	return *this;
+}
+
 Piece::Piece()
-	: m_Color(ColorTheme::Light), m_PieceType(PieceType::Pawn), m_moveDirs(GetMoveDirsForPiece(m_PieceType)),
-	m_captureDirs(GetCaptureMovesForPiece(m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
+	: m_Color(ColorTheme::Light), m_PieceType(PieceType::Pawn), m_moveDirs(GetMoveDirsForPiece(m_Color, m_PieceType)),
+	m_captureDirs(GetCaptureMovesForPiece(m_Color, m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 Piece::Piece(const ColorTheme color, const PieceType piece)
-	: m_Color(color), m_PieceType(piece), m_moveDirs(GetMoveDirsForPiece(piece)),
-	m_captureDirs(GetCaptureMovesForPiece(piece)), m_state(Piece::State::Undefined), m_State(m_state) {}
+	: m_Color(color), m_PieceType(piece), m_moveDirs(GetMoveDirsForPiece(m_Color, piece)),
+	m_captureDirs(GetCaptureMovesForPiece(m_Color, piece)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 Piece::Piece(const Piece& copy) 
-	: m_Color(copy.m_Color), m_PieceType(copy.m_PieceType), m_moveDirs(GetMoveDirsForPiece(copy.m_PieceType)),
-	m_captureDirs(GetCaptureMovesForPiece(copy.m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
+	: m_Color(copy.m_Color), m_PieceType(copy.m_PieceType), m_moveDirs(GetMoveDirsForPiece(m_Color, copy.m_PieceType)),
+	m_captureDirs(GetCaptureMovesForPiece(m_Color, copy.m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
 bool Piece::operator==(const Piece& piece) const
 {
@@ -98,7 +111,7 @@ bool CanPieceMoveOverPieces(const PieceType type)
 	return PIECE_INFO.at(type).CanMoveOverPieces;
 }
 
-const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
+const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ColorTheme color, const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -109,55 +122,57 @@ const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 		return {};
 	}
 	std::vector<Utils::Vector2D> allMoveDirs;
+	auto maybeMultiplierIt = COLOR_MOVE_CAPTURE_MULTUPLIERS.find(color);
+	Utils::Vector2D moveMultiplier = (maybeMultiplierIt != COLOR_MOVE_CAPTURE_MULTUPLIERS.end())? 
+										maybeMultiplierIt->second : Utils::Vector2D{1, 1};
 
 	//NOTE: endX must be one past limit to ensure at least one input for elements that 
 	//are not infinity or neg infinity
 	int currentX = 0, endX = 0, currentY = 0, endY = 0;
 	for (const auto& moveDir : PIECE_INFO.at(type).MoveDirs)
 	{
-		if (std::isinf(moveDir.x) && std::isinf(moveDir.y))
+		if (std::isinf(moveDir.m_X) && std::isinf(moveDir.m_Y))
 		{
-			currentX = Utils::IsPosInifinity(moveDir.x) ? 1 : -1;
-			endX = Utils::IsPosInifinity(moveDir.x) ? BOARD_DIMENSION : -BOARD_DIMENSION;
-			currentY = Utils::IsPosInifinity(moveDir.y) ? 1 : -1;
-			endY = Utils::IsPosInifinity(moveDir.y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+			currentX = Utils::IsPosInifinity(moveDir.m_X) ? 1 : -1;
+			endX = Utils::IsPosInifinity(moveDir.m_X) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+			currentY = Utils::IsPosInifinity(moveDir.m_Y) ? 1 : -1;
+			endY = Utils::IsPosInifinity(moveDir.m_Y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
 
 			while (std::abs(currentX) < std::abs(endX) && std::abs(currentY) < std::abs(endY))
 			{
-				allMoveDirs.emplace_back(currentX, currentY);
+				allMoveDirs.emplace_back(currentX* moveMultiplier.m_X, currentY* moveMultiplier.m_Y);
 				auto vec = Utils::Vector2D(currentX, currentY);
-				Utils::Log(std::format("ADDING INF X: {} Y: {} POS: {}", std::to_string(Utils::IsPosInifinity(moveDir.x)),
-					std::to_string(Utils::IsPosInifinity(moveDir.y)),  vec.ToString(Utils::Vector2D::VectorForm::Component)));
+				Utils::Log(std::format("ADDING INF X: {} Y: {} POS: {}", std::to_string(Utils::IsPosInifinity(moveDir.m_X)),
+					std::to_string(Utils::IsPosInifinity(moveDir.m_Y)),  vec.ToString(Utils::Vector2D::VectorForm::Component)));
 				currentX += endX > 0 ? 1 : -1;
 				currentY += endY > 0 ? 1 : -1;
 			}
 		}
-		else if (std::isinf(moveDir.x))
+		else if (std::isinf(moveDir.m_X))
 		{
-			currentX = Utils::IsPosInifinity(moveDir.x) ? 1 : -1;
-			endX = Utils::IsPosInifinity(moveDir.x) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+			currentX = Utils::IsPosInifinity(moveDir.m_X) ? 1 : -1;
+			endX = Utils::IsPosInifinity(moveDir.m_X) ? BOARD_DIMENSION : -BOARD_DIMENSION;
 
 			while (std::abs(currentX) < std::abs(endX))
 			{
-				allMoveDirs.emplace_back(currentX, moveDir.y);
+				allMoveDirs.emplace_back(currentX * moveMultiplier.m_X, moveDir.m_Y * moveMultiplier.m_Y);
 				currentX += endX > 0 ? 1 : -1;
 			}
 		}
-		else if (std::isinf(moveDir.y))
+		else if (std::isinf(moveDir.m_Y))
 		{
-			currentY = Utils::IsPosInifinity(moveDir.y) ? 1 : -1;
-			endY = Utils::IsPosInifinity(moveDir.y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
+			currentY = Utils::IsPosInifinity(moveDir.m_Y) ? 1 : -1;
+			endY = Utils::IsPosInifinity(moveDir.m_Y) ? BOARD_DIMENSION : -BOARD_DIMENSION;
 
 			while (std::abs(currentY) < std::abs(endY))
 			{
-				allMoveDirs.emplace_back(moveDir.x, currentY);
+				allMoveDirs.emplace_back(moveDir.m_X * moveMultiplier.m_X, currentY * moveMultiplier.m_Y);
 				currentY += endY > 0 ? 1 : -1;
 			}
 		}
 		else
 		{
-			allMoveDirs.emplace_back(moveDir.x, moveDir.y);
-			
+			allMoveDirs.emplace_back(moveDir.m_X * moveMultiplier.m_X, moveDir.m_Y * moveMultiplier.m_Y);
 		}
 	}
 
@@ -178,7 +193,7 @@ const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType type)
 	return allMoveDirs;
 }
 
-const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
+const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ColorTheme color, const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -190,8 +205,18 @@ const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType type)
 	}
 
 	const PieceStaticInfo& infoForType = PIECE_INFO.at(type);
-	if (infoForType.CaptureDirs.empty()) return infoForType.MoveDirs;
-	else return infoForType.CaptureDirs;
+	std::vector<Utils::Vector2D> captureMoves = infoForType.CaptureDirs.empty() ? infoForType.MoveDirs : infoForType.CaptureDirs;
+
+	auto maybeMultiplierIt = COLOR_MOVE_CAPTURE_MULTUPLIERS.find(color);
+	if (maybeMultiplierIt != COLOR_MOVE_CAPTURE_MULTUPLIERS.end())
+	{
+		for (int i = 0; i < captureMoves.size(); i++)
+		{
+			captureMoves[i] = Utils::Vector2D(captureMoves[i].m_X* maybeMultiplierIt->second.m_X, 
+											  captureMoves[i].m_Y * maybeMultiplierIt->second.m_Y);
+		}
+	}
+	return captureMoves;
 }
 
 char GetNotationSymbolForPiece(const PieceType type)
@@ -236,14 +261,14 @@ bool DoesMoveDeltaMatchPieceMoves(const PieceType type,
 	{
 		if (delta == moveDir) return true;
 
-		bool xPosInifinity = Utils::IsPosInifinity(moveDir.x);
-		bool xNegInifinity = Utils::IsNegInifinity(moveDir.x);
-		bool yPosInfinity = Utils::IsPosInifinity(moveDir.y);
-		bool yNegInfinity = Utils::IsNegInifinity(moveDir.y);
+		bool xPosInifinity = Utils::IsPosInifinity(moveDir.m_X);
+		bool xNegInifinity = Utils::IsNegInifinity(moveDir.m_X);
+		bool yPosInfinity = Utils::IsPosInifinity(moveDir.m_Y);
+		bool yNegInfinity = Utils::IsNegInifinity(moveDir.m_Y);
 
 		//Note: since indices ascend downward for row, the delta's will be flipped from what expected
-		bool hasCorrectX = (xPosInifinity && delta.x < 0) || (xNegInifinity && delta.x > 0) || (delta.x == moveDir.x);
-		bool hasCorrectY = (yPosInfinity && delta.y > 0) || (yNegInfinity && delta.y < 0) || (delta.y == moveDir.y);
+		bool hasCorrectX = (xPosInifinity && delta.m_X < 0) || (xNegInifinity && delta.m_X > 0) || (delta.m_X == moveDir.m_X);
+		bool hasCorrectY = (yPosInfinity && delta.m_Y > 0) || (yNegInfinity && delta.m_Y < 0) || (delta.m_Y == moveDir.m_Y);
 		if (hasCorrectX && hasCorrectY) return true;
 	}
 }

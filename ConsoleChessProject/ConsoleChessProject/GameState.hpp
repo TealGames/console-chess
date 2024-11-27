@@ -61,6 +61,7 @@ private:
 	SpecialMove _specialMoveFlags;
 	//Piece to promote to
 	std::optional<Piece*> _piecePromotion;
+	std::optional<PieceTypeInfo> _capturedPiece;
 	bool _isCheck;
 	bool _isCheckmate;
 
@@ -71,11 +72,12 @@ public:
 	const SpecialMove& SpecialMoveFlags = SpecialMove::None;
 	//Piece to promote to
 	const std::optional<Piece*>& PiecePromotion;
+	const std::optional<PieceTypeInfo>& PieceCaptured;
 	const bool& IsCheck = false;
 	const bool& IsCheckmate = false;
 
 	MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
-		const std::optional<Piece*>& promotion, const bool& check, const bool& checkmate);
+		const std::optional<Piece*>& promotion, const std::optional<PieceTypeInfo>& pieceCaptured, const bool& check, const bool& checkmate);
 	MoveInfo(const MoveInfo& other) noexcept;
 	MoveInfo(MoveInfo&& other) noexcept;
 
@@ -89,6 +91,7 @@ using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 struct GameState
 {
 	ColorTheme CurrentPlayer;
+	std::unordered_map<ColorTheme, int> TeamValue;
 
 	PiecePositionMapType PiecePositions;
 	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves;

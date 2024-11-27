@@ -32,6 +32,11 @@ namespace Core
 		PieceMoved,
 		SuccessfulTurn,
 	};
+
+	struct MoveValueInfo
+	{
+		std::unordered_map<ColorTheme, int> TeamPointDelta;
+	};
 		
 	class GameManager
 	{
@@ -77,6 +82,7 @@ namespace Core
 			const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos);
 
 		std::vector<MoveInfo> TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos);
+		std::optional<MoveValueInfo> TryCalculateLastMoveValue(const std::string& gameStateID, const ColorTheme colorMoves);
 		size_t TotalGameStatesCount() const;
 
 		void AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback);

@@ -6,12 +6,12 @@ namespace Utils
 	class Point2D
 	{
 	private:
-		double _x;
-		double _y;
+		double m_x;
+		double m_y;
 
 	public:
-		const double& x;
-		const double& y;
+		const double& m_X;
+		const double& m_Y;
 
 		Point2D();
 		Point2D(double, double);
@@ -42,8 +42,8 @@ namespace std
 		std::size_t operator()(const Utils::Point2D& pos) const noexcept 
 		{
 			std::hash<double> hashDouble;
-			std::size_t xHash = hashDouble(pos.x);
-			std::size_t yHash = hashDouble(pos.y);
+			std::size_t xHash = hashDouble(pos.m_X);
+			std::size_t yHash = hashDouble(pos.m_Y);
 			return xHash ^ (yHash << 1);
 		}
 	};

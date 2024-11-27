@@ -14,12 +14,18 @@
 static GridLayout* lightPanelPieces;
 static GridLayout* darkPanelPieces;
 
+static wxStaticText* lightValueText;
+static wxStaticText* darkValueText;
+
 //The panel that encompases a sprite
 static const wxSize SPRITE_PANEL_SIZE(30, 30);
 static const wxSize SPRITE_SIZE(30, 30);
 
 static void UpdateDisplay(const GameState& state)
 {
+	lightValueText->SetLabel(std::to_string(state.TeamValue.at(ColorTheme::Light)));
+	darkPanelPieces->SetLabel(std::to_string(state.TeamValue.at(ColorTheme::Dark)));
+
 	if (lightPanelPieces != nullptr) lightPanelPieces->DestroyLayout();
 	if (darkPanelPieces!=nullptr) darkPanelPieces->DestroyLayout();
 
@@ -66,7 +72,15 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 	lightTitle->SetSize(wxSize(lightLayout->GetSize().x, lightTitle->GetBestSize().y));
 	lightTitle->SetForegroundColour(MUTED_WHITE);
 	//lightTitle->SetBacckgroundColour(LIGHT_GREEN);
-	lightLayout->AddChild(lightTitle, 0, SPACING_ALL_SIDES, 10);
+	lightLayout->AddChild(lightTitle, 0, SpacingType::Top | SpacingType::Left | SpacingType::Right, 5);
+
+	lightValueText = new wxStaticText(lightLayout, wxID_ANY, "NULL", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	lightValueText->SetFont(CAPTION_FONT);
+	lightValueText->SetSize(wxSize(lightTitle->GetSize().x, lightValueText->GetBestSize().y));
+	lightValueText->SetForegroundColour(MUTED_WHITE);
+	lightValueText->SetBackgroundColour(LIGHT_GREEN);
+	lightLayout->AddChild(lightValueText, 0, SpacingType::Center, 10);
+
 
 	const wxSize PANEL_PIECES_SIZE(0.8 * lightLayout->GetSize().x, 0.6 * lightLayout->GetSize().y);
 	const int LAYOUT_SPACING = 20;
@@ -88,7 +102,7 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 	darkTitle->SetFont(HEADING_FONT);
 	//darkTitle->CenterOnParent();
 	darkTitle->SetSize(wxSize(darkLayout->GetBestSize()));
-	darkTitle->SetForegroundColour(LIGHTER_SECONDARY_COLOR_2);
+	darkTitle->SetForegroundColour(NORMAL_GRAY);
 	//darkTitle->SetBackgroundColour(LIGHT_GREEN);
 	darkLayout->AddChild(darkTitle, 0, SPACING_ALL_SIDES, 10);
 
@@ -149,5 +163,5 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 	darkPanelPieces->SetSizer(darkPanelSizer);*/
 
 	//Board::AddPieceMoveCallback(&UpdateDisplay);
-	manager.AddEventCallback(Core::GameEventType::PieceMoved, &UpdateDisplay);
+	manager.AddEventCallback(Core::GameEventType::SuccessfulTurn, &UpdateDisplay);
 }

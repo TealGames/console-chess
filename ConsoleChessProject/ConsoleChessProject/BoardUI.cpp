@@ -39,88 +39,12 @@ static wxBitmap& GetSpriteIcon(const SpriteSymbolType symbolType)
 	return spriteMapIt->second;
 }
 
-Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
-{
-	auto it = cells.find(point);
-	if (it == cells.end()) return nullptr;
-	else return it->second;
-}
-
-std::optional<Utils::Point2DInt> TryGetPositionOfCell(const Cell& cell)
-{
-	for (const auto& cellPos : cells)
-	{
-		if (cellPos.second != nullptr && cellPos.second == &cell)
-		{
-			return cellPos.first;
-		}
-	}
-	return std::nullopt;
-}
-
-void UpdateInteractablePieces(const ColorTheme& interactableColor)
-{
-	const Piece* cellPiece = nullptr;
-	for (const auto& cell : cells)
-	{
-		bool hasPiece = cell.second->HasPiece(&cellPiece);
-		//Utils::Log(std::format("TURN: updating interactable piece at pos {}: {} piece ptr: {}",
-		//	cell.first.ToString(), std::to_string(hasPiece), std::to_string(cellPiece!=nullptr)));
-		if (!hasPiece || cellPiece == nullptr) continue;
-
-		bool isInteractableColor = cellPiece->m_Color == interactableColor;
-		cell.second->UpdateCanClick(isInteractableColor);
-	}
-}
-
-void CreateBoardCells(wxWindow* parent)
-{
-	wxPoint currentPoint;
-
-	const int gridStartX = 0;
-	const int gridStartY = 0;
-
-	for (int r = 0; r < BOARD_DIMENSION; r++)
-	{
-		for (int c = 0; c < BOARD_DIMENSION; c++)
-		{
-			bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
-			auto cellColorDataIt = cellColorData.find(isDarkCell? ColorTheme::Dark : ColorTheme::Light);
-			if (cellColorDataIt == cellColorData.end())
-			{
-				const std::string err = std::format("Tried to get color data for tile color but was not found");
-				Utils::Log(Utils::LogType::Error, err);
-				return;
-			}
-
-			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
-			
-			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
-				{{CellVisualState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
-				 {CellVisualState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
-
-			if (!emplaced.second)
-			{
-				const std::string error = std::format("Tried to place cell at row {} col {}"
-					"but failed to emplace data into cell vector.emplace()", std::to_string(r), std::to_string(c));
-				Utils::Log(Utils::LogType::Error, error);
-				return;
-			}
-		}
-	}
-	
-	//AddTurnChangeCallback(&UpdateInteractablePieces);
-
-	//TODO: this should be done elsewhere not in the UI!
-	//CreateDefaultBoard();
-}
-
 static bool IsStoredAsPreviousMove(const Cell* cellCheck)
 {
 	if (previousMoveCells.empty()) return false;
 	for (const auto& cell : previousMoveCells)
 	{
-		if (cell== cellCheck) return true;
+		if (cell == cellCheck) return true;
 	}
 	return false;
 }
@@ -155,10 +79,92 @@ static void PrintCells()
 	{
 		cellMoves.push_back(TryGetPositionOfCell(*cell).value());
 	}
-	const std::string str = std::format("LOADING: positions with overlay: {}. Current move pos: {}", 
+	const std::string str = std::format("LOADING: positions with overlay: {}. Current move pos: {}",
 		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellPositionsWith),
 		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellMoves));
 	Utils::Log(str);
+}
+
+Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
+{
+	auto it = cells.find(point);
+	if (it == cells.end()) return nullptr;
+	else return it->second;
+}
+
+std::optional<Utils::Point2DInt> TryGetPositionOfCell(const Cell& cell)
+{
+	for (const auto& cellPos : cells)
+	{
+		if (cellPos.second != nullptr && cellPos.second == &cell)
+		{
+			return cellPos.first;
+		}
+	}
+	return std::nullopt;
+}
+
+void UpdateInteractablePieces(const ColorTheme& interactableColor)
+{
+	const Piece* cellPiece = nullptr;
+	for (const auto& cell : cells)
+	{
+		bool hasPiece = cell.second->HasPiece(&cellPiece);
+		//Utils::Log(std::format("TURN: updating interactable piece at pos {}: {} piece ptr: {}",
+		//	cell.first.ToString(), std::to_string(hasPiece), std::to_string(cellPiece!=nullptr)));
+		if (!hasPiece || cellPiece == nullptr) continue;
+
+		bool isInteractableColor = cellPiece->m_Color == interactableColor;
+		bool updateVisual = !IsStoredAsPreviousMove(cell.second);
+		cell.second->UpdateCanClick(isInteractableColor, updateVisual);
+	}
+}
+
+void CreateBoardCells(wxWindow* parent)
+{
+	wxPoint currentPoint;
+	
+	//wxPanel* cellParent = new wxPanel(parent, wxID_ANY, wxDefaultPosition, parentSize);
+	//cellParent->SetBackgroundColour(RED);
+
+	const int gridStartX = (parent->GetSize().GetWidth()- BOARD_SIZE.x) / 2;
+	const int gridStartY = (parent->GetSize().GetHeight()- BOARD_SIZE.y) / 2;
+
+	for (int r = 0; r < BOARD_DIMENSION; r++)
+	{
+		for (int c = 0; c < BOARD_DIMENSION; c++)
+		{
+			bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
+			auto cellColorDataIt = cellColorData.find(isDarkCell? ColorTheme::Dark : ColorTheme::Light);
+			if (cellColorDataIt == cellColorData.end())
+			{
+				const std::string err = std::format("Tried to get color data for tile color but was not found");
+				Utils::Log(Utils::LogType::Error, err);
+				return;
+			}
+
+			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
+			
+			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
+				{{CellVisualState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
+				 {CellVisualState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
+
+			if (!emplaced.second)
+			{
+				const std::string error = std::format("Tried to place cell at row {} col {}"
+					"but failed to emplace data into cell vector.emplace()", std::to_string(r), std::to_string(c));
+				Utils::Log(Utils::LogType::Error, error);
+				return;
+			}
+		}
+	}
+
+	//cellParent->SetPosition(wxPoint(parent->GetSize().GetWidth() / 2, parent->GetSize().GetHeight() / 2));
+	
+	//AddTurnChangeCallback(&UpdateInteractablePieces);
+
+	//TODO: this should be done elsewhere not in the UI!
+	//CreateDefaultBoard();
 }
 
 void BindCellEventsForGameState(Core::GameManager& manager, const std::string& gameStateId)
@@ -234,8 +240,8 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 					ResetCellVisuals();
 					//lastSelected->Highlight(HighlightColorType::PreviousMove);
 					//clickedCell->Highlight(HighlightColorType::PreviousMove);
-					lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
-					clickedCell->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+					lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
+					clickedCell->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
 					
 					//We need to store the cell that was last selected (the start pos of move)
 					//so we can disable it on next move since it is not stored definitively anywhere else
@@ -256,6 +262,9 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 					UpdateInteractablePieces(newColor.value());
 					return;
 				}
+
+				//If we got to this point it means player lickced on cell not from available moves
+				if (lastSelected != nullptr) lastSelected->SetVisualState(CellVisualState::Default, true);
 			}
 			ResetCellVisuals();
 #pragma endregion
@@ -288,8 +297,8 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 				if (IsStoredAsPreviousMove(lastSelected))
 				{
 					if (lastSelected->VisualState == CellVisualState::PreviousMoveHighlighted)
-						lastSelected->SetVisualState(CellVisualState::Selected);
-					else lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+						lastSelected->SetVisualState(CellVisualState::Selected, true);
+					else lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
 				}
 				else lastSelected->ToggleVisualState(CellVisualState::Selected);
 			}
@@ -300,12 +309,12 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 					/*if (IsStoredAsPreviousMove(lastSelected)) lastSelected->Highlight(HighlightColorType::PreviousMove);
 					else lastSelected->Dehighlight();*/
 
-					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted);
+					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
 					else lastSelected->ResetVisualToDefault();
 				}
 
 				//clickedCell->Highlight(HighlightColorType::Selected);
-				clickedCell->SetVisualState(CellVisualState::Selected);
+				clickedCell->SetVisualState(CellVisualState::Selected, true);
 			}
 #pragma endregion
 
@@ -318,7 +327,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			{
 				std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
 				//if (possibleMoves.empty()) wxLogMessage("Poop");
-				Utils::Log(Utils::LogType::Error, std::format("POSSIBLE {} MOVES: {}",
+				Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
 					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
 
 				Cell* cellAtPosition = nullptr;
@@ -331,7 +340,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 
 						//cellAtPosition->Highlight(HighlightColorType::PossibleMove);
 						//cellAtPosition->SetOverlaySprite(GetMoveIcon());
-						cellAtPosition->SetVisualState(CellVisualState::PossibleMoveHighlighted);
+						cellAtPosition->SetVisualState(CellVisualState::PossibleMoveHighlighted, true);
 						currentCellMoves.push_back(cellAtPosition);
 					}
 				}
@@ -343,7 +352,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			else
 			{
 				for (const auto& cell : previousMoveCells) 
-					cell->SetVisualState(CellVisualState::PossibleMoveHighlighted);
+					cell->SetVisualState(CellVisualState::PossibleMoveHighlighted, true);
 			}
 
 			lastSelected = clickedCell;

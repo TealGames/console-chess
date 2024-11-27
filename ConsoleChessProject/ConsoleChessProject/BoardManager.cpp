@@ -933,10 +933,10 @@ namespace Board
 
 		Utils::Point2DInt moveNewPos;
 		
-		Utils::Log(std::format("MOVE {} DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->m_PieceType).size()),
-			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(GetMoveDirsForPiece(movedPiece->m_PieceType))));
+		Utils::Log(std::format("MOVE {} DIRS: {}", std::to_string(GetMoveDirsForPiece(movedPiece->m_Color, movedPiece->m_PieceType).size()),
+			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(GetMoveDirsForPiece(movedPiece->m_Color, movedPiece->m_PieceType))));
 
-		const std::vector<Utils::Vector2D> moveDirs = GetMoveDirsForPiece(movedPiece->m_PieceType);
+		const std::vector<Utils::Vector2D> moveDirs = GetMoveDirsForPiece(movedPiece->m_Color, movedPiece->m_PieceType);
 		const Piece* pieceAtNewPos = nullptr;
 		for (auto& movePos : moveDirs)
 		{
@@ -967,18 +967,24 @@ namespace Board
 				//from move dirs so we might capture during regualar moves
 				//and we can save some time by first making sure if there actually is a piece at the new pos
 				SpecialMove specialMove = SpecialMove::None;
-				if (pieceAtNewPos !=nullptr) TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos) ?
-					SpecialMove::Capture : SpecialMove::None;
+				const Piece* capturePiece = nullptr;
+				std::optional<PieceTypeInfo> capturedPieceValue = std::nullopt;
+				if (pieceAtNewPos != nullptr)
+				{
+					capturePiece = TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos);
+					specialMove= (capturePiece != nullptr) ? SpecialMove::Capture : SpecialMove::None;
+					if (capturePiece != nullptr) capturedPieceValue = PieceTypeInfo(capturePiece->m_Color, capturePiece->m_PieceType);
+				}
 
-				
 				possibleMoves.emplace_back(
 					std::vector<MovePiecePositionData>
-					{
-						MovePiecePositionData(*movedPiece, startPos, moveNewPos)
-					},
+				{
+					MovePiecePositionData(*movedPiece, startPos, moveNewPos)
+				},
 					"",
 					specialMove,
 					std::nullopt,
+					capturedPieceValue,
 					false,
 					false
 					);
@@ -988,7 +994,7 @@ namespace Board
 			}
 		}
 		
-		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->m_PieceType);
+		const std::vector<Utils::Vector2D> captureMoves = GetCaptureMovesForPiece(movedPiece->m_Color, movedPiece->m_PieceType);
 		Utils::Log(Utils::LogType::Error, std::format("POSSIBLE {} {} CAPTURES: {}",
 			ToString(movedPiece->m_PieceType), std::to_string(possibleMoves.size()), 
 			Utils::ToStringIterable<std::vector<Utils::Vector2D>, Utils::Vector2D>(captureMoves)));
@@ -1014,9 +1020,10 @@ namespace Board
 						"",
 						SpecialMove::Capture,
 						std::nullopt,
+						PieceTypeInfo(pieceAtNewPos->m_Color, pieceAtNewPos->m_PieceType),
 						false,
 						false
-					);
+						);
 				}
 			}
 		}
@@ -1037,7 +1044,8 @@ namespace Board
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.kingSideCastleMove)
 				},
 					"",
-					SpecialMove::Capture,
+					SpecialMove::KingSideCastle,
+					std::nullopt,
 					std::nullopt,
 					false,
 					false
@@ -1051,7 +1059,8 @@ namespace Board
 					MovePiecePositionData(*movedPiece, startPos, castleInfo.queenSideCastleMove)
 				},
 					"",
-					SpecialMove::Capture,
+					SpecialMove::QueenSideCastle,
+					std::nullopt,
 					std::nullopt,
 					false,
 					false

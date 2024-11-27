@@ -22,7 +22,7 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "TURN";
+	const std::string LOG_ONLY_MESSAGE = "";
 	void Log(const LogType& logType, const std::string& str)
 	{
 		if (LOG_ONLY_MESSAGE!="" && logType == LogType::Log && 
@@ -118,6 +118,11 @@ namespace Utils
 	std::string CollapseToSingleString(const std::vector<std::string>& vec)
 	{
 		return std::accumulate(vec.begin(), vec.end(), std::string());
+	}
+
+	bool HasFlag(unsigned int fullFlag, unsigned int hasFlag)
+	{
+		return (fullFlag & hasFlag) != 0;
 	}
 
 	bool ExecuteIfTrue(const std::function<void()>& function, const std::function<bool()>& predicate)

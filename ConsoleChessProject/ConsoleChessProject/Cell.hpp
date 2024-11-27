@@ -129,10 +129,10 @@ public:
 	void SetPiece(const Piece* piece, wxImage& image);
 	bool TryRemovePiece();
 
-	void UpdateCanClick(bool isClickable);
+	void UpdateCanClick(const bool isClickable, const bool updateVisual);
 	void AddOnClickCallback(const std::function<void(Cell*)>& callback);
 
-	void SetVisualState(const CellVisualState& state);
+	void SetVisualState(const CellVisualState& state, const bool updateVisual);
 	void ToggleVisualState(const CellVisualState& state);
 	void ResetVisualToDefault();
 	

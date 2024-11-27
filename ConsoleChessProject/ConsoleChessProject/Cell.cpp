@@ -39,6 +39,7 @@ Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors,
 	_bitMapDisplay->Enable(false);
 
 	_overlayPanel = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
+	//_overlayPanel->Raise();
 	_overlayPanel->Enable(false);
 
 	Bind(wxEVT_ENTER_WINDOW, &Cell::OnEnter, this);
@@ -91,6 +92,7 @@ void Cell::OnClick(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
+	if (IsDisabled()) return;
 	for (const auto& callback : _onClickCallbacks) callback(this);
 
 	//Refresh();
@@ -236,21 +238,26 @@ void Cell::RemoveOverlaySprite()
 	Refresh();
 }
 
-void Cell::UpdateCanClick(bool isClickable)
+void Cell::UpdateCanClick(const bool isClickable, const bool updateVisual)
 {
 	_isClickable = isClickable;
 
 	Utils::Log(std::format("TURN: Tried to make cell disabled"));
-	if (_isClickable) SetVisualState(CellVisualState::Default);
-	else SetVisualState(CellVisualState::Disabled);
+	if (_isClickable) SetVisualState(CellVisualState::Default, updateVisual);
+	else SetVisualState(CellVisualState::Disabled, updateVisual);
 }	
 
-void Cell::SetVisualState(const CellVisualState& state)
+void Cell::SetVisualState(const CellVisualState& state, const bool updateVisual)
 {
+	if (!updateVisual)
+	{
+		_visualState = state;
+		return;
+	}
+
 	auto stateSpriteIt = _stateSprites.find(state);
 	bool hasStateSprite = stateSpriteIt != _stateSprites.end();
-	Utils::Log(std::format("LOADING State sprite it: {} for state: {}", 
-		std::to_string(_stateSprites.find(state) != _stateSprites.end()), ToString(state)));
+	
 	//return;
 	
 	//std::optional<const wxColour*> maybeStateColor = TryGetColorForState(state);
@@ -275,20 +282,28 @@ void Cell::SetVisualState(const CellVisualState& state)
 	}
 	else if (state == CellVisualState::Disabled)
 	{
+		
 		int grayCoefficient = 0.3;
-		wxColour currentColor = _colors.InnerColor;
-		float averageRGB = (currentColor.Red() + currentColor.Green() + currentColor.Blue()) / 3;
-		float newR = currentColor.Red() + grayCoefficient * (averageRGB- currentColor.Red());
+		wxColour currentColor = GetBackgroundColour();
+		int averageRGB = (currentColor.Red() + currentColor.Green() + currentColor.Blue()) / 3;
+		/*float newR = currentColor.Red() + grayCoefficient * (averageRGB- currentColor.Red());
 		float newG= currentColor.Green() + grayCoefficient * (averageRGB - currentColor.Green());
 		float newB = currentColor.Blue() + grayCoefficient * (averageRGB - currentColor.Blue());
 
 		int newRInt = static_cast<int>(newR*255);
 		int newGInt = static_cast<int>(newG*255);
-		int newBInt = static_cast<int>(newB*255);
+		int newBInt = static_cast<int>(newB*255);*/
+
+		/*Utils::Log(std::format("TURN: Tried to make cell disabled with start color: {} new color:{}",
+			WXUtils::ToString(currentColor), WXUtils::ToString(wxColour(newRInt, newGInt, newBInt))));
+		SetBackgroundColour(wxColour(newRInt, newGInt, newBInt));*/
 
 		Utils::Log(std::format("TURN: Tried to make cell disabled with start color: {} new color:{}",
-			WXUtils::ToString(currentColor), WXUtils::ToString(wxColour(newRInt, newGInt, newBInt))));
-		SetBackgroundColour(wxColour(newRInt, newGInt, newBInt));
+			WXUtils::ToString(currentColor), WXUtils::ToString(wxColour(averageRGB, averageRGB, averageRGB))));
+		SetBackgroundColour(wxColour(averageRGB, averageRGB, averageRGB));
+		
+		Utils::Log(std::format("TURN State sprite it: {} for state: {}",
+			std::to_string(_stateSprites.find(state) != _stateSprites.end()), ToString(state)));
 		//SetOverlaySprite(*(stateSpriteIt->second));
 	}
 	else
@@ -305,13 +320,13 @@ void Cell::SetVisualState(const CellVisualState& state)
 
 void Cell::ToggleVisualState(const CellVisualState& state)
 {
-	if (_visualState == CellVisualState::Default) SetVisualState(state);
-	else SetVisualState(CellVisualState::Default);
+	if (_visualState == CellVisualState::Default) SetVisualState(state, true);
+	else SetVisualState(CellVisualState::Default, true);
 }
 
 void Cell::ResetVisualToDefault()
 {
-	return SetVisualState(CellVisualState::Default);
+	return SetVisualState(CellVisualState::Default, true);
 }
 
 //const wxColour& Cell::GetHighlightColor(const HighlightColorType highlightType) const

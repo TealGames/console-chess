@@ -85,6 +85,7 @@ namespace Core
 
 		GameState& newState = newStateIt.first->second;
 		newState.CurrentPlayer = ColorTheme::Light;
+		newState.TeamValue = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0}};
 		Board::CreateDefaultBoard(newState);
 		
 		return newState;
@@ -96,10 +97,15 @@ namespace Core
 		
 	}
 
+	static ColorTheme GetOtherTeam(const ColorTheme color)
+	{
+		if (color == ColorTheme::Light) return ColorTheme::Dark;
+		else return ColorTheme::Light;
+	}
+
 	std::optional<ColorTheme> GameManager::TryGetOtherPlayer(const GameState& state) const
 	{
-		if (state.CurrentPlayer == ColorTheme::Light) return ColorTheme::Dark;
-		else return ColorTheme::Light;
+		GetOtherTeam(state.CurrentPlayer);
 	}
 
 	bool GameManager::IsPositionWithinBounds(const Utils::Point2DInt& pos) const
@@ -131,11 +137,50 @@ namespace Core
 		return Board::GetPossibleMovesForPieceAt(*maybeGameState, pos);
 	}
 
+	std::optional<MoveValueInfo> GameManager::TryCalculateLastMoveValue(const std::string& gameStateID, const ColorTheme color)
+	{
+		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
+		//Utils::Log(std::format("Try get possible moves game manager has state: {}", std::to_string(maybeGameState!=nullptr)));
+		if (!IsValidGameState(maybeGameState, true, std::format("TryCalculateMoveValue(id:{})", gameStateID)))
+		{
+			return std::nullopt;
+		}
+
+		auto colorMovesIt = maybeGameState->PreviousMoves.find(color);
+		if (colorMovesIt == maybeGameState->PreviousMoves.end()) return std::nullopt;
+		if (colorMovesIt->second.empty()) return std::nullopt;
+
+		auto moveIt = colorMovesIt->second.begin() + colorMovesIt->second.size();
+		std::unordered_map<ColorTheme, int> teamPoints = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0} };
+
+		if (Utils::HasFlag(static_cast<unsigned int>(moveIt->SpecialMoveFlags),
+			static_cast<unsigned int>(SpecialMove::Capture)) && moveIt->PieceCaptured.has_value())
+		{
+			PieceTypeInfo capturedInfo = moveIt->PieceCaptured.value();
+			int pieceValue = GetValueForPiece(capturedInfo.PieceType);
+			teamPoints.at(capturedInfo.Color)-=pieceValue;
+			teamPoints.at(GetOtherTeam(capturedInfo.Color)) += pieceValue;
+		}
+		return MoveValueInfo{ teamPoints };
+	}
+
 	std::optional<ColorTheme> GameManager::TryAdvanceTurn(const std::string& gameStateID)
 	{
 		if (!ADVANCE_TURN) return std::nullopt;
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
 		if (!IsValidGameState(maybeGameState, true, std::format("AdvanceTurn(id:{})", gameStateID))) return std::nullopt;
+
+		std::optional<MoveValueInfo> maybeMoveVals= TryCalculateLastMoveValue(gameStateID, maybeGameState->CurrentPlayer);
+		if (!maybeMoveVals.has_value())
+		{
+			const std::string error = std::format("Tried to change players turn in "
+				"GameManager but the last move values for color: {} were not found",
+				ToString(maybeGameState->CurrentPlayer));
+			Utils::Log(Utils::LogType::Error, error);
+			return std::nullopt;
+		}
+		maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
+		maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);
 
 		std::optional<ColorTheme> maybeOtherPlayer = TryGetOtherPlayer(*maybeGameState);
 		if (!maybeOtherPlayer.has_value())

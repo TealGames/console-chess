@@ -26,11 +26,12 @@ constexpr std::array<PieceType, 6> ALL_PIECE_TYPES = {
 
 struct PieceTypeInfo
 {
-	const ColorTheme Color;
-	const PieceType PieceType;
+	ColorTheme Color;
+	PieceType PieceType;
 
 	std::string ToString() const;
 	bool operator==(const PieceTypeInfo& other) const;
+	PieceTypeInfo& operator=(const PieceTypeInfo&);
 };
 
 namespace std
@@ -96,8 +97,8 @@ public:
 
 double GetValueForPiece(const PieceType piece);
 bool CanPieceMoveOverPieces(const PieceType piece);
-const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const PieceType piece);
-const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const PieceType piece);
+const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ColorTheme color, const PieceType piece);
+const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ColorTheme color, const PieceType piece);
 char GetNotationSymbolForPiece(const PieceType piece);
 const std::optional<PieceType> TryGetPieceFromNotationSymbol(const char& notation);
 

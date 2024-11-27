@@ -60,9 +60,10 @@ bool MovePiecePositionData::operator==(const MovePiecePositionData& other) const
 }
 
 MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
-	const std::optional<Piece*>& promotion, const bool& check, const bool& checkmate) :
+	const std::optional<Piece*>& promotion, const std::optional<PieceTypeInfo>& capturedPiece, const bool& check, const bool& checkmate) :
 	_piecesMoved(piecesMoved), PiecesMoved(_piecesMoved), _boardNotation(boardNotation), BoardNotation(_boardNotation),
 	_specialMoveFlags(moveFlags), SpecialMoveFlags(_specialMoveFlags), _piecePromotion(promotion), PiecePromotion(_piecePromotion),
+	_capturedPiece(capturedPiece), PieceCaptured(_capturedPiece),
 	_isCheck(check), IsCheck(_isCheck), _isCheckmate(checkmate), IsCheckmate(_isCheckmate)
 {
 }
@@ -70,15 +71,18 @@ MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const 
 MoveInfo::MoveInfo(const MoveInfo& other) noexcept:
 _piecesMoved(other.PiecesMoved), PiecesMoved(_piecesMoved), _boardNotation(other.BoardNotation), BoardNotation(_boardNotation),
 _specialMoveFlags(other.SpecialMoveFlags), SpecialMoveFlags(_specialMoveFlags), _piecePromotion(other.PiecePromotion), PiecePromotion(_piecePromotion),
-_isCheck(other.IsCheck), IsCheck(_isCheck), _isCheckmate(other.IsCheckmate), IsCheckmate(_isCheckmate)
+_capturedPiece(std::nullopt), PieceCaptured(_capturedPiece), _isCheck(other.IsCheck), IsCheck(_isCheck), 
+_isCheckmate(other.IsCheckmate), IsCheckmate(_isCheckmate)
 {
 }
 
 MoveInfo::MoveInfo(MoveInfo&& other) noexcept:
 	_piecesMoved(std::move(other._piecesMoved)), _boardNotation(std::move(other._boardNotation)),
 	_specialMoveFlags(other._specialMoveFlags), _piecePromotion(std::move(other._piecePromotion)),
+	_capturedPiece(std::move(other._capturedPiece)),
 	_isCheck(other._isCheck), _isCheckmate(other._isCheckmate),
 	PiecesMoved(_piecesMoved), BoardNotation(_boardNotation),
+	PieceCaptured(_capturedPiece),
 	SpecialMoveFlags(_specialMoveFlags), PiecePromotion(_piecePromotion),
 	IsCheck(_isCheck), IsCheckmate(_isCheckmate) 
 {
@@ -86,15 +90,17 @@ MoveInfo::MoveInfo(MoveInfo&& other) noexcept:
 	other._boardNotation = "";
 	other._specialMoveFlags = SpecialMove::None;
 	other._piecePromotion = std::nullopt;
+	other._piecePromotion = std::nullopt;
 	other._isCheck = false;
 	other._isCheckmate = false;
 }
 
 std::string MoveInfo::ToString() const
 {
-	return std::format("[PiecesMoved:{} SpecialMove:{} Piece Promoted:{} IsCheck:{} IsCheckmate: {}]", 
+	return std::format("[PiecesMoved:{} SpecialMove:{} Piece Promoted:{} Captured:{} IsCheck:{} IsCheckmate: {}]", 
 		Utils::ToStringIterable<const std::vector<MovePiecePositionData>,MovePiecePositionData>(PiecesMoved), 
 		std::to_string(static_cast<unsigned int>(SpecialMoveFlags)), 
+		PieceCaptured.has_value() ? PieceCaptured.value().ToString() : "NULL",
 		PiecePromotion.has_value()? PiecePromotion.value()->ToString() : "NULL", 
 		std::to_string(IsCheck), std::to_string(IsCheckmate));
 }
@@ -103,7 +109,7 @@ bool MoveInfo::operator==(const MoveInfo& otherInfo) const
 {
 	return PiecesMoved == otherInfo.PiecesMoved && BoardNotation == otherInfo.BoardNotation &&
 		SpecialMoveFlags == otherInfo.SpecialMoveFlags && PiecePromotion == otherInfo.PiecePromotion &&
-		IsCheck == otherInfo.IsCheck && IsCheckmate == otherInfo.IsCheckmate;
+		PieceCaptured == otherInfo.PieceCaptured && IsCheck == otherInfo.IsCheck && IsCheckmate == otherInfo.IsCheckmate;
 }
 
 MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo) noexcept
@@ -114,6 +120,7 @@ MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo) noexcept
 	_boardNotation = otherInfo._boardNotation;
 	_specialMoveFlags = otherInfo._specialMoveFlags;
 	_piecePromotion = otherInfo._piecePromotion;
+	_capturedPiece = otherInfo._capturedPiece;
 	_isCheck = otherInfo._isCheck;
 	_isCheckmate = otherInfo._isCheckmate;
 	return *this;

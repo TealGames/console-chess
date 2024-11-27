@@ -295,9 +295,11 @@ namespace Utils
 		return GetUnorderedIntersection(std::vector<T>(vec1), std::vector<T>(vec2));
 	}
 
+	bool HasFlag(unsigned int fullFlag, unsigned int hasFlag);
+
 	double ToRadians(const double);
 	double ToDegrees(const double);
-	bool ApproximateEquals(double, double);\
+	bool ApproximateEquals(double, double);
 
 	//Returns the sign of the number, except for 0
 	//example: 5 -> 1, -5 -> -1, 0 -> 0

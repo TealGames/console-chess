@@ -8,6 +8,9 @@
 #include "Piece.hpp"
 #include "GameState.hpp"
 #include "GameManager.hpp"
+#include "Globals.hpp"
+
+const wxSize BOARD_SIZE = wxSize(CELL_SIZE.x * BOARD_DIMENSION, CELL_SIZE.y * BOARD_DIMENSION);
 
 void CreateBoardCells(wxWindow* parent);
 

@@ -14,6 +14,7 @@
 #include "BoardManager.hpp"
 #include "GameState.hpp"
 #include "UIGlobals.hpp"
+#include "DirectionalLayout.hpp"
 
 static const std::string GAME_STATE_ID = "main_state";
 
@@ -46,6 +47,7 @@ void MainFrame::DrawStatic()
 
 	titleText->SetFont(TITLE_FONT);
 	_pages = new wxSimplebook(this, wxID_ANY, wxPoint(WIDTH/2, HEIGHT/2), wxSize(WIDTH, HEIGHT));
+	//_pages->SetBackgroundColour(BRIGHT_YELLOW);
 	//_pages->Center();
 
 	//Sizer for root panel
@@ -86,27 +88,37 @@ void MainFrame::DrawMainMenu()
 
 void MainFrame::DrawGame()
 {
-	wxPanel* gameRoot = new wxPanel(_pages);
+	DirectionalLayout* gameRoot = new DirectionalLayout(_pages, LayoutType::Horizontal, wxDefaultPosition, _pages->GetSize()); 
+	gameRoot->SetBackgroundColour(LIGHT_GREEN);
 	
-	_cellParent = new wxPanel(gameRoot);
+	wxSize cellAreaSize = 1.2 * BOARD_SIZE;
+	_cellParent = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, cellAreaSize);
 	CreateBoardCells(_cellParent);
+	_cellParent->SetBackgroundColour(RED);
+	_cellParent->Center();
 	
 	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, SIDE_PANEL_SIZE);
 	sidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	CreateCaptureDisplay(_manager, sidePanel);
+	
 	//wxBoxSizer* sidePanelSizer = new wxBoxSizer(wxVERTICAL);
 	//sidePanelSizer->Add(sidePanel, 0, wxTOP, 0);
 	//sidePanelSizer->AddStretchSpacer(1);
 	//sidePanelSizer->AddSpacer(50);
 	//sidePanel->SetSizer(sidePanelSizer);
-	CreateCaptureDisplay(_manager, sidePanel);
+	
 
 	//sidePanel->SetSize(SIDE_PANEL_SIZE);
 	//sidePanel->SetPosition(wxPoint(500, 0));
 
-	wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
+	/*wxBoxSizer* rootSizer = new wxBoxSizer(wxHORIZONTAL);
 	rootSizer->Add(_cellParent, 0, wxCENTER | wxTOP, 0);
 	rootSizer->Add(sidePanel, 0, wxCENTER | wxLEFT, 20);
-	gameRoot->SetSizer(rootSizer);
+	gameRoot->SetSizer(rootSizer);*/
+	gameRoot->AddChild(_cellParent, 0, SPACING_ALL_SIDES, 20);
+	gameRoot->AddChild(sidePanel, 0, SpacingType::Right, 20);
+
+	//gameRoot->CenterOnParent();
 
 	_pages->AddPage(gameRoot, "Game");
 }
@@ -156,6 +168,7 @@ void MainFrame::StartGame()
 		const std::string err = std::format("Tried to render all pieces but failed!");
 		Utils::Log(Utils::LogType::Error, err);
 	}
+	UpdateInteractablePieces(_currentState->CurrentPlayer);
 	
 	
 	//TODO: function listeners adding crashes app!

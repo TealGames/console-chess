@@ -6,44 +6,44 @@
 namespace Utils
 {
 	Point2D::Point2D()
-		:_x(0), _y(0), x(_x), y(_y) {}
+		:m_x(0), m_y(0), m_X(m_x), m_Y(m_y) {}
 
 	Point2D::Point2D(double xPos, double yPos)
-		: _x(xPos), _y(yPos), x(_x), y(_y) {}
+		: m_x(xPos), m_y(yPos), m_X(m_x), m_Y(m_y) {}
 
 	Point2D::Point2D(const Point2D& copyPos)
-		: _x(copyPos.x), _y(copyPos.y), x(_x), y(_y) {}
+		: m_x(copyPos.m_X), m_y(copyPos.m_Y), m_X(m_x), m_Y(m_y) {}
 
 
 	std::string Point2D::ToString() const
 	{
-		std::string str = std::format("({},{})", x, y);
+		std::string str = std::format("({},{})", m_X, m_Y);
 		return str;
 	}
 
 	Point2D Point2D::operator+(const Point2D& otherPos) const
 	{
-		return { x + otherPos.x, y + otherPos.y };
+		return { m_X + otherPos.m_X, m_Y + otherPos.m_Y };
 	}
 
 	Point2D Point2D::operator-(const Point2D& otherPos) const
 	{
-		return { x - otherPos.x, y - otherPos.y };
+		return { m_X - otherPos.m_X, m_Y - otherPos.m_Y };
 	}
 
 	Point2D Point2D::operator*(const Point2D& otherPos) const
 	{
-		return { x * otherPos.x, y * otherPos.y };
+		return { m_X * otherPos.m_X, m_Y * otherPos.m_Y };
 	}
 
 	Point2D Point2D::operator*(const double factor) const
 	{
-		return { x * factor, y * factor };
+		return { m_X * factor, m_Y * factor };
 	}
 
 	Point2D Point2D::operator/(const Point2D& otherPos) const
 	{
-		if (otherPos.x == 0 || otherPos.y == 0)
+		if (otherPos.m_X == 0 || otherPos.m_Y == 0)
 		{
 			std::string message = std::format("Tried to divide Position {} "
 				"by a pointer with 0 {}", ToString(), otherPos.ToString());
@@ -51,7 +51,7 @@ namespace Utils
 			return {};
 		}
 
-		return { x / otherPos.x, y / otherPos.y };
+		return { m_X / otherPos.m_X, m_Y / otherPos.m_Y };
 	}
 
 	Point2D Point2D::operator/(const double factor) const
@@ -63,13 +63,13 @@ namespace Utils
 			return {};
 		}
 
-		return { x / factor, y / factor };
+		return { m_X / factor, m_Y / factor };
 	}
 
 	bool Point2D::operator==(const Point2D& otherPos) const
 	{
-		bool sameX = Utils::ApproximateEquals(x, otherPos.x);
-		bool sameY = Utils::ApproximateEquals(y, otherPos.y);
+		bool sameX = Utils::ApproximateEquals(m_X, otherPos.m_X);
+		bool sameY = Utils::ApproximateEquals(m_Y, otherPos.m_Y);
 		return sameX && sameY;
 	}
 
@@ -77,8 +77,8 @@ namespace Utils
 	{
 		if (this != &newPos)
 		{
-			_x = newPos.x;
-			_y = newPos.y;
+			m_x = newPos.m_X;
+			m_y = newPos.m_Y;
 		}
 		else return *this;
 	}
@@ -88,8 +88,8 @@ namespace Utils
 		if (this == &other)
 			return *this;
 
-		_x = std::exchange(other._x, 0);
-		_y = std::exchange(other._y, 0);
+		m_x = std::exchange(other.m_x, 0);
+		m_y = std::exchange(other.m_y, 0);
 
 		return *this;
 	}

@@ -22,16 +22,16 @@ namespace Utils
 		};
 
 	private:
-		double _x;
-		double _y;
+		double m_x;
+		double m_y;
 
 		static double CalcDirection(const Vector2D&, const AngleMode = AngleMode::Radians);
 		static double CalcMagnitude(const Vector2D&);
 		static Vector2D Normalize(const Vector2D&);
 
 	public:
-		const double& x;
-		const double& y;
+		const double& m_X;
+		const double& m_Y;
 
 		static const Vector2D UP;
 		static const Vector2D DOWN;
@@ -43,6 +43,7 @@ namespace Utils
 
 		Vector2D(double, double);
 		Vector2D(const Vector2D&);
+		Vector2D(Vector2D&&) noexcept;
 
 		double GetDirection(const AngleMode mode = AngleMode::Radians) const;
 		double GetMagnitude() const;
@@ -56,6 +57,9 @@ namespace Utils
 		Vector2D operator*(const double) const;
 
 		bool operator==(const Vector2D&) const;
+
+		Vector2D& operator=(const Vector2D& other);
+		Vector2D& operator=(Vector2D&& other) noexcept;
 	};
 
 	/// <summary>

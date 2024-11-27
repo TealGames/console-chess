@@ -17,36 +17,42 @@ namespace Utils
 	const Vector2D Vector2D::ONE(1, 1);
 
 	Vector2D::Vector2D(double xComp, double yComp)
-		: _x(xComp), _y(yComp), x(_x), y(_y)
+		: m_x(xComp), m_y(yComp), m_X(m_x), m_Y(m_y)
 	{
 
 	}
 
 	Vector2D::Vector2D(const Vector2D& vec)
-		: _x(vec.x), _y(vec.y), x(_x), y(_y)
+		: m_x(vec.m_X), m_y(vec.m_Y), m_X(m_x), m_Y(m_y)
 	{
 
 	}
 
+	Vector2D::Vector2D(Vector2D&& other) noexcept
+		: m_x(std::exchange(other.m_x, 0.0)), m_y(std::exchange(other.m_y, 0.0)),
+		  m_X(m_x), m_Y(m_y)
+	{
+	}
+
 	double Vector2D::CalcDirection(const Vector2D& vec, const AngleMode angleMode)
 	{
-		if (vec.x == 0) return vec.y;
-		else if (vec.y == 0) return vec.x;
+		if (vec.m_X == 0) return vec.m_Y;
+		else if (vec.m_Y == 0) return vec.m_X;
 
-		double rad = std::atan2(vec.y, vec.x);
+		double rad = std::atan2(vec.m_Y, vec.m_X);
 		if (angleMode == AngleMode::Radians) return rad;
 		else return Utils::ToDegrees(rad);
 	}
 
 	double Vector2D::CalcMagnitude(const Vector2D& vec)
 	{
-		return std::sqrt(std::pow(vec.x, 2) + std::pow(vec.y, 2));
+		return std::sqrt(std::pow(vec.m_X, 2) + std::pow(vec.m_Y, 2));
 	}
 
 	Vector2D Vector2D::Normalize(const Vector2D& vec)
 	{
 		double magnitude = CalcMagnitude(vec);
-		Vector2D unit(vec.x / magnitude, vec.y / magnitude);
+		Vector2D unit(vec.m_X / magnitude, vec.m_Y / magnitude);
 		return unit;
 	}
 
@@ -75,12 +81,12 @@ namespace Utils
 		switch (form)
 		{
 		case VectorForm::Component:
-			str = std::format("({},{})", x, y);
+			str = std::format("({},{})", m_X, m_Y);
 			break;
 
 		case VectorForm::Unit:
 			//Double braces needed on the outside to escape format {}
-			str = std::format("{{ {}i+{}j }}", x, y);
+			str = std::format("{{ {}i+{}j }}", m_X, m_Y);
 			break;
 
 		case VectorForm::MagnitudeDirection:
@@ -89,7 +95,7 @@ namespace Utils
 
 		default:
 			std::string error = std::format("Tried to convert vector ({},{}) to string "
-				"with undefined form {}", x, y, ToString(form));
+				"with undefined form {}", m_X, m_Y, ToString(form));
 			Utils::Log(LogType::Error, error);
 			break;
 		}
@@ -98,38 +104,55 @@ namespace Utils
 
 	Vector2D Vector2D::operator+(const Vector2D& otherVec) const
 	{
-		Vector2D resultant(x + otherVec.x, y + otherVec.y);
+		Vector2D resultant(m_X + otherVec.m_X, m_Y + otherVec.m_Y);
 		return resultant;
 	}
 
 	Vector2D Vector2D::operator-(const Vector2D& otherVec) const
 	{
-		Vector2D resultant(x - otherVec.x, y - otherVec.y);
+		Vector2D resultant(m_X - otherVec.m_X, m_Y - otherVec.m_Y);
 		return resultant;
 	}
 
 	Vector2D Vector2D::operator*(const Vector2D& otherVec) const
 	{
-		Vector2D resultant(x * otherVec.x, y * otherVec.y);
+		Vector2D resultant(m_X * otherVec.m_X, m_Y * otherVec.m_Y);
 		return resultant;
 	}
 
 	Vector2D Vector2D::operator*(const double scalar) const
 	{
-		Vector2D resultant(x * scalar, y * scalar);
+		Vector2D resultant(m_X * scalar, m_Y * scalar);
 		return resultant;
 	}
 
 	bool Vector2D::operator==(const Vector2D& otherVec) const
 	{
-		bool sameX = Utils::ApproximateEquals(x, otherVec.x);
-		bool sameY = Utils::ApproximateEquals(y, otherVec.y);
+		bool sameX = Utils::ApproximateEquals(m_X, otherVec.m_X);
+		bool sameY = Utils::ApproximateEquals(m_Y, otherVec.m_Y);
 		return sameX && sameY;
+	}
+
+	Vector2D& Vector2D::operator=(const Vector2D& other)
+	{
+		if (this == &other)
+			return *this;
+
+		m_x = other.m_X;
+		m_y = other.m_Y;
+		return *this;
+	}
+
+	Vector2D& Vector2D::operator=(Vector2D&& other) noexcept
+	{
+		m_x = std::exchange(other.m_x, 0.0);
+		m_y = std::exchange(other.m_y, 0.0);
+		return *this;
 	}
 
 	Vector2D GetVector(const Point2D& startPos, const Point2D& endPos)
 	{
-		Vector2D result(endPos.x - startPos.x, endPos.y - startPos.y);
+		Vector2D result(endPos.m_X - startPos.m_X, endPos.m_Y - startPos.m_Y);
 		return result;
 	}
 	Vector2D GetVector(const Point2DInt& startPos, const Point2DInt& endPos)
@@ -140,11 +163,11 @@ namespace Utils
 
 	Utils::Point2D GetVectorEndPoint(const Point2D& startPos, const Vector2D& vector)
 	{
-		return { startPos.x + vector.x, startPos.y + vector.y };
+		return { startPos.m_X + vector.m_X, startPos.m_Y + vector.m_Y };
 	}
 	Utils::Point2DInt GetVectorEndPoint(const Point2DInt& startPos, const Vector2D& vector)
 	{
-		return { static_cast<int>(startPos.x + vector.x), static_cast<int>(startPos.y + vector.y) };
+		return { static_cast<int>(startPos.x + vector.m_X), static_cast<int>(startPos.y + vector.m_Y) };
 	}
 
 	std::string ToString(const Vector2D::AngleMode& mode)

@@ -8,6 +8,7 @@ static constexpr int HEIGHT = 600;
 static const wxColour DARK_GRAY = wxColour( 43, 43, 43 );
 static const wxColour LIGHT_DARK_GRAY= wxColour(53, 53, 53);
 static const wxColour LIGHT_GRAY = wxColour(63, 63, 63 );
+static const wxColour NORMAL_GRAY = wxColour(115, 115, 115);
 
 static const wxColour LIGHT_GREEN = wxColour(127, 180, 89 );
 static const wxColour DARKER_LIGHT_GREEN = wxColour(83, 118, 59);
@@ -55,3 +56,4 @@ static constexpr int DEFAULT_FONT_SIZE = 15;
 static const wxFontFamily FONT_FAMILY = wxFONTFAMILY_SCRIPT;
 static const wxFont TITLE_FONT = wxFont(DEFAULT_FONT_SIZE * 2, FONT_FAMILY, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
 static const wxFont HEADING_FONT = wxFont(DEFAULT_FONT_SIZE, FONT_FAMILY, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+static const wxFont CAPTION_FONT= wxFont(0.7*DEFAULT_FONT_SIZE, FONT_FAMILY, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
