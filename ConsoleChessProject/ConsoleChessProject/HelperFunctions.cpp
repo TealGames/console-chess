@@ -22,9 +22,13 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "";
+	const std::string LOG_ONLY_MESSAGE = "DISPLAY";
+	const bool LOG_MESSAGES = true;
+
 	void Log(const LogType& logType, const std::string& str)
 	{
+		if (!LOG_MESSAGES) return;
+
 		if (LOG_ONLY_MESSAGE!="" && logType == LogType::Log && 
 			str.substr(0, LOG_ONLY_MESSAGE.size()) != LOG_ONLY_MESSAGE) return;
 

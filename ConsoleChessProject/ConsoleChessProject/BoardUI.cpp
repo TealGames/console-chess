@@ -178,9 +178,9 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			{
 				for (const auto& cell : currentCellMoves)
 				{
-					Utils::Log(Utils::LogType::Error, std::format("SELECTED {} MOVES: {} CLICKED: {}",
+					/*Utils::Log(Utils::LogType::Error, std::format("SELECTED {} MOVES: {} CLICKED: {}",
 						std::to_string(currentCellMoves.size()), Utils::ToStringIterable<std::vector<Cell*>, Cell*>(currentCellMoves),
-						std::to_string(cell == clickedCell)));
+						std::to_string(cell == clickedCell)));*/
 					 
 					if (!cell->HasOverlayImage && cell != clickedCell || lastSelected == nullptr) continue;
 
@@ -280,7 +280,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			//to obfuscate what changes actually occur from state
 
 #pragma region Toggling Highlight
-			bool sameCellClickedAgain = lastSelected == clickedCell;
+			bool sameCellClickedAgain = lastSelected!=nullptr && lastSelected == clickedCell;
 
 			//We want to preserve previous old move highlighted status
 			//so we must check for what type is highlighted and what to set as new
@@ -326,9 +326,8 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			else if (isClickedCellSelected)
 			{
 				std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
-				//if (possibleMoves.empty()) wxLogMessage("Poop");
-				Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
-					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
+				/*Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
+					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));*/
 
 				Cell* cellAtPosition = nullptr;
 				for (const auto& move : possibleMoves)

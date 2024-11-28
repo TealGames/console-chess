@@ -29,6 +29,7 @@ namespace Core
 	using GameEventCallbackType = std::function<void(const GameState& state)>;
 	enum class GameEventType
 	{
+		StartGame,
 		PieceMoved,
 		SuccessfulTurn,
 	};
@@ -44,7 +45,8 @@ namespace Core
 		/// <summary>
 		/// Game state and their corresponding IDS
 		/// </summary>
-		GameStateCollectionType _allGameStates;
+		GameStateCollectionType m_allGameStates;
+		std::unordered_map<GameEventType, std::vector<GameEventCallbackType>> m_eventListeners;
 
 	public:
 		static constexpr bool ADVANCE_TURN = true;
@@ -54,14 +56,16 @@ namespace Core
 		//Utils::Event<void, const ColorTheme> TurnChangeEvent;
 
 	private:
+
 		//This has to not be const because we need to get mutable iterator
 		GameStateQueryResult HasGameStateId(const std::string& gameStateId);
-		bool IsValidGameState(const GameState* state, const bool logError, const std::string& operationName);
+		bool IsValidGameState(const GameState* state, const std::string& operationName);
 		GameState* TryGetGameStateMutable(const std::string& gameStateID);
 
-		std::optional<ColorTheme> TryGetOtherPlayer(const GameState& state) const;
+		ColorTheme GetOtherPlayer(const GameState& state) const;
 		
 		void EndGame(GameState& state);
+		void InvokeEvent(const GameState& state, const GameEventType gameEvent);
 
 	public:
 		GameManager();
@@ -84,6 +88,14 @@ namespace Core
 		std::vector<MoveInfo> TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos);
 		std::optional<MoveValueInfo> TryCalculateLastMoveValue(const std::string& gameStateID, const ColorTheme colorMoves);
 		size_t TotalGameStatesCount() const;
+
+		/// <summary>
+		/// Will calculate winning percent as something like 99.9%
+		/// </summary>
+		/// <param name="state"></param>
+		/// <param name="color"></param>
+		/// <returns></returns>
+		std::unordered_map<ColorTheme, float> CalculateWinPercentage(const GameState& state) const;
 
 		void AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback);
 	};

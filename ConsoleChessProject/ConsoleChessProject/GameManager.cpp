@@ -15,17 +15,17 @@
 namespace Core
 {
 	GameManager::GameManager()
-		: _allGameStates() //,GameStartEvent(), GameEndEvent(), TurnChangeEvent()
+		: m_allGameStates(), m_eventListeners{} //,GameStartEvent(), GameEndEvent(), TurnChangeEvent()
 	{
 		//Utils::Log(std::format("GAME MANAGER created Current game states: {}", std::to_string(TotalGameStatesCount())));
 	}
 
 	GameStateQueryResult GameManager::HasGameStateId(const std::string& gameStateId)
 	{
-		if (_allGameStates.empty()) return {false, std::nullopt};
+		if (m_allGameStates.empty()) return {false, std::nullopt};
 
-		GameStateCollectionType::iterator gameStateIt = _allGameStates.find(gameStateId);
-		bool hasState = gameStateIt != _allGameStates.end();
+		GameStateCollectionType::iterator gameStateIt = m_allGameStates.find(gameStateId);
+		bool hasState = gameStateIt != m_allGameStates.end();
 		return hasState ? GameStateQueryResult{ true, gameStateIt } : GameStateQueryResult{ false, std::nullopt };
 	}
 
@@ -48,11 +48,11 @@ namespace Core
 		return TryGetGameStateMutable(gameStateID);
 	}
 
-	bool GameManager::IsValidGameState(const GameState* state, const bool logError, const std::string& operationName)
+	bool GameManager::IsValidGameState(const GameState* state, const std::string& operationName)
 	{
 		if (state == nullptr)
 		{
-			std::vector<std::string> ids = Utils::GetKeysFromMap<std::string, GameState>(_allGameStates.begin(), _allGameStates.end());
+			std::vector<std::string> ids = Utils::GetKeysFromMap<std::string, GameState>(m_allGameStates.begin(), m_allGameStates.end());
 			const std::string err = std::format("[GAME_MANAGER]: Tried to execute operation: {} "
 				"but game state was NULL (probably not found). All active states ids: {}", operationName,
 				Utils::ToStringIterable<std::vector<std::string>, std::string>(ids));
@@ -64,7 +64,7 @@ namespace Core
 
 	const GameState& GameManager::StartNewGame(const std::string& newGameStateID)
 	{
-		Utils::Log(std::format("Size of game states: {}", std::to_string(_allGameStates.size())));
+		Utils::Log(std::format("Size of game states: {}", std::to_string(m_allGameStates.size())));
 		GameStateQueryResult newGameIdQuery = HasGameStateId(newGameStateID);
 		if (newGameIdQuery.HasGameId)
 		{
@@ -74,7 +74,7 @@ namespace Core
 			return {};
 		}
 
-		auto newStateIt= _allGameStates.emplace(newGameStateID, GameState{});
+		auto newStateIt= m_allGameStates.emplace(newGameStateID, GameState{});
 		if (!newStateIt.second)
 		{
 			const std::string error = std::format("[GAME_MANAGER]: Tried to start a new game with a game state "
@@ -87,6 +87,7 @@ namespace Core
 		newState.CurrentPlayer = ColorTheme::Light;
 		newState.TeamValue = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0}};
 		Board::CreateDefaultBoard(newState);
+		InvokeEvent(newState, GameEventType::StartGame);
 		
 		return newState;
 
@@ -103,9 +104,9 @@ namespace Core
 		else return ColorTheme::Light;
 	}
 
-	std::optional<ColorTheme> GameManager::TryGetOtherPlayer(const GameState& state) const
+	ColorTheme GameManager::GetOtherPlayer(const GameState& state) const
 	{
-		GetOtherTeam(state.CurrentPlayer);
+		return GetOtherTeam(state.CurrentPlayer);
 	}
 
 	bool GameManager::IsPositionWithinBounds(const Utils::Point2DInt& pos) const
@@ -113,24 +114,28 @@ namespace Core
 		return Board::IsWithinBounds(pos);
 	}
 
-
 	PieceMoveResult GameManager::TryMoveForState(const std::string& gameStateID,
 		const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos)
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
-		if (!IsValidGameState(maybeGameState, true, std::format("TryMove(id:{})", gameStateID)))
+		if (!IsValidGameState(maybeGameState, std::format("TryMove(id:{})", gameStateID)))
 		{
 			return { newPos, false, std::format("Failed to retrieve current game data") };
 		}
-			
-		return Board::TryMove(*maybeGameState, currentPos, newPos);
+		
+		PieceMoveResult moveResult = Board::TryMove(*maybeGameState, currentPos, newPos);
+		Utils::Log(std::format("MOVE INFO: game manager try move update peice all prev moves: {}",
+			Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(maybeGameState->CurrentPlayer))));
+
+		if (moveResult.IsValidMove) InvokeEvent(*maybeGameState, GameEventType::PieceMoved);
+		return moveResult;
 	}
 
 	std::vector<MoveInfo> GameManager::TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos)
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
 		//Utils::Log(std::format("Try get possible moves game manager has state: {}", std::to_string(maybeGameState!=nullptr)));
-		if (!IsValidGameState(maybeGameState, true, std::format("GetPossibleMoves(id:{})", gameStateID)))
+		if (!IsValidGameState(maybeGameState, std::format("GetPossibleMoves(id:{})", gameStateID)))
 		{
 			return {};
 		}
@@ -141,37 +146,66 @@ namespace Core
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
 		//Utils::Log(std::format("Try get possible moves game manager has state: {}", std::to_string(maybeGameState!=nullptr)));
-		if (!IsValidGameState(maybeGameState, true, std::format("TryCalculateMoveValue(id:{})", gameStateID)))
+		if (!IsValidGameState(maybeGameState, std::format("TryCalculateMoveValue(id:{})", gameStateID)))
 		{
 			return std::nullopt;
 		}
 
-		auto colorMovesIt = maybeGameState->PreviousMoves.find(color);
-		if (colorMovesIt == maybeGameState->PreviousMoves.end()) return std::nullopt;
-		if (colorMovesIt->second.empty()) return std::nullopt;
+		Utils::Log(std::format("MOVE INFO: Try calc last move for color: {} previous moves: {}", ToString(color),
+			maybeGameState != nullptr ? Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(color)) : "NULL"));
 
-		auto moveIt = colorMovesIt->second.begin() + colorMovesIt->second.size();
+		auto colorMovesIt = maybeGameState->PreviousMoves.find(color);
+		if (colorMovesIt == maybeGameState->PreviousMoves.end())
+		{
+			/*Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: Previous moves for color not found {} ",
+				ToString(color)));*/
+
+			return std::nullopt;
+		}
+		if (colorMovesIt->second.empty())
+		{
+			/*Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: Previous moves for color empty {}", ToString(color)));*/
+			return std::nullopt;
+		}
+
+		/*Utils::Log(Utils::LogType::Error, std::format("CALLING CAL LAST MOVE VAL for color: {} move: {}",
+			ToString(color),
+			maybeGameState!=nullptr? std::to_string(maybeGameState->PreviousMoves.size()) : "NULL"));*/
+			//return std::nullopt;
+
+		const MoveInfo& moveInfo = colorMovesIt->second.at(colorMovesIt->second.size() - 1);
 		std::unordered_map<ColorTheme, int> teamPoints = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0} };
 
-		if (Utils::HasFlag(static_cast<unsigned int>(moveIt->SpecialMoveFlags),
-			static_cast<unsigned int>(SpecialMove::Capture)) && moveIt->PieceCaptured.has_value())
+		Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: try calc last move value points moveinfo: {} ",
+			moveInfo.ToString()));
+
+		if (Utils::HasFlag(static_cast<unsigned int>(moveInfo.SpecialMoveFlags),
+			static_cast<unsigned int>(SpecialMove::Capture)) && moveInfo.PieceCaptured.has_value())
 		{
-			PieceTypeInfo capturedInfo = moveIt->PieceCaptured.value();
+			PieceTypeInfo capturedInfo = moveInfo.PieceCaptured.value();
 			int pieceValue = GetValueForPiece(capturedInfo.PieceType);
-			teamPoints.at(capturedInfo.Color)-=pieceValue;
+			teamPoints.at(capturedInfo.Color) -= pieceValue;
 			teamPoints.at(GetOtherTeam(capturedInfo.Color)) += pieceValue;
 		}
+
 		return MoveValueInfo{ teamPoints };
 	}
 
 	std::optional<ColorTheme> GameManager::TryAdvanceTurn(const std::string& gameStateID)
 	{
 		if (!ADVANCE_TURN) return std::nullopt;
+
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
-		if (!IsValidGameState(maybeGameState, true, std::format("AdvanceTurn(id:{})", gameStateID))) return std::nullopt;
+		if (!IsValidGameState(maybeGameState, std::format("AdvanceTurn(id:{})", gameStateID))) return std::nullopt;
 
 		std::optional<MoveValueInfo> maybeMoveVals= TryCalculateLastMoveValue(gameStateID, maybeGameState->CurrentPlayer);
-		if (!maybeMoveVals.has_value())
+		if (maybeMoveVals.has_value())
+		{
+			maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
+			maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);
+		}
+		
+		/*if (!maybeMoveVals.has_value())
 		{
 			const std::string error = std::format("Tried to change players turn in "
 				"GameManager but the last move values for color: {} were not found",
@@ -180,19 +214,12 @@ namespace Core
 			return std::nullopt;
 		}
 		maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
-		maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);
+		maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);*/
 
-		std::optional<ColorTheme> maybeOtherPlayer = TryGetOtherPlayer(*maybeGameState);
-		if (!maybeOtherPlayer.has_value())
-		{
-			const std::string error = std::format("Tried to change players turn in "
-				"GameManager but there is empty player's turn! Current Player turn left unchanged: {}", 
-				ToString(maybeGameState->CurrentPlayer));
-			Utils::Log(Utils::LogType::Error, error);
-			return std::nullopt;
-		}
+		ColorTheme otherPlayer = GetOtherPlayer(*maybeGameState);
 
-		maybeGameState->CurrentPlayer = maybeOtherPlayer.value();
+		maybeGameState->CurrentPlayer = otherPlayer;
+		InvokeEvent(*maybeGameState, GameEventType::SuccessfulTurn);
 		if (maybeGameState->InCheckmate || Board::GetAvailablePieces(*maybeGameState, maybeGameState->CurrentPlayer) == 0)
 			EndGame(*maybeGameState);
 
@@ -202,7 +229,7 @@ namespace Core
 
 	void GameManager::EndGame(GameState& state)
 	{
-		std::optional<ColorTheme> maybeOther= TryGetOtherPlayer(state);
+		std::optional<ColorTheme> maybeOther= GetOtherPlayer(state);
 		if (!maybeOther.has_value())
 		{
 			const std::string error = std::format("Tried to end the game in GameManager "
@@ -217,19 +244,48 @@ namespace Core
 
 	size_t GameManager::TotalGameStatesCount() const
 	{
-		return _allGameStates.size();
+		return m_allGameStates.size();
 	}
 
 	void GameManager::AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback)
 	{
-		if (eventType == GameEventType::PieceMoved) Board::AddPieceMoveCallback(callback);
-		else if (eventType == GameEventType::SuccessfulTurn) Board::AddMoveExecutedCallback(callback);
+		auto existingListenersIt = m_eventListeners.find(eventType);
+		if (existingListenersIt == m_eventListeners.end())
+		{
+			m_eventListeners.emplace(eventType, std::vector<GameEventCallbackType>{callback});
+		}
 		else
 		{
-			const std::string error = std::format("[GAME MANAGER]: Tried to add a game event callback"
-				" for a type that has no event actions defined!");
-			Utils::Log(Utils::LogType::Error, error);
-			return;
+			existingListenersIt->second.emplace_back(callback);
+		}
+	}
+
+	std::unordered_map<ColorTheme, float> GameManager::CalculateWinPercentage(const GameState& state) const
+	{
+		ColorTheme smallerScoreColor = state.TeamValue.at(ColorTheme::Light) < state.TeamValue.at(ColorTheme::Dark) ?
+										ColorTheme::Light : ColorTheme::Dark;
+
+		ColorTheme greaterScoreColor= GetOtherTeam(smallerScoreColor);
+
+		int smallestScore = state.TeamValue.at(smallerScoreColor);
+		int smallestScoreDelta = 0;
+		if (smallestScore < 0) smallestScoreDelta = std::abs(smallestScore) - smallestScore;
+
+		int greaterScore = state.TeamValue.at(greaterScoreColor);
+
+		std::unordered_map<ColorTheme, float> colorPercent;
+		colorPercent.emplace(smallerScoreColor, (float)(smallestScore+smallestScoreDelta)/smallestScore + greaterScore);
+		colorPercent.emplace(greaterScoreColor, (float)(greaterScore+smallestScoreDelta)/ smallestScore + greaterScore);
+		return colorPercent;
+	}
+
+	void GameManager::InvokeEvent(const GameState& state, const GameEventType gameEvent)
+	{
+		auto listenersIt = m_eventListeners.find(gameEvent);
+		if (listenersIt == m_eventListeners.end() || listenersIt->second.empty()) return;
+		for (const auto& listener : listenersIt->second)
+		{
+			listener(state);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 #include <wx/wx.h>
 #include <unordered_map>
 #include <vector>
-#include "CapturedPiecesUI.hpp"
+#include "GameHUD.hpp"
 #include "ResourceManager.hpp"
 #include "GameManager.hpp"
 #include "GameState.hpp"
@@ -10,6 +10,9 @@
 #include "DirectionalLayout.hpp"
 #include "GridLayout.hpp"
 #include "WXHelperFunctions.hpp"
+#include "HelperFunctions.hpp"
+
+static wxPanel* winningSliderPanel;
 
 static GridLayout* lightPanelPieces;
 static GridLayout* darkPanelPieces;
@@ -20,11 +23,43 @@ static wxStaticText* darkValueText;
 //The panel that encompases a sprite
 static const wxSize SPRITE_PANEL_SIZE(30, 30);
 static const wxSize SPRITE_SIZE(30, 30);
+static const wxSize WINNING_CHANCE_SLIDER_SIZE(100, 15);
 
-static void UpdateDisplay(const GameState& state)
+static void SetWinDisplayValue(float percent)
 {
+	winningSliderPanel->SetSize(wxSize(WINNING_CHANCE_SLIDER_SIZE.x* percent, WINNING_CHANCE_SLIDER_SIZE.y));
+	winningSliderPanel->SetPosition(wxDefaultPosition);
+}
+
+static void UpdateWinningDisplay(const Core::GameManager& manager, const GameState& state)
+{
+	std::unordered_map<ColorTheme, float> percents = manager.CalculateWinPercentage(state);
+	SetWinDisplayValue(percents.at(ColorTheme::Light) / 100);
+}
+
+void CreateWinChanceDisplay(Core::GameManager& manager, wxWindow* parent)
+{
+	wxPanel* background = new wxPanel(parent, wxID_ANY, wxDefaultPosition, WINNING_CHANCE_SLIDER_SIZE);
+	background->SetBackgroundColour(MUTED_WHITE);
+	winningSliderPanel = new wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+	winningSliderPanel->SetForegroundColour(LIGHTER_SECONDARY_COLOR_2);
+	SetWinDisplayValue(0.5);
+
+	manager.AddEventCallback(Core::GameEventType::SuccessfulTurn, 
+		[&manager](const GameState& state) -> void{ UpdateWinningDisplay(manager, state); });
+}
+
+static void UpdateCaptureDisplay(const GameState& state)
+{
+	/*Utils::Log(std::format("DISPLAY: Update display game state: dark: {} light:",
+		std::to_string(state.TeamValue.size())));*/
+
+		//std::to_string(state.TeamValue.at(ColorTheme::Dark)), std::to_string(state.TeamValue.at(ColorTheme::Light))));
 	lightValueText->SetLabel(std::to_string(state.TeamValue.at(ColorTheme::Light)));
-	darkPanelPieces->SetLabel(std::to_string(state.TeamValue.at(ColorTheme::Dark)));
+	lightValueText->SetSize(lightValueText->GetBestSize());
+
+	darkValueText->SetLabel(std::to_string(state.TeamValue.at(ColorTheme::Dark)));
+	darkValueText->SetSize(darkValueText->GetBestSize());
 
 	if (lightPanelPieces != nullptr) lightPanelPieces->DestroyLayout();
 	if (darkPanelPieces!=nullptr) darkPanelPieces->DestroyLayout();
@@ -76,11 +111,11 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 
 	lightValueText = new wxStaticText(lightLayout, wxID_ANY, "NULL", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
 	lightValueText->SetFont(CAPTION_FONT);
-	lightValueText->SetSize(wxSize(lightTitle->GetSize().x, lightValueText->GetBestSize().y));
+	//lightValueText->SetSize(wxSize(lightTitle->GetSize().x, lightValueText->GetBestSize().y));
+	lightValueText->SetSize(lightValueText->GetBestSize());
 	lightValueText->SetForegroundColour(MUTED_WHITE);
 	lightValueText->SetBackgroundColour(LIGHT_GREEN);
 	lightLayout->AddChild(lightValueText, 0, SpacingType::Center, 10);
-
 
 	const wxSize PANEL_PIECES_SIZE(0.8 * lightLayout->GetSize().x, 0.6 * lightLayout->GetSize().y);
 	const int LAYOUT_SPACING = 20;
@@ -93,6 +128,7 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 	lightLayout->AddChild(lightPanelPieces, 1, SpacingType::Center);
 	displayRoot->AddChild(lightLayout, 1, SpacingType::Center | SPACING_ALL_SIDES, LAYOUT_SPACING);
 
+
 	DirectionalLayout* darkLayout = new DirectionalLayout(displayRoot, LayoutType::Vertical,
 		wxPoint((displayRoot->GetSize().x - LAYOUT_SIZE.x) / 2, 0), LAYOUT_SIZE);
 	darkLayout->SetBackgroundColour(BACKGROUND_COLOR);
@@ -101,67 +137,23 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 		wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
 	darkTitle->SetFont(HEADING_FONT);
 	//darkTitle->CenterOnParent();
-	darkTitle->SetSize(wxSize(darkLayout->GetBestSize()));
+	darkTitle->SetSize(wxSize(darkLayout->GetSize().x, darkTitle->GetBestSize().y));
 	darkTitle->SetForegroundColour(NORMAL_GRAY);
 	//darkTitle->SetBackgroundColour(LIGHT_GREEN);
 	darkLayout->AddChild(darkTitle, 0, SPACING_ALL_SIDES, 10);
+
+	darkValueText = new wxStaticText(darkLayout, wxID_ANY, "NULL", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	darkValueText->SetFont(CAPTION_FONT);
+	darkValueText->SetSize(darkValueText->GetBestSize());
+	darkValueText->SetForegroundColour(NORMAL_GRAY);
+	darkValueText->SetBackgroundColour(LIGHT_GREEN);
+	darkLayout->AddChild(darkValueText, 0, SpacingType::Center, 10);
 
 	darkPanelPieces = new GridLayout(darkLayout, spriteGridRowCols, spriteMargins, wxDefaultPosition, PANEL_PIECES_SIZE);
 	darkPanelPieces->SetBackgroundColour(LIGHT_GREEN);
 	darkLayout->AddChild(darkPanelPieces, 1, SpacingType::Center);
 	displayRoot->AddChild(darkLayout, 1, SpacingType::Center | SPACING_ALL_SIDES, LAYOUT_SPACING);
 
-
-	/*wxBoxSizer* lightPanelSizer = new wxBoxSizer(wxHORIZONTAL);
-	lightPanelSizer->Add(lightPanelPieces, 0, wxEXPAND, 0);
-	lightPanelPieces->SetSizer(lightPanelSizer);
-
-	
-
-	//lightTitle->SetBackgroundColour(TAN);
-	//lightTitle->Center();
-
-
-	/*
-	DirectionalLayout* darkLayout = new DirectionalLayout(displayRoot, LayoutType::Vertical);
-
-	wxStaticText* darkTitle = new wxStaticText(darkLayout, wxID_ANY, "BLACK CAPTURED", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
-	darkLayout->AddChild(lightTitle, SpacingType::Top, 0);
-
-	darkPanelPieces = new wxPanel(parent, wxID_ANY, wxDefaultPosition, PIECE_DISPLAY_SIZE);
-	darkLayout->AddChild(darkPanelPieces, SpacingType::Bottom, 20);
-	*/
-
-
-	
-	/*wxBoxSizer* lightPanelSectionSizer = new wxBoxSizer(wxVERTICAL);
-	lightPanelSectionSizer->Add(lightTitle, 0, wxEXPAND, 0);
-	lightPanelSectionSizer->Add(lightPanelPieces, 0, wxEXPAND, 0);
-	lightPanelSection->SetSizer(lightPanelSectionSizer);*/
-
-
-	//wxPanel* darkPanelSection = new wxPanel(displayRoot);
-	//wxStaticText* darkTitle = new wxStaticText(darkPanelSection, wxID_ANY, "BLACK CAPTURED");
-	//darkTitle->Center();
-
-
-	//darkTitle->SetForegroundColour(TAN);
-
-	//wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
-	//rootSizer->Add(lightLayout, 0, wxTOP | wxEXPAND, 0);
-	//rootSizer->Add(darkLayout, 0, wxBOTTOM | wxEXPAND, 50);
-	//displayRoot->SetSizer(rootSizer);
-
-
-	
-	//darkPanelPieces = new wxPanel(parent, wxID_ANY, wxDefaultPosition, PIECE_DISPLAY_SIZE);
-
-	
-
-	/*wxBoxSizer* darkPanelSizer = new wxBoxSizer(wxHORIZONTAL);
-	darkPanelSizer->Add(darkPanelPieces, 0, wxEXPAND, 0);
-	darkPanelPieces->SetSizer(darkPanelSizer);*/
-
-	//Board::AddPieceMoveCallback(&UpdateDisplay);
-	manager.AddEventCallback(Core::GameEventType::SuccessfulTurn, &UpdateDisplay);
+	manager.AddEventCallback(Core::GameEventType::SuccessfulTurn, &UpdateCaptureDisplay);
+	manager.AddEventCallback(Core::GameEventType::StartGame, &UpdateCaptureDisplay);
 }

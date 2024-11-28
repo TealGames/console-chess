@@ -98,7 +98,7 @@ MoveInfo::MoveInfo(MoveInfo&& other) noexcept:
 std::string MoveInfo::ToString() const
 {
 	return std::format("[PiecesMoved:{} SpecialMove:{} Piece Promoted:{} Captured:{} IsCheck:{} IsCheckmate: {}]", 
-		Utils::ToStringIterable<const std::vector<MovePiecePositionData>,MovePiecePositionData>(PiecesMoved), 
+		Utils::ToStringIterable<const std::vector<MovePiecePositionData>, MovePiecePositionData>(PiecesMoved), 
 		std::to_string(static_cast<unsigned int>(SpecialMoveFlags)), 
 		PieceCaptured.has_value() ? PieceCaptured.value().ToString() : "NULL",
 		PiecePromotion.has_value()? PiecePromotion.value()->ToString() : "NULL", 

@@ -22,10 +22,10 @@ namespace Board
 	static bool inCheckmate;
 	static bool inCheck;*/
 	static std::vector<Utils::Point2DInt> _allPossiblePositions;
-	static std::vector<PieceMoveCallbackType> _pieceMoveEvent;
-	static std::vector<MoveExecutedCallbackType> _successfulMoveEvent;
+	//static std::vector<PieceMoveCallbackType> _pieceMoveEvent;
+	//static std::vector<MoveExecutedCallbackType> _successfulMoveEvent;
 
-	static void InvokePieceMoveEvent(const GameState& state)
+	/*static void InvokePieceMoveEvent(const GameState& state)
 	{
 		for (const auto& callback : _pieceMoveEvent)
 		{
@@ -49,7 +49,7 @@ namespace Board
 	void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback)
 	{
 		_successfulMoveEvent.push_back(callback);
-	}
+	}*/
 
 	static std::vector<Utils::Point2DInt> GetAllPositionsOnBoard()
 	{
@@ -534,7 +534,7 @@ namespace Board
 			}
 
 			state.PiecePositions.emplace(newPos, movedPieceCopy);
-			InvokePieceMoveEvent(state);
+			//InvokePieceMoveEvent(state);
 		}
 		else
 		{
@@ -561,14 +561,19 @@ namespace Board
 	{
 		if (!TryUpdatePiecePosition(state, currentData, newPos)) return false;
 
+		//Utils::Log(std::format("POOPY DOPZY Adding previous moves with move info: {}", moveInfo.ToString()));
 		ColorTheme color = currentData.PieceRef.m_Color;
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end())
 		{
 			state.PreviousMoves.emplace(color, std::vector<MoveInfo>{moveInfo });
+			Utils::Log(std::format("MOVE INFO: ADDING MOVE INFO {} all prev moves: {}", 
+				moveInfo.ToString(), Utils::ToStringIterable<std::vector<MoveInfo>,MoveInfo>(state.PreviousMoves.at(color))));
 		}
 		else
 		{
 			state.PreviousMoves.at(color).push_back(moveInfo);
+			Utils::Log(std::format("MOVE INFO: ADDING MOVE INFO {} all prev moves: {}",
+				moveInfo.ToString(), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(state.PreviousMoves.at(color))));
 		}
 		return true;
 	}
@@ -614,27 +619,10 @@ namespace Board
 	//if those exist since there may be duplicates of peices on default baords and it would mess with it
 	static void PlaceDefaultBoardPieces(GameState& state)
 	{
-		/*
-		std::vector<Utils::Point2DInt> allPossiblePositions = GetAllPositionsOnBoard();
-		std::vector<Utils::Point2DInt> currentPiecePositions= Utils::GetKeysFromMap<Utils::Point2DInt, Piece>
-			(piecePositions.begin(), piecePositions.end());
-
-		std::unordered_set<Utils::Point2DInt> availablePositions;
-		if (piecePositions.empty()) availablePositions = std::unordered_set<Utils::Point2DInt>
-														(allPossiblePositions.begin(), allPossiblePositions.end());
-		else availablePositions = Utils::GetUnorderedIntersection(currentPiecePositions, allPossiblePositions);
-		*/
-
 		int pieceIndex = 0;
 		std::vector<Piece*> allPiecesCreatedOrUpdated;
 		for (const auto& initPiecePos : GetDefaultBoardPiecePositions())
 		{
-			/*Utils::Log(Utils::LogType::Log, std::format("Board piece: {} {} for {}",
-				ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString()));
-			continue;*/
-			/*Utils::Log(Utils::LogType::Log, std::format("DEFAULT board pos: {} {} {}",
-				ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString()));
-			continue;*/
 
 			if (!IsWithinBounds(initPiecePos.NewPos))
 			{
@@ -651,9 +639,9 @@ namespace Board
 			//and if we need multiple of the same type we dont want to move created pieces) which are ones that were in play
 			std::vector<PiecePositionData> availablePieces = TryGetPiecesPosition(state, initPiecePos.Color, initPiecePos.PieceType,
 				std::vector<Piece::State>{ Piece::State::Captured, Piece::State::InPlay });
-			Utils::Log(Utils::LogType::Warning, std::format("For piece {} {} for pos: {} found existing: {}",
+			/*Utils::Log(Utils::LogType::Warning, std::format("For piece {} {} for pos: {} found existing: {}",
 				ToString(initPiecePos.Color), ToString(initPiecePos.PieceType),
-				initPiecePos.NewPos.ToString(), std::to_string(availablePieces.size())));
+				initPiecePos.NewPos.ToString(), std::to_string(availablePieces.size())));*/
 
 			if (!availablePieces.empty())
 			{
@@ -672,28 +660,10 @@ namespace Board
 					Utils::Log(Utils::LogType::Error, error);
 					return;
 				}
-
-				/*if (movePiecePos != initPiecePos.NewPos &&
-					!TryUpdatePiecePosition(PiecePositionData{ *movePiece, movePiecePos }, initPiecePos.NewPos))
-				{
-					std::string error = std::format("Tried to create default board and move board piece: {} to pos: {} "
-						"but failed to update its position",
-						movePiece->ToString(), initPiecePos.NewPos.ToString());
-					Utils::Log(Utils::LogType::Error, error);
-					return;
-				}*/
 			}
 			else
 			{
 
-				/*if (availablePositions.empty())
-				{
-					std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
-						"but no available pos left for created piece",
-						ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
-					Utils::Log(Utils::LogType::Error, error);
-					return;
-				}*/
 				std::optional<Piece*> maybePieceAtPos =
 					TryCreatePieceAtPos(state, initPiecePos.Color, initPiecePos.PieceType, initPiecePos.NewPos);
 				if (!maybePieceAtPos.has_value())
@@ -704,32 +674,6 @@ namespace Board
 					Utils::Log(Utils::LogType::Error, error);
 					return;
 				}
-
-				/*Utils::Point2DInt availablePos = *availablePositions.begin();
-				Utils::Log(Utils::LogType::Log, std::format("Got available pos for {} {} is {}. all available: {}",
-					ToString(color), ToString(initPiecePos.PieceType), ToString(availablePos),
-					Utils::ToStringIterable<decltype(availablePositions), Utils::Point2DInt>(availablePositions)));
-
-				auto pairAtPosIt = piecePositions.find(availablePos);
-				if (pairAtPosIt != piecePositions.end())
-				{
-					std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
-						"but there already exists a peice: {} at that pos",
-						ToString(color), ToString(initPiecePos.PieceType), availab, pairAtPosIt->second.ToString());
-					Utils::Log(Utils::LogType::Error, error);
-					return;
-				}
-
-				auto insertedPieceIt = piecePositions.insert({ availablePos, CreatePiece(color, initPiecePos.PieceType) });
-
-				if (!insertedPieceIt.second)
-				{
-					std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
-						"but failed to create the piece at that point",
-						ToString(color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString(), pairAtPosIt->second.ToString());
-					Utils::Log(Utils::LogType::Error, error);
-					return;
-				}*/
 
 				movePiecePos = Utils::Point2DInt(initPiecePos.NewPos);
 				if (maybePieceAtPos.value() == nullptr)
@@ -757,8 +701,8 @@ namespace Board
 			//availablePositions.erase(initPiecePos.NewPos);
 			//if (movePiecePos!=initPiecePos.NewPos) availablePositions.insert(movePiecePos);
 
-			Utils::Log(Utils::LogType::Log, std::format("ADDING piece: {} to pos: {}",
-				movePiece->ToString(), initPiecePos.NewPos.ToString()));
+			/*Utils::Log(Utils::LogType::Log, std::format("ADDING piece: {} to pos: {}",
+				movePiece->ToString(), initPiecePos.NewPos.ToString()));*/
 			/*Utils::Log(Utils::LogType::Log, std::format("ADDING piece: {} to pos: {} available pos left: {}",
 				movePiece->ToString(), initPiecePos.NewPos.ToString(), Utils::ToStringIterable<decltype(availablePositions), Utils::Point2DInt>(availablePositions)));*/
 		}
@@ -1097,7 +1041,9 @@ namespace Board
 				}
 			}
 		}
-			
+		
+		Utils::Log(std::format("When getting all possible moves for piece: {} found: {}", movedPiece->ToString(),
+			Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));
 		return possibleMoves;
 	}
 
@@ -1128,73 +1074,16 @@ namespace Board
 
 				if (move.NewPos == newPos)
 				{
+					//Utils::Log(std::format("Trying to update piece position to {} with mvoe info: {}", move.NewPos.ToString(), moveInfo.ToString()));
 					TryUpdatePiecePosition(state, PiecePositionData{ *movedPiece, currentPos }, newPos, moveInfo);
-					InvokeSuccessfulMoveEvent(state);
+					/*Utils::Log(std::format("MOVE INFO: after update peice {} all prev moves: {}",
+						moveInfo.ToString(), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(state.PreviousMoves.at(movedPiece->m_Color))));*/
+					//InvokeSuccessfulMoveEvent(state);
 					return { newPos, true };
 				}
 			}
 		}
 		return { newPos, false, std::format("New pos does not match any pos for this piece") };
-
-		//Piece* movedPiece;
-		//if (!HasPieceAtPosition(currentPos, movedPiece))
-		//	return { newPos, false, std::format("Position ({}) has no piece", newPos.ToString()) };
-		//
-		//if (!IsWithinBounds(newPos))
-		//	return { newPos, false, std::format("Position ({}) is out of bounds", newPos.ToString()) };
-
-		////Based on the castle info we assume to add the rook position 
-		////based on if it is kingside or queenside
-		//PiecePositionData currentPosData = { movedPiece, currentPos };
-		//if (CastleInfo castleInfo= IsCastleMove(currentPosData, newPos); castleInfo.canCastle)
-		//{
-		//	std::vector<Utils::Position2D> rookKingMoves = { newPos };
-
-		//	if (castleInfo.isKingSide)
-		//		rookKingMoves.emplace_back(newPos.x, newPos.y-1);
-		//	else if (castleInfo.isQueenSide)
-		//		rookKingMoves.emplace_back(newPos.x, newPos.y+1);
-		//	else 
-		//	{
-		//		std::string error = std::format("Tried to move piece: {} at pos: {} "
-		//			"but failed to update its position: {} to castle move since it is neither kingside nor queenside",
-		//			currentPosData.piece->ToString(), currentPosData.pos.ToString(), newPos.ToString());
-		//		Utils::Log(Utils::LogType::Error, error);
-		//		return {newPos, false};
-		//	}
-		//	return { rookKingMoves, true };
-		//}
-
-		////Update position 
-		//Piece* takenPiece = nullptr;
-		//if (IsCapture(currentPosData, newPos, takenPiece))
-		//{
-		//	if (!TryUpdatePiecePosition({ movedPiece, currentPos }, newPos))
-		//	{
-		//		return { newPos, false, std::format("Tried to place default board piece: {} at pos: {} "
-		//			"due to capture but failed to update its position {}",
-		//			movedPiece->ToString(), currentPos.ToString(), newPos.ToString()) };
-		//	}
-		//	takenPiece->UpdateState(Piece::State::Captured);
-		//	return { newPos, true };
-		//}
-
-		//if (DoesMoveDeltaMatchPieceMoves(movedPiece->pieceType, currentPos, newPos))
-		//{
-		//	if (!TryUpdatePiecePosition({ movedPiece, currentPos }, newPos))
-		//	{
-		//		return { newPos, false, std::format("Tried to place default board piece: {} at pos: {} "
-		//			"due to move delta but failed to update its position {}",
-		//			movedPiece->ToString(), currentPos.ToString(), newPos.ToString()) };
-		//	}
-		//	return { newPos, true };
-		//}
-		//	
-
-		////TODO: add special move checks like castleing, taking, etc.
-
-		//return { newPos, false, std::format("Move Delta from {} -> {} does not match any possible moves for {}",
-		//		currentPos.ToString(), newPos.ToString(), ToString(movedPiece->pieceType)) };
 	}
 
 	std::string CleanInput(const std::string& input)

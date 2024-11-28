@@ -127,11 +127,11 @@ namespace Board
 
 	std::string CleanInput(const std::string& input);
 
-	using PieceMoveCallbackType = std::function<void(const GameState&)>;
-	void AddPieceMoveCallback(const PieceMoveCallbackType& callback);
+	//using PieceMoveCallbackType = std::function<void(const GameState&)>;
+	//void AddPieceMoveCallback(const PieceMoveCallbackType& callback);
 
-	using MoveExecutedCallbackType = std::function<void(const GameState&)>;
-	void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback);
+	//using MoveExecutedCallbackType = std::function<void(const GameState&)>;
+	//void AddMoveExecutedCallback(const MoveExecutedCallbackType& callback);
 	//TODO: add parse/serialization method to convert moveinfo to chess notation input
 }
 

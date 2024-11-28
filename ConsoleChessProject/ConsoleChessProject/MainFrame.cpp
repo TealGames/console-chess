@@ -5,7 +5,7 @@
 #include <format>
 #include <string>
 #include "MainFrame.hpp"
-#include "CapturedPiecesUI.hpp"
+#include "GameHUD.hpp"
 #include "CButton.hpp"
 #include "Cell.hpp"
 #include "BoardUI.hpp"
@@ -88,7 +88,19 @@ void MainFrame::DrawMainMenu()
 
 void MainFrame::DrawGame()
 {
-	DirectionalLayout* gameRoot = new DirectionalLayout(_pages, LayoutType::Horizontal, wxDefaultPosition, _pages->GetSize()); 
+	DirectionalLayout* pageRoot = new DirectionalLayout(_pages, LayoutType::Vertical, wxDefaultPosition, _pages->GetSize());
+	pageRoot->SetBackgroundColour(BRIGHT_YELLOW);
+
+	wxPanel* winningChancePanelParent = new wxPanel(pageRoot, wxID_ANY, wxDefaultPosition,
+		wxDefaultSize);
+	CreateWinChanceDisplay(_manager, winningChancePanelParent);
+	pageRoot->AddChild(winningChancePanelParent, 0, SpacingType::Top, 10);
+
+
+	const float gameRootYFactor = 0.8;
+	const wxSize gameRootSize = wxSize(pageRoot->GetSize().GetHeight(), gameRootYFactor * pageRoot->GetSize().GetHeight());
+	DirectionalLayout* gameRoot = new DirectionalLayout(pageRoot, LayoutType::Horizontal, 
+		wxPoint(wxDefaultPosition.x, wxDefaultPosition.y- gameRootSize.y), gameRootSize);
 	gameRoot->SetBackgroundColour(LIGHT_GREEN);
 	
 	wxSize cellAreaSize = 1.2 * BOARD_SIZE;
@@ -100,13 +112,6 @@ void MainFrame::DrawGame()
 	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, SIDE_PANEL_SIZE);
 	sidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
 	CreateCaptureDisplay(_manager, sidePanel);
-	
-	//wxBoxSizer* sidePanelSizer = new wxBoxSizer(wxVERTICAL);
-	//sidePanelSizer->Add(sidePanel, 0, wxTOP, 0);
-	//sidePanelSizer->AddStretchSpacer(1);
-	//sidePanelSizer->AddSpacer(50);
-	//sidePanel->SetSizer(sidePanelSizer);
-	
 
 	//sidePanel->SetSize(SIDE_PANEL_SIZE);
 	//sidePanel->SetPosition(wxPoint(500, 0));
@@ -115,8 +120,11 @@ void MainFrame::DrawGame()
 	rootSizer->Add(_cellParent, 0, wxCENTER | wxTOP, 0);
 	rootSizer->Add(sidePanel, 0, wxCENTER | wxLEFT, 20);
 	gameRoot->SetSizer(rootSizer);*/
+
+	pageRoot->AddChild(gameRoot, 0, SpacingType::Center & SpacingType::Top, 20);
 	gameRoot->AddChild(_cellParent, 0, SPACING_ALL_SIDES, 20);
 	gameRoot->AddChild(sidePanel, 0, SpacingType::Right, 20);
+	
 
 	//gameRoot->CenterOnParent();
 

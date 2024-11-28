@@ -160,11 +160,14 @@ namespace Utils
 
 		std::string str = "[";
 		int index = 0;
+		std::string keyStr = "";
+		std::string valueStr = "";
 		for (const auto& pair : collection)
 		{
 			if (hasOverrideToString) str += toStringFunction(pair);
 			else
 			{
+				//TODO: what if the pair key or value is another unordered map or collection
 				str += std::format("({},{})", 
 					Utils::ToString(pair.first), Utils::ToString(pair.second));
 			}

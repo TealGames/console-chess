@@ -90,16 +90,16 @@ public:
 using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
 struct GameState
 {
-	ColorTheme CurrentPlayer;
-	std::unordered_map<ColorTheme, int> TeamValue;
+	ColorTheme CurrentPlayer = ColorTheme::Light;
+	std::unordered_map<ColorTheme, int> TeamValue = {};
 
-	PiecePositionMapType PiecePositions;
-	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves;
+	PiecePositionMapType PiecePositions = {};
+	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves = {};
 
-	std::vector<Piece> CapturedPieces;
+	std::vector<Piece> CapturedPieces = {};
 
-	bool InCheckmate;
-	bool InCheck;
+	bool InCheckmate = false;
+	bool InCheck = false;
 
 	std::string ToString() const;
 };
