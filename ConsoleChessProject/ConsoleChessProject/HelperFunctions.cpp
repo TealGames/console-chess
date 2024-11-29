@@ -22,7 +22,7 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "DISPLAY";
+	const std::string LOG_ONLY_MESSAGE = "CALC";
 	const bool LOG_MESSAGES = true;
 
 	void Log(const LogType& logType, const std::string& str)

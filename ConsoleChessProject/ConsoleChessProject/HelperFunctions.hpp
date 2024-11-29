@@ -81,7 +81,7 @@ namespace Utils
 	struct HasOstreamOperator<T, std::void_t<decltype(std::declval<std::ostringstream&>() << std::declval<T>())>> : std::true_type {};
 
 	template <typename T>
-	std::string ToString(const T& obj) 
+	std::optional<std::string> TryToString(const T& obj) 
 	{
 		//Arithmetic checks for ints and floats -> which are available with to_string
 		if constexpr (IS_NUMERIC<T>)
@@ -101,7 +101,8 @@ namespace Utils
 			return oss.str();
 		}
 		else {
-			throw std::invalid_argument("ToString: No suitable conversion available for the given type.");
+			//throw std::invalid_argument("ToString: No suitable conversion available for the given type.");
+			return std::nullopt;
 		}
 	}
 
@@ -124,7 +125,6 @@ namespace Utils
 	}
 
 	/// <summary>
-	/// 
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	/// <param name="collection"></param>
@@ -138,11 +138,19 @@ namespace Utils
 		bool hasOverrideToString = toStringFunction != nullptr;
 
 		std::string str = "[";
+		std::optional<std::string> elementStr = std::nullopt;
 		int index = 0;
-		for (const auto& element : collection)
+		for (const TElement element : collection)
 		{
 			if (hasOverrideToString) str += toStringFunction(element);
-			else str += Utils::ToString(element);
+			else
+			{
+				if constexpr (std::is_pointer_v<decltype(element)>) elementStr = Utils::TryToString(*element);
+				else elementStr= Utils::TryToString(element);
+
+				if (elementStr.has_value()) str += elementStr.value();
+				else return "[PARSE FAILED: element could not convert to string]";
+			}
 
 			if (index < collection.size() - 1)
 				str += ", ";
@@ -160,16 +168,36 @@ namespace Utils
 
 		std::string str = "[";
 		int index = 0;
-		std::string keyStr = "";
-		std::string valueStr = "";
-		for (const auto& pair : collection)
+		std::optional<std::string> maybeKeyStr = std::nullopt;
+		std::optional<std::string> maybeValueStr = std::nullopt;
+		for (const std::pair<TKey, TValue>& pair : collection)
 		{
 			if (hasOverrideToString) str += toStringFunction(pair);
 			else
 			{
-				//TODO: what if the pair key or value is another unordered map or collection
-				str += std::format("({},{})", 
-					Utils::ToString(pair.first), Utils::ToString(pair.second));
+				//TODO: what if the pair key or value is another unordered map??
+				if constexpr (IS_ITERABLE<TKey>)
+				{
+					auto keyIt = pair.first.begin();
+					if (pair.first.empty() || keyIt == pair.first.end()) maybeKeyStr = "{}";
+					else maybeKeyStr = ToStringIterable<TKey, decltype(*keyIt)>(pair.first);
+				}
+				else if constexpr (std::is_pointer_v<decltype(pair.first)>) 
+					maybeKeyStr = Utils::TryToString(*(pair.first));
+				else maybeKeyStr = Utils::TryToString(pair.first);
+				
+				if constexpr (IS_ITERABLE<TValue>)
+				{
+					auto valueIt = pair.second.begin();
+					if (pair.second.empty() || valueIt == pair.second.end()) maybeValueStr = "{}";
+					else maybeValueStr = ToStringIterable<TValue, decltype(*valueIt)>(pair.second);
+				}
+				else if constexpr (std::is_pointer_v<decltype(pair.second)>) 
+					maybeValueStr = Utils::TryToString(*(pair.second));
+				else maybeValueStr = Utils::TryToString(pair.second);
+
+				str += std::format("({},{})", maybeKeyStr.has_value()? maybeKeyStr.value() : "[INVALID KEY: could not stringify]",
+											  maybeValueStr.has_value()? maybeValueStr.value() : "[INVALID VALUE: could not stringify]");
 			}
 
 			if (index < collection.size() - 1)

@@ -110,7 +110,7 @@ namespace Board
 	//}
 
 	/// <summary>
-	///  Will get the piece at the specified position using .find for map (fast)
+	///  Will get the piece in play at the specified position using .find for map (fast)
 	/// Note: state is not modified but needs to be non-const to supply
 	/// correct args to underlying function
 	/// </summary>
@@ -119,23 +119,23 @@ namespace Board
 	/// <returns></returns>
 	static Piece* TryGetPieceAtPositionMutable(GameState& state, const Utils::Point2DInt& pos)
 	{
-		PiecePositionMapType::iterator it = state.PiecePositions.find(pos);
-		if (it == state.PiecePositions.end()) return nullptr;
-		else return &(it->second);
+		PiecePositionMapType::iterator it = state.InPlayPieces.find(pos);
+		if (it == state.InPlayPieces.end()) return nullptr;
+		else return it->second;
 	}
 
 	const Piece* TryGetPieceAtPosition(const GameState& state, const Utils::Point2DInt& pos)
 	{
-		PiecePositionMapType::const_iterator it = state.PiecePositions.find(pos);
-		if (it == state.PiecePositions.end()) return nullptr;
-		else return &(it->second);
+		PiecePositionMapType::const_iterator it = state.InPlayPieces.find(pos);
+		if (it == state.InPlayPieces.end()) return nullptr;
+		else return it->second;
 	}
 
 	std::optional<Utils::Point2DInt> TryGetPositionOfPiece(const GameState& state, const Piece& piece)
 	{
-		for (const auto& piecePos : state.PiecePositions)
+		for (const auto& piecePos : state.InPlayPieces)
 		{
-			if (piecePos.second == piece)
+			if (*piecePos.second == piece)
 			{
 				return piecePos.first;
 			}
@@ -153,9 +153,9 @@ namespace Board
 		std::string boardRepresentation;
 		std::string currentPieceStr;
 		int row = 0;
-		for (const auto& piecePos : state.PiecePositions)
+		for (const auto& piecePos : state.InPlayPieces)
 		{
-			currentPieceStr = std::format("[{}@ {}] ", piecePos.second.ToString(true), piecePos.first.ToString());
+			currentPieceStr = std::format("[{}@ {}] ", piecePos.second->ToString(true), piecePos.first.ToString());
 			boardRepresentation += currentPieceStr;
 			row++;
 
@@ -238,15 +238,15 @@ namespace Board
 		std::vector<PiecePositionData> foundPieces;
 		bool checkType = type.has_value();
 		bool checkState = targetState.has_value() && targetState.value().size() > 0;
-		for (const auto& piecePos : state.PiecePositions)
+		for (const auto& piecePos : state.InPlayPieces)
 		{
-			if (checkType && piecePos.second.m_PieceType != type.value()) continue;
+			if (checkType && piecePos.second->m_PieceType != type.value()) continue;
 			if (checkState)
 			{
 				bool pieceStateMatches = false;
 				for (const auto& state : targetState.value())
 				{
-					if (piecePos.second.m_State == state)
+					if (piecePos.second->m_State == state)
 					{
 						pieceStateMatches = true;
 						break;
@@ -255,8 +255,8 @@ namespace Board
 				if (!pieceStateMatches) continue;
 			}
 
-			if (piecePos.second.m_Color == color)
-				foundPieces.emplace_back(piecePos.second, piecePos.first);
+			if (piecePos.second->m_Color == color)
+				foundPieces.emplace_back(*piecePos.second, piecePos.first);
 		}
 		return foundPieces;
 	}
@@ -314,7 +314,8 @@ namespace Board
 	{
 		/*std::array<Tile, BOARD_DIMENSION> emptyRow = {};
 		tiles.fill(emptyRow);*/
-		state.PiecePositions.clear();
+		state.AllPieces.clear();
+		state.InPlayPieces.clear();
 	}
 
 	static Piece CreatePiece(const ColorTheme& color, const PieceType& pieceType)
@@ -442,12 +443,12 @@ namespace Board
 	static std::vector<PiecePositionData> GetPiecePositionsForcingCheckOrMate(const GameState& state, const ColorTheme& color)
 	{
 		std::vector<PiecePositionData> checkablePiecePositions;
-		for (const auto& piece : state.PiecePositions)
+		for (const auto& piece : state.InPlayPieces)
 		{
-			if (piece.second.m_Color != color) continue;
+			if (piece.second->m_Color != color) continue;
 			CheckOrMateResult result = IsCheckOrMateByPieceAt(state, piece.first);
 			if (result.IsCheck || result.IsCheckmate)
-				checkablePiecePositions.emplace_back(piece.second, piece.first);
+				checkablePiecePositions.emplace_back(*piece.second, piece.first);
 		}
 
 		return checkablePiecePositions;
@@ -498,6 +499,7 @@ namespace Board
 			}
 
 			//We make a copy so that we can reuse piece data if we need to undo
+			/*
 			Piece capturedPieceCopy = *pieceAtNewPos;
 			pieceAtNewPos->UpdateState(Piece::State::Captured);
 			state.CapturedPieces.push_back(capturedPieceCopy);
@@ -509,18 +511,24 @@ namespace Board
 					state.CapturedPieces.pop_back(); 
 					state.PiecePositions.emplace(newPos, capturedPieceCopy);
 				};
+			*/
+
+			pieceAtNewPos->UpdateState(Piece::State::Captured);
+			state.CapturedPieces.push_back(pieceAtNewPos);
+			state.InPlayPieces.erase(newPos);
+
 		}
 
-		auto pieceMovedIt = state.PiecePositions.find(currentData.Pos);
-		bool hasPiece = pieceMovedIt!= state.PiecePositions.end();
+		auto pieceMovedIt = state.InPlayPieces.find(currentData.Pos);
+		bool hasPiece = pieceMovedIt!= state.InPlayPieces.end();
 		//Note: since we delete the old pos and move to new pos, we have to ensure we copy the data
 		//otherwise using the pieceref and ptrs will not work since they are referencing data that will be deleted
 		//(and most likely due to them being made from the collection, will point to a different wrong piece)
 		
 		if (hasPiece)
 		{
-			Piece movedPieceCopy = pieceMovedIt->second;
-			size_t elementsErased= state.PiecePositions.erase(currentData.Pos);
+			Piece* movedPiecePtr = pieceMovedIt->second;
+			size_t elementsErased= state.InPlayPieces.erase(currentData.Pos);
 			if (elementsErased == 0)
 			{
 				std::string error = std::format("Tried to move board piece: {} at pos: {}"
@@ -529,11 +537,11 @@ namespace Board
 				Utils::Log(Utils::LogType::Error, error);
 
 				if (undoCaptureFunc != nullptr) undoCaptureFunc();
-				state.PiecePositions.emplace(currentData.Pos, movedPieceCopy);
+				state.InPlayPieces.emplace(currentData.Pos, movedPiecePtr);
 				return false;
 			}
 
-			state.PiecePositions.emplace(newPos, movedPieceCopy);
+			state.InPlayPieces.emplace(newPos, movedPiecePtr);
 			//InvokePieceMoveEvent(state);
 		}
 		else
@@ -546,14 +554,14 @@ namespace Board
 			if (undoCaptureFunc != nullptr) undoCaptureFunc();
 			return false;
 		}
-		PiecePositionMapType oldPos = state.PiecePositions;
-		std::vector<Piece> oldCaptured = state.CapturedPieces;
+		PiecePositionMapType oldPos = state.InPlayPieces;
+		std::vector<Piece*> oldCaptured = state.CapturedPieces;
 
-		Utils::Log(std::format("PIECE CHECK TRY MOVE {} -> {} found piece: {}", currentData.Pos.ToString(), newPos.ToString(), currentData.PieceRef.ToString()));
+		/*Utils::Log(std::format("PIECE CHECK TRY MOVE {} -> {} found piece: {}", currentData.Pos.ToString(), newPos.ToString(), currentData.PieceRef.ToString()));
 		Utils::Log(std::format("PIECE CHECK Updated piece position of {} from {} -> {}. Old:[pos:{}, captured:{}] New:[pos:{}, captured:{}],",
 			currentData.PieceRef.ToString(), currentData.Pos.ToString(), newPos.ToString(), 
 			Utils::ToStringIterable(oldPos), Utils::ToStringIterable<std::vector<Piece>, Piece>(oldCaptured), 
-			Utils::ToStringIterable(state.PiecePositions), Utils::ToStringIterable<std::vector<Piece>, Piece>(state.CapturedPieces)));
+			Utils::ToStringIterable(state.PiecePositions), Utils::ToStringIterable<std::vector<Piece>, Piece>(state.CapturedPieces)));*/
 		return true;
 	}
 
@@ -566,19 +574,19 @@ namespace Board
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end())
 		{
 			state.PreviousMoves.emplace(color, std::vector<MoveInfo>{moveInfo });
-			Utils::Log(std::format("MOVE INFO: ADDING MOVE INFO {} all prev moves: {}", 
+			Utils::Log(std::format("CALC MOVE INFO: ADDING MOVE INFO {} all prev moves: {}", 
 				moveInfo.ToString(), Utils::ToStringIterable<std::vector<MoveInfo>,MoveInfo>(state.PreviousMoves.at(color))));
 		}
 		else
 		{
 			state.PreviousMoves.at(color).push_back(moveInfo);
-			Utils::Log(std::format("MOVE INFO: ADDING MOVE INFO {} all prev moves: {}",
+			Utils::Log(std::format("CALC MOVE INFO: ADDING MOVE INFO {} all prev moves: {}",
 				moveInfo.ToString(), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(state.PreviousMoves.at(color))));
 		}
 		return true;
 	}
 
-	static std::optional<Piece*> TryCreatePieceAtPos(GameState& state, const ColorTheme& color,
+	static bool TryCreatePieceAtPos(GameState& state, const ColorTheme& color,
 		const PieceType& pieceType, const Utils::Point2DInt& pos)
 	{
 		if (!IsWithinBounds(pos))
@@ -586,7 +594,7 @@ namespace Board
 			std::string error = std::format("Tried to create piece: {} {} at pos: {} "
 				"but pos is not valid", ToString(color), ToString(pieceType), pos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
-			return std::nullopt;
+			return false;
 		}
 
 		const Piece* pieceAtTargetPos = TryGetPieceAtPosition(state, pos);
@@ -595,21 +603,25 @@ namespace Board
 			std::string error = std::format("Tried to create piece: {} {} at pos: {} "
 				"but piece already exists there!", ToString(color), ToString(pieceType), pos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
-			return std::nullopt;
+			return false;
 		}
 
-		auto maybePairCreated = state.PiecePositions.emplace(pos, CreatePiece(color, pieceType));
+		state.AllPieces.push_back(CreatePiece(color, pieceType));
+		return true;
+
+		/*Piece* pieceCreated = &(state.AllPieces.at(state.AllPieces.size() - 1));
+		auto maybePairCreated = state.InPlayPieces.insert({ pos, pieceCreated });
 		if (!maybePairCreated.second)
 		{
 			std::string error = std::format("Tried to create piece: {} {} at pos: {} "
 				"but failed to be inserted there!", ToString(color), ToString(pieceType), pos.ToString());
 			Utils::Log(Utils::LogType::Error, error);
-			return std::nullopt;
-		}
+			return false;
+		}*/
 
-		Piece* pieceCreated = &(maybePairCreated.first->second);
-		Utils::Log(Utils::LogType::Log, std::format("Creating piece {}", pieceCreated->ToString()));
-		return pieceCreated;
+		//Piece* pieceCreated = maybePairCreated.first->second;*/
+		//Utils::Log(Utils::LogType::Log, std::format("CALC Creating piece {}", maybePairCreated.first->second->ToString()));
+		//return maybePairCreated.first->second;
 		//return std::nullopt;
 	}
 
@@ -620,7 +632,8 @@ namespace Board
 	static void PlaceDefaultBoardPieces(GameState& state)
 	{
 		int pieceIndex = 0;
-		std::vector<Piece*> allPiecesCreatedOrUpdated;
+		//std::vector<Piece*> allPiecesCreatedOrUpdated;
+		std::vector<Utils::Point2DInt> chronologicalPositionsAdded;
 		for (const auto& initPiecePos : GetDefaultBoardPiecePositions())
 		{
 
@@ -663,8 +676,10 @@ namespace Board
 			}
 			else
 			{
+				Utils::Log(std::format("CALC: Trying to create piece at pos: {} of: {} {}", 
+					initPiecePos.NewPos.ToString(), ToString(initPiecePos.Color), ToString(initPiecePos.PieceType)));
 
-				std::optional<Piece*> maybePieceAtPos =
+				/*std::optional<Piece*> maybePieceAtPos =
 					TryCreatePieceAtPos(state, initPiecePos.Color, initPiecePos.PieceType, initPiecePos.NewPos);
 				if (!maybePieceAtPos.has_value())
 				{
@@ -673,8 +688,20 @@ namespace Board
 						ToString(initPiecePos.Color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
 					Utils::Log(Utils::LogType::Error, error);
 					return;
-				}
+				}*/
 
+				//TODO: change try create piece at pos since it does not actually use pos
+				if (!TryCreatePieceAtPos(state, initPiecePos.Color, initPiecePos.PieceType, initPiecePos.NewPos))
+				{
+					std::string error = std::format("Tried to make default board and create piece: {} {} at pos: {} "
+						"but it failed to create it there!",
+						ToString(initPiecePos.Color), ToString(initPiecePos.PieceType), initPiecePos.NewPos.ToString());
+					Utils::Log(Utils::LogType::Error, error);
+					return;
+				}
+				chronologicalPositionsAdded.push_back(initPiecePos.NewPos);
+
+				/*
 				movePiecePos = Utils::Point2DInt(initPiecePos.NewPos);
 				if (maybePieceAtPos.value() == nullptr)
 				{
@@ -682,9 +709,13 @@ namespace Board
 					return;
 				}
 				movePiece = maybePieceAtPos.value();
-				//Utils::Log(Utils::LogType::Error, std::format("Move Hpcie created: {}", movePiece->ToString()));
+				Utils::Log(Utils::LogType::Error, std::format("Created piece {}. all pieces: {} in play:{}",
+					movePiece->ToString(), Utils::ToStringIterable<std::vector<Piece>, Piece>(state.AllPieces), 
+					Utils::ToStringIterable(state.InPlayPieces)));
+				*/
 			}
 
+			/*
 			if (movePiece == nullptr)
 			{
 				std::string error = std::format("Tried to place default board piece: {} {} at pos: {} "
@@ -694,6 +725,7 @@ namespace Board
 				return;
 			}
 			allPiecesCreatedOrUpdated.push_back(movePiece);
+			*/
 
 			//movePiece->UpdateState(Piece::State::InPlay);
 
@@ -707,11 +739,22 @@ namespace Board
 				movePiece->ToString(), initPiecePos.NewPos.ToString(), Utils::ToStringIterable<decltype(availablePositions), Utils::Point2DInt>(availablePositions)));*/
 		}
 
-		//We update each piece so if they were created or captured we change
-		for (const auto& piece : allPiecesCreatedOrUpdated)
+		//TODO: maybe make all pieces an array and then you can make this process simpler by adding to in play directyl
+		//We have to wait until the end to move all pieces to in play since all pieces is a vector
+		//so it might be reallocated if the capacity changes, so the pointers would become invalid
+		int index = 0;
+		for (auto& piece : state.AllPieces)
 		{
-			piece->UpdateState(Piece::State::InPlay);
+			piece.UpdateState(Piece::State::InPlay);
+			state.InPlayPieces.emplace(chronologicalPositionsAdded[index], &piece);
 		}
+
+		
+		////We update each piece so if they were created or captured we change
+		//for (const auto& piece : allPiecesCreatedOrUpdated)
+		//{
+		//	piece->UpdateState(Piece::State::InPlay);
+		//}
 	}
 
 	void CreateDefaultBoard(GameState& state)
@@ -720,6 +763,15 @@ namespace Board
 		//if (piecePositions.empty()) InitPieces();
 
 		PlaceDefaultBoardPieces(state);
+
+		std::unordered_map<Utils::Point2DInt, Piece> stuff;
+		for (const auto& thing : state.InPlayPieces)
+		{
+			Utils::Log(std::format("CALC: created piece: {} with details color: {} type: {}", thing.second->ToString(), 
+				ToString(thing.second->m_Color), ToString(thing.second->m_PieceType)));
+			stuff.insert({thing.first, *thing.second});
+		}
+		Utils::Log(std::format("CALC: After place state pieces: {}", Utils::ToStringIterable(stuff)));
 	}
 
 	struct CastleInfo

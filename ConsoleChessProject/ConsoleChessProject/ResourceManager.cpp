@@ -2,6 +2,7 @@
 #include <string>
 #include <optional>
 #include <filesystem>
+#include <unordered_map>
 #include "ResourceManager.hpp"
 #include "Piece.hpp"
 #include "Point2DInt.hpp"

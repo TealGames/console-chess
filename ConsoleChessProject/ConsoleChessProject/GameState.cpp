@@ -128,8 +128,9 @@ MoveInfo& MoveInfo::operator=(const MoveInfo& otherInfo) noexcept
 
 std::string GameState::ToString() const
 {
-	const std::string piecesStr = Utils::ToStringIterable(PiecePositions);
-	const std::string str = std::format("[GAME STATE-> player:{}, positions:{}, inCheck:{}, inCheckmate:{}]", 
-		::ToString(CurrentPlayer), piecesStr, std::to_string(InCheck), std::to_string(InCheckmate));
+	const std::string piecesStr = Utils::ToStringIterable(InPlayPieces);
+	const std::string capturedStr = Utils::ToStringIterable<std::vector<Piece*>, Piece*>(CapturedPieces);
+	const std::string str = std::format("[GAME STATE-> player:{}, positions:{}, captured:{} inCheck:{}, inCheckmate:{}]", 
+		::ToString(CurrentPlayer), piecesStr, capturedStr, std::to_string(InCheck), std::to_string(InCheckmate));
 	return str;
 }

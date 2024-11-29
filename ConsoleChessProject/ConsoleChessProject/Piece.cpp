@@ -302,8 +302,8 @@ std::string Piece::ToString(bool shorten) const
 	std::string pieceStr = ::ToString(m_PieceType);
 	if (shorten)
 	{
-		colorStr = *colorStr.begin();
-		pieceStr = *pieceStr.begin();
+		colorStr = *(colorStr.begin());
+		pieceStr = *(pieceStr.begin());
 	}
 	std::string str = std::format("[{} {}]", colorStr, pieceStr);
 	return str;

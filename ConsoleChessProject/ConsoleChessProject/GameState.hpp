@@ -87,16 +87,18 @@ public:
 	MoveInfo& operator=(const MoveInfo& otherInfo) noexcept;
 };
 
-using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece>;
+using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece*>;
 struct GameState
 {
 	ColorTheme CurrentPlayer = ColorTheme::Light;
 	std::unordered_map<ColorTheme, int> TeamValue = {};
 
-	PiecePositionMapType PiecePositions = {};
-	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves = {};
+	//TODO: maybe create general all peices list and then have separate for in play and captured
+	std::vector<Piece> AllPieces = {};
+	PiecePositionMapType InPlayPieces = {};
+	std::vector<Piece*> CapturedPieces = {};
 
-	std::vector<Piece> CapturedPieces = {};
+	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves = {};
 
 	bool InCheckmate = false;
 	bool InCheck = false;

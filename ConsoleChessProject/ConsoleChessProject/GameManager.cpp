@@ -124,8 +124,8 @@ namespace Core
 		}
 		
 		PieceMoveResult moveResult = Board::TryMove(*maybeGameState, currentPos, newPos);
-		Utils::Log(std::format("MOVE INFO: game manager try move update peice all prev moves: {}",
-			Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(maybeGameState->CurrentPlayer))));
+		/*Utils::Log(std::format("MOVE INFO: game manager try move update peice all prev moves: {}",
+			Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(maybeGameState->CurrentPlayer))));*/
 
 		if (moveResult.IsValidMove) InvokeEvent(*maybeGameState, GameEventType::PieceMoved);
 		return moveResult;
@@ -151,8 +151,8 @@ namespace Core
 			return std::nullopt;
 		}
 
-		Utils::Log(std::format("MOVE INFO: Try calc last move for color: {} previous moves: {}", ToString(color),
-			maybeGameState != nullptr ? Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(color)) : "NULL"));
+		/*Utils::Log(std::format("MOVE INFO: Try calc last move for color: {} previous moves: {}", ToString(color),
+			maybeGameState != nullptr ? Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(maybeGameState->PreviousMoves.at(color)) : "NULL"));*/
 
 		auto colorMovesIt = maybeGameState->PreviousMoves.find(color);
 		if (colorMovesIt == maybeGameState->PreviousMoves.end())
@@ -176,7 +176,8 @@ namespace Core
 		const MoveInfo& moveInfo = colorMovesIt->second.at(colorMovesIt->second.size() - 1);
 		std::unordered_map<ColorTheme, int> teamPoints = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0} };
 
-		Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: try calc last move value points moveinfo: {} ",
+		Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: try calc last move for: {} value points moveinfo: {} ",
+			ToString(color),
 			moveInfo.ToString()));
 
 		if (Utils::HasFlag(static_cast<unsigned int>(moveInfo.SpecialMoveFlags),
@@ -184,6 +185,7 @@ namespace Core
 		{
 			PieceTypeInfo capturedInfo = moveInfo.PieceCaptured.value();
 			int pieceValue = GetValueForPiece(capturedInfo.PieceType);
+			Utils::Log("CALC last move team points");
 			teamPoints.at(capturedInfo.Color) -= pieceValue;
 			teamPoints.at(GetOtherTeam(capturedInfo.Color)) += pieceValue;
 		}
@@ -201,6 +203,10 @@ namespace Core
 		std::optional<MoveValueInfo> maybeMoveVals= TryCalculateLastMoveValue(gameStateID, maybeGameState->CurrentPlayer);
 		if (maybeMoveVals.has_value())
 		{
+			Utils::Log(std::format("CALC: adding points to team dark {} light {}", 
+				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark)), 
+				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light))));
+
 			maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
 			maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);
 		}
@@ -262,9 +268,11 @@ namespace Core
 
 	std::unordered_map<ColorTheme, float> GameManager::CalculateWinPercentage(const GameState& state) const
 	{
+		if (state.TeamValue.at(ColorTheme::Dark) == state.TeamValue.at(ColorTheme::Light)) 
+			return { {ColorTheme::Light, 0.5, }, {ColorTheme::Dark, 0.5} };
+
 		ColorTheme smallerScoreColor = state.TeamValue.at(ColorTheme::Light) < state.TeamValue.at(ColorTheme::Dark) ?
 										ColorTheme::Light : ColorTheme::Dark;
-
 		ColorTheme greaterScoreColor= GetOtherTeam(smallerScoreColor);
 
 		int smallestScore = state.TeamValue.at(smallerScoreColor);
@@ -273,9 +281,9 @@ namespace Core
 
 		int greaterScore = state.TeamValue.at(greaterScoreColor);
 
-		std::unordered_map<ColorTheme, float> colorPercent;
-		colorPercent.emplace(smallerScoreColor, (float)(smallestScore+smallestScoreDelta)/smallestScore + greaterScore);
-		colorPercent.emplace(greaterScoreColor, (float)(greaterScore+smallestScoreDelta)/ smallestScore + greaterScore);
+		std::unordered_map<ColorTheme, float> colorPercent = {};
+		colorPercent.emplace(smallerScoreColor, (float)(smallestScore+smallestScoreDelta)/(smallestScore + greaterScore));
+		colorPercent.emplace(greaterScoreColor, (float)(greaterScore+smallestScoreDelta)/(smallestScore + greaterScore));
 		return colorPercent;
 	}
 

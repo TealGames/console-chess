@@ -22,7 +22,7 @@ static constexpr int TITLE_Y_OFFSET = 50;
 static constexpr int BUTTON_START_Y = 150;
 static constexpr int BUTTON_SPACING = 70;
 
-static const wxSize SIDE_PANEL_SIZE(0.2*WIDTH, 0.8*HEIGHT);
+static constexpr int SIDE_PANEL_WIDTH = 200;
 
 MainFrame::MainFrame(Core::GameManager& gameManager, const wxString& title)
 	: wxFrame(nullptr, wxID_ANY, title), WindowName(title), _manager(gameManager), _currentState(nullptr)
@@ -42,12 +42,12 @@ void MainFrame::DrawStatic()
 {
 	this->SetBackgroundColour(wxColour(BACKGROUND_COLOR));
 	wxStaticText* titleText = new wxStaticText(this, wxID_ANY, "CHESS", wxPoint(0, TITLE_Y_OFFSET),
-		wxSize(WIDTH, 100), wxALIGN_CENTER_HORIZONTAL);
+		wxSize(WIDTH, 50), wxALIGN_CENTER_HORIZONTAL);
 	titleText->SetForegroundColour(wxColour(248, 248, 248));
 
 	titleText->SetFont(TITLE_FONT);
 	_pages = new wxSimplebook(this, wxID_ANY, wxPoint(WIDTH/2, HEIGHT/2), wxSize(WIDTH, HEIGHT));
-	//_pages->SetBackgroundColour(BRIGHT_YELLOW);
+	_pages->SetBackgroundColour(BRIGHT_YELLOW);
 	//_pages->Center();
 
 	//Sizer for root panel
@@ -89,27 +89,28 @@ void MainFrame::DrawMainMenu()
 void MainFrame::DrawGame()
 {
 	DirectionalLayout* pageRoot = new DirectionalLayout(_pages, LayoutType::Vertical, wxDefaultPosition, _pages->GetSize());
-	pageRoot->SetBackgroundColour(BRIGHT_YELLOW);
+	pageRoot->SetBackgroundColour(TAN);
+
+	const float gameRootYFactor = 0.9;
+	const wxSize gameRootSize = wxSize(pageRoot->GetSize().GetWidth(), gameRootYFactor * pageRoot->GetSize().GetHeight());
+	DirectionalLayout* gameRoot = new DirectionalLayout(pageRoot, LayoutType::Horizontal,
+		wxPoint(wxDefaultPosition.x, wxDefaultPosition.y - gameRootSize.y), gameRootSize);
+	gameRoot->SetBackgroundColour(LIGHT_GREEN);
 
 	wxPanel* winningChancePanelParent = new wxPanel(pageRoot, wxID_ANY, wxDefaultPosition,
-		wxDefaultSize);
+		wxSize(pageRoot->GetSize().x, 0.05*pageRoot->GetSize().GetHeight()));
 	CreateWinChanceDisplay(_manager, winningChancePanelParent);
-	pageRoot->AddChild(winningChancePanelParent, 0, SpacingType::Top, 10);
+	pageRoot->AddChild(winningChancePanelParent, 0, SPACING_ALL_SIDES, 10);
+	//winningChancePanelParent->SetBackgroundColour(LIGHT_DEEP_BLUE);
 
-
-	const float gameRootYFactor = 0.8;
-	const wxSize gameRootSize = wxSize(pageRoot->GetSize().GetHeight(), gameRootYFactor * pageRoot->GetSize().GetHeight());
-	DirectionalLayout* gameRoot = new DirectionalLayout(pageRoot, LayoutType::Horizontal, 
-		wxPoint(wxDefaultPosition.x, wxDefaultPosition.y- gameRootSize.y), gameRootSize);
-	gameRoot->SetBackgroundColour(LIGHT_GREEN);
 	
 	wxSize cellAreaSize = 1.2 * BOARD_SIZE;
 	_cellParent = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, cellAreaSize);
-	CreateBoardCells(_cellParent);
-	_cellParent->SetBackgroundColour(RED);
-	_cellParent->Center();
+	CreateBoardCells(_cellParent);	
+	_cellParent->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	//_cellParent->Center();
 	
-	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, SIDE_PANEL_SIZE);
+	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, wxSize(SIDE_PANEL_WIDTH, cellAreaSize.y));
 	sidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
 	CreateCaptureDisplay(_manager, sidePanel);
 
@@ -121,14 +122,14 @@ void MainFrame::DrawGame()
 	rootSizer->Add(sidePanel, 0, wxCENTER | wxLEFT, 20);
 	gameRoot->SetSizer(rootSizer);*/
 
-	pageRoot->AddChild(gameRoot, 0, SpacingType::Center & SpacingType::Top, 20);
-	gameRoot->AddChild(_cellParent, 0, SPACING_ALL_SIDES, 20);
-	gameRoot->AddChild(sidePanel, 0, SpacingType::Right, 20);
+	pageRoot->AddChild(gameRoot, 0);
+	gameRoot->AddChild(_cellParent, 0, SpacingType::Left, 100);
+	gameRoot->AddChild(sidePanel, 0, SpacingType::Left | SpacingType::Right , 20);
 	
 
 	//gameRoot->CenterOnParent();
 
-	_pages->AddPage(gameRoot, "Game");
+	_pages->AddPage(pageRoot, "Game");
 }
 
 void MainFrame::TogglePage(const Page& togglePage)
@@ -147,7 +148,7 @@ bool MainFrame::TryUpdateBoard()
 		return false;
 	}
 
-	const std::string message = std::format("A total of pieces UPDATE BOARSD: {}", std::to_string(_currentState->PiecePositions.size()));
+	const std::string message = std::format("A total of pieces UPDATE BOARSD: {}", std::to_string(_currentState->InPlayPieces.size()));
 	Utils::Log(message);
 	return TryRenderAllPieces(_manager, *_currentState);
 }
@@ -169,7 +170,7 @@ void MainFrame::StartGame()
 	//Utils::Log(Utils::LogType::Warning, str);
 	BindCellEventsForGameState(_manager, GAME_STATE_ID);
 	TogglePage(Page::Game);
-	const std::string message = std::format("A total of pieces START GAME: {}", std::to_string(_currentState->PiecePositions.size()));
+	const std::string message = std::format("A total of pieces START GAME: {}", std::to_string(_currentState->InPlayPieces.size()));
 	
 	if (!TryUpdateBoard())
 	{
