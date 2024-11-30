@@ -23,7 +23,7 @@ DirectionalLayout::~DirectionalLayout()
 	Sizer = nullptr;*/
 }
 
-void DirectionalLayout::AddChild(wxWindow* child, const int proportion, const SpacingType spacingType, const int spacing)
+void DirectionalLayout::AddChild(wxWindow* child, const int proportion, const SpacingType spacingType, const int spacing, const int childIndex)
 {
 	int spacingFlags = 0;
 	if ((spacingType & SpacingType::Expand) != SpacingType::None) spacingFlags |= wxEXPAND;
@@ -33,7 +33,8 @@ void DirectionalLayout::AddChild(wxWindow* child, const int proportion, const Sp
 	if ((spacingType & SpacingType::Right) != SpacingType::None) spacingFlags |= wxRIGHT;
 	if ((spacingType & SpacingType::Center) != SpacingType::None) spacingFlags |= wxCENTER;
 
-	_sizer->Add(child, proportion, spacingFlags, spacing);
+	if (childIndex < 0) _sizer->Add(child, proportion, spacingFlags, spacing);
+	else _sizer->Insert(childIndex, child, proportion, spacingFlags, spacing);
 	this->Layout();
 }
 

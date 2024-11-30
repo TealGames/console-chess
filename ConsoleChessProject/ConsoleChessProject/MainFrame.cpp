@@ -100,7 +100,7 @@ void MainFrame::DrawGame()
 	wxPanel* winningChancePanelParent = new wxPanel(pageRoot, wxID_ANY, wxDefaultPosition,
 		wxSize(pageRoot->GetSize().x, 0.05*pageRoot->GetSize().GetHeight()));
 	CreateWinChanceDisplay(_manager, winningChancePanelParent);
-	pageRoot->AddChild(winningChancePanelParent, 0, SPACING_ALL_SIDES, 10);
+	pageRoot->AddChild(winningChancePanelParent, 0);
 	//winningChancePanelParent->SetBackgroundColour(LIGHT_DEEP_BLUE);
 
 	

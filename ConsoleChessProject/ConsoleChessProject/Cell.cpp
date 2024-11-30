@@ -10,37 +10,37 @@
 #include "WXHelperFunctions.hpp"
 #include "ResourceManager.hpp"
 
-std::string ToString(const CellVisualState& state)
+std::string ToString(const CellState& state)
 {
-	if (state == CellVisualState::Default) 
+	if (state == CellState::Default) 
 		return "Default";
-	else if (state == CellVisualState::Disabled) 
+	else if (state == CellState::Disabled) 
 		return "Disabled";
-	else if (state == CellVisualState::PossibleMoveHighlighted) 
+	else if (state == CellState::PossibleMoveHighlighted) 
 		return "Possible Move Highlighted";
-	else if (state == CellVisualState::PreviousMoveHighlighted) 
+	else if (state == CellState::PreviousMoveHighlighted) 
 		return "Previous Move Highlighted";
-	else if (state == CellVisualState::Selected) 
+	else if (state == CellState::Selected) 
 		return "Selected";
 	else return "NULL";
 }
 
 Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors,
-	const std::unordered_map<CellVisualState, wxBitmap*>& stateSprites)
-	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), _colors(colors), _bitMapDisplay(nullptr), 
-	_isRenderingPiece(false),
-	_isClickable(true), IsClickable(_isClickable),
-	_hasOverlayImage(false), HasOverlayImage(_hasOverlayImage), 
+	const std::unordered_map<CellState, wxBitmap*>& stateSprites)
+	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), m_colors(colors), m_bitMapDisplay(nullptr), 
+	m_isRenderingPiece(false),
+	m_isClickable(true), m_IsClickable(m_isClickable),
+	m_hasOverlayImage(false), m_HasOverlayImage(m_hasOverlayImage), 
 	//_highlightedType(std::nullopt), 
-	_visualState(CellVisualState::Default), VisualState(_visualState), _stateSprites(stateSprites),
-	_pieceHere(nullptr), _onClickCallbacks()
+	m_currentState(CellState::Default), m_CurrentState(m_currentState), m_stateSprites(stateSprites),
+	m_pieceHere(nullptr), m_onClickCallbacks()
 {
-	_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
-	_bitMapDisplay->Enable(false);
+	m_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
+	m_bitMapDisplay->Enable(false);
 
-	_overlayPanel = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
+	m_overlayPanel = new wxStaticBitmap(this, wxID_ANY, wxBitmap{}, wxDefaultPosition);
 	//_overlayPanel->Raise();
-	_overlayPanel->Enable(false);
+	m_overlayPanel->Enable(false);
 
 	Bind(wxEVT_ENTER_WINDOW, &Cell::OnEnter, this);
 	Bind(wxEVT_LEAVE_WINDOW, &Cell::OnExit, this);
@@ -56,10 +56,10 @@ void Cell::OnEnter(wxMouseEvent& evt)
 
 	if (IsHighlighted() || IsDisabled()) return;
 
-	_lastColor = GetBackgroundColour();
-	int currentRed = static_cast<int>(_lastColor.Red());
-	int currentGreen = static_cast<int>(_lastColor.Green());
-	int currentBlue = static_cast<int>(_lastColor.Blue());
+	m_lastColor = GetBackgroundColour();
+	int currentRed = static_cast<int>(m_lastColor.Red());
+	int currentGreen = static_cast<int>(m_lastColor.Green());
+	int currentBlue = static_cast<int>(m_lastColor.Blue());
 
 	int newRed = std::clamp(static_cast<int>(1.2 * currentRed), 0, 255);
 	int newGreen = std::clamp(static_cast<int>(1.2 * currentGreen), 0, 255);
@@ -83,7 +83,7 @@ void Cell::OnExit(wxMouseEvent& evt)
 	if (IsHighlighted() || IsDisabled()) return;
 
 	//SetBackgroundColour(_colors.InnerColor);
-	SetBackgroundColour(_lastColor);
+	SetBackgroundColour(m_lastColor);
 	Refresh();
 }
 
@@ -92,8 +92,10 @@ void Cell::OnClick(wxMouseEvent& evt)
 	Cell* cell = dynamic_cast<Cell*>(evt.GetEventObject());
 	if (!cell) return;
 
+	Utils::Log(Utils::LogType::Error, std::format("Clicked on cell with state: {}", ToString(cell->m_currentState)));
+
 	if (IsDisabled()) return;
-	for (const auto& callback : _onClickCallbacks) callback(this);
+	for (const auto& callback : m_onClickCallbacks) callback(this);
 
 	//Refresh();
 	//wxLogMessage("Click");
@@ -101,14 +103,14 @@ void Cell::OnClick(wxMouseEvent& evt)
 
 void Cell::AddOnClickCallback(const std::function<void(Cell*)>& callback)
 {
-	_onClickCallbacks.push_back(callback);
+	m_onClickCallbacks.push_back(callback);
 }
 
 bool Cell::IsHighlighted() const
 {
-	return _visualState == CellVisualState::PossibleMoveHighlighted ||
-		_visualState == CellVisualState::PreviousMoveHighlighted ||
-		_visualState == CellVisualState::Selected;
+	return m_currentState == CellState::PossibleMoveHighlighted ||
+		m_currentState == CellState::PreviousMoveHighlighted ||
+		m_currentState == CellState::Selected;
 }
 
 //std::optional<HighlightColorType> Cell::GetHighlightedColorType() const
@@ -131,27 +133,27 @@ bool Cell::IsHighlighted() const
 
 bool Cell::IsRenderingPiece() const
 {
-	return _isRenderingPiece;
+	return m_isRenderingPiece;
 }
 
 bool Cell::IsDisabled() const
 {
-	return _visualState == CellVisualState::Disabled;
+	return !m_isClickable;
 }
 
 bool Cell::HasPieceStored(const Piece** outFoundPiece)
 {
-	if (_pieceHere!=nullptr && outFoundPiece!=nullptr) *outFoundPiece = _pieceHere;
+	if (m_pieceHere!=nullptr && outFoundPiece!=nullptr) *outFoundPiece = m_pieceHere;
 	/*Utils::Log(std::format("TURN: HAS PIECE STORED: {} OUT: {}", 
 		_pieceHere == nullptr ? "NULL" : _pieceHere->ToString(),
 		outFoundPiece==nullptr? "NULL PTR" : *outFoundPiece==nullptr? "NULL" : (*outFoundPiece)->ToString()));*/
 
-	return _pieceHere != nullptr;
+	return m_pieceHere != nullptr;
 }
 
 bool Cell::HasPiece(const Piece** outFoundPiece)
 {
-	if (_pieceHere!=nullptr) Utils::Log(std::format("Has piece check existing data: {}", _pieceHere->ToString()));
+	if (m_pieceHere!=nullptr) Utils::Log(std::format("Has piece check existing data: {}", m_pieceHere->ToString()));
 	return HasPieceStored(outFoundPiece) || IsRenderingPiece();
 }
 
@@ -159,8 +161,8 @@ void Cell::SetPiece(const Piece* piece, wxImage& image)
 {
 	//pieceHere = &piece;
 	//TODO: assignment does nto work since it is not defined for Piece so peiceHere is always NULL!
-	_pieceHere = piece;
-	Utils::Log(std::format("UPDATE PIECE NOW: {}", _pieceHere==nullptr? "NULL" : _pieceHere->ToString()));
+	m_pieceHere = piece;
+	Utils::Log(std::format("UPDATE PIECE NOW: {}", m_pieceHere==nullptr? "NULL" : m_pieceHere->ToString()));
 	
 	wxSize startSize(image.GetWidth(), image.GetHeight());
 	wxSize targetSize(static_cast<int>(ICON_SIZE_TO_CELL * CELL_SIZE.x), 
@@ -180,12 +182,12 @@ void Cell::SetPiece(const Piece* piece, wxImage& image)
 	}*/
 	
 	wxBitmap map = GetBitMapFromSprite(image, targetSize);
-	_bitMapDisplay->SetBitmap(map);
+	m_bitMapDisplay->SetBitmap(map);
 	//_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
-	_bitMapDisplay->Center();
-	_isRenderingPiece = true;
+	m_bitMapDisplay->Center();
+	m_isRenderingPiece = true;
 
-	std::string posCenter = std::to_string(_bitMapDisplay->GetPosition().x)+std::to_string(_bitMapDisplay->GetPosition().y);
+	std::string posCenter = std::to_string(m_bitMapDisplay->GetPosition().x)+std::to_string(m_bitMapDisplay->GetPosition().y);
 	wxLogMessage(posCenter.c_str());
 
 	/*_bitMapDisplay->Bind(wxEVT_ENTER_WINDOW, &Cell::SkipMouseEvent, this);
@@ -206,16 +208,16 @@ bool Cell::TryRemovePiece()
 	bool renderingOrPieceRemoved = false;
 	if (IsRenderingPiece())
 	{
-		_bitMapDisplay->SetBitmap({});
-		_isRenderingPiece = false;
+		m_bitMapDisplay->SetBitmap({});
+		m_isRenderingPiece = false;
 		renderingOrPieceRemoved = true;
 		Utils::Log(std::format("PIECE CHECK TRY REMOVE PIECE: {}",
-			_pieceHere == nullptr ? "NULL" : _pieceHere->ToString()));
+			m_pieceHere == nullptr ? "NULL" : m_pieceHere->ToString()));
 	}
 
 	if (HasPieceStored(nullptr))
 	{
-		_pieceHere = nullptr;
+		m_pieceHere = nullptr;
 		if (!renderingOrPieceRemoved) 
 			renderingOrPieceRemoved = true;
 	}
@@ -225,62 +227,64 @@ bool Cell::TryRemovePiece()
 
 void Cell::SetOverlaySprite(const wxBitmap& bitmap)
 {
-	_hasOverlayImage = true;
-	_overlayPanel->SetBitmap(bitmap);
-	_overlayPanel->Center();
+	m_hasOverlayImage = true;
+	m_overlayPanel->SetBitmap(bitmap);
+	m_overlayPanel->Center();
 	Refresh();
 }
 
 void Cell::RemoveOverlaySprite()
 {
-	_hasOverlayImage = false;
-	_overlayPanel->SetBitmap({});
+	m_hasOverlayImage = false;
+	m_overlayPanel->SetBitmap({});
 	Refresh();
 }
 
 void Cell::UpdateCanClick(const bool isClickable, const bool updateVisual)
 {
-	_isClickable = isClickable;
+	m_isClickable = isClickable;
 
 	Utils::Log(std::format("TURN: Tried to make cell disabled"));
-	if (_isClickable) SetVisualState(CellVisualState::Default, updateVisual);
-	else SetVisualState(CellVisualState::Disabled, updateVisual);
+	//if (_isClickable) SetVisualState(CellVisualState::Default, updateVisual);
+	//else SetVisualState(CellVisualState::Disabled, updateVisual);
 }	
 
-void Cell::SetVisualState(const CellVisualState& state, const bool updateVisual)
+void Cell::SetState(const CellState& state, const bool updateVisual)
 {
 	if (!updateVisual)
 	{
-		_visualState = state;
+		m_currentState = state;
 		return;
 	}
 
-	auto stateSpriteIt = _stateSprites.find(state);
-	bool hasStateSprite = stateSpriteIt != _stateSprites.end();
+	auto stateSpriteIt = m_stateSprites.find(state);
+	bool hasStateSprite = stateSpriteIt != m_stateSprites.end();
 	
 	//return;
 	
 	//std::optional<const wxColour*> maybeStateColor = TryGetColorForState(state);
-	if (HasOverlayImage) RemoveOverlaySprite();
+	if (m_HasOverlayImage) RemoveOverlaySprite();
 
-	if (state == CellVisualState::Default)
+	if (state == CellState::Default)
 	{
-		SetBackgroundColour(_colors.InnerColor);
+		SetBackgroundColour(m_colors.InnerColor);
 	}
-	else if (state == CellVisualState::Selected)
+	else if (state == CellState::Selected)
 	{
-		SetBackgroundColour(_colors.SelectedColor);
+		SetBackgroundColour(m_colors.SelectedColor);
 	}
-	else if (state == CellVisualState::PossibleMoveHighlighted)
+	else if (state == CellState::PossibleMoveHighlighted)
 	{
-		if (HasPiece()) SetBackgroundColour(_colors.PossibleCaptureColor);
+		if (HasPiece()) SetBackgroundColour(m_colors.PossibleCaptureColor);
 		else if (hasStateSprite) SetOverlaySprite(*(stateSpriteIt->second));
 	}
-	else if (state == CellVisualState::PreviousMoveHighlighted)
+	else if (state == CellState::PreviousMoveHighlighted)
 	{
-		SetBackgroundColour(_colors.PreviousMoveColor);
+		SetBackgroundColour(m_colors.PreviousMoveColor);
 	}
-	else if (state == CellVisualState::Disabled)
+	//Only if the previous state is not previous move highlighted do we disable the overlay
+	else if (m_currentState!=CellState::PreviousMoveHighlighted && 
+		state == CellState::Disabled)
 	{
 		
 		int grayCoefficient = 0.3;
@@ -303,30 +307,31 @@ void Cell::SetVisualState(const CellVisualState& state, const bool updateVisual)
 		SetBackgroundColour(wxColour(averageRGB, averageRGB, averageRGB));
 		
 		Utils::Log(std::format("TURN State sprite it: {} for state: {}",
-			std::to_string(_stateSprites.find(state) != _stateSprites.end()), ToString(state)));
+			std::to_string(m_stateSprites.find(state) != m_stateSprites.end()), ToString(state)));
 		//SetOverlaySprite(*(stateSpriteIt->second));
 	}
-	else
+	/*else
 	{
 		const std::string err = std::format("Tried to update visual state for cell for a type "
 			"that is not defined with its own instructions!");
 		Utils::Log(Utils::LogType::Error, err);
 		return;
-	}
+	}*/
 
-	_visualState = state;
+	m_currentState = state;
+	UpdateCanClick(m_currentState!=CellState::Disabled, true);
 	Refresh();
 }
 
-void Cell::ToggleVisualState(const CellVisualState& state)
+void Cell::ToggleState(const CellState& state)
 {
-	if (_visualState == CellVisualState::Default) SetVisualState(state, true);
-	else SetVisualState(CellVisualState::Default, true);
+	if (m_currentState == CellState::Default) SetState(state, true);
+	else SetState(CellState::Default, true);
 }
 
-void Cell::ResetVisualToDefault()
+void Cell::ResetStateToDefault()
 {
-	return SetVisualState(CellVisualState::Default, true);
+	return SetState(CellState::Default, true);
 }
 
 //const wxColour& Cell::GetHighlightColor(const HighlightColorType highlightType) const

@@ -89,8 +89,6 @@ namespace Board
 	//	MoveInfo& operator=(const MoveInfo& otherInfo);
 	//};
 
-	constexpr int TEAMS_COUNT = 2;
-	constexpr int COLOR_PIECES_COUNT = 16;
 	constexpr int NULL_POS = -1;
 	const Utils::Point2DInt INVALID_MOVE = { NULL_POS, NULL_POS };
 

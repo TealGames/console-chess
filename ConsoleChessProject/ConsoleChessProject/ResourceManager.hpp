@@ -1,5 +1,6 @@
 #pragma once
 #include <wx/wx.h>
+#include <wx/sound.h>
 #include <unordered_map>
 #include <optional>
 #include <filesystem>
@@ -46,6 +47,28 @@ struct SpriteMap
 	}
 };
 
+enum class AudioClipType
+{
+	Move
+};
+
+class AudioClip
+{
+private:
+	std::filesystem::path m_path;
+	wxSound m_sound;
+
+public:
+	const std::filesystem::path& m_Path;
+	const wxSound* m_Sound;
+	
+	AudioClip(const std::filesystem::path& path);
+	AudioClip(const AudioClip& clip);
+
+	bool HasGoodClip() const;
+	bool TryPlaySound() const;
+};
+
 bool TryLoadResource(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType, wxImage* outImage=nullptr);
 bool TryLoadSubImageFromResource(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType,
 	const wxPoint& startPos, const wxSize& size, wxImage* outImage = nullptr);
@@ -61,3 +84,5 @@ std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info);
 std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize);
 
 std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, const wxSize& targetSize);
+
+const AudioClip* TryGetSound(const AudioClipType& type);

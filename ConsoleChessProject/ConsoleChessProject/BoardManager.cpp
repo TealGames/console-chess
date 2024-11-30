@@ -607,6 +607,8 @@ namespace Board
 		}
 
 		state.AllPieces.push_back(CreatePiece(color, pieceType));
+		Piece* piecePtr = &(state.AllPieces.at(state.AllPieces.size() - 1));
+		state.InPlayPieces.emplace(pos, piecePtr);
 		return true;
 
 		/*Piece* pieceCreated = &(state.AllPieces.at(state.AllPieces.size() - 1));
@@ -699,7 +701,7 @@ namespace Board
 					Utils::Log(Utils::LogType::Error, error);
 					return;
 				}
-				chronologicalPositionsAdded.push_back(initPiecePos.NewPos);
+				//chronologicalPositionsAdded.push_back(initPiecePos.NewPos);
 
 				/*
 				movePiecePos = Utils::Point2DInt(initPiecePos.NewPos);
@@ -742,11 +744,11 @@ namespace Board
 		//TODO: maybe make all pieces an array and then you can make this process simpler by adding to in play directyl
 		//We have to wait until the end to move all pieces to in play since all pieces is a vector
 		//so it might be reallocated if the capacity changes, so the pointers would become invalid
-		int index = 0;
+		//int index = 0;
 		for (auto& piece : state.AllPieces)
 		{
 			piece.UpdateState(Piece::State::InPlay);
-			state.InPlayPieces.emplace(chronologicalPositionsAdded[index], &piece);
+			//state.InPlayPieces.emplace(chronologicalPositionsAdded[index], &piece);
 		}
 
 		
@@ -762,6 +764,10 @@ namespace Board
 		ResetBoard(state);
 		//if (piecePositions.empty()) InitPieces();
 
+		//We do not want to cause problems with reallocations and pointers that could be invalidated
+		//if the vector is moved elsewhere, so we must reserve the size (but the elements will be empty
+		// and will not be default initialized, so we still need to push)
+		state.AllPieces.reserve(TEAMS_COUNT*COLOR_PIECES_COUNT);
 		PlaceDefaultBoardPieces(state);
 
 		std::unordered_map<Utils::Point2DInt, Piece> stuff;
@@ -894,6 +900,7 @@ namespace Board
 		//TODO: are there any other checks to capture a piece
 		return pieceAtNewPos;
 	}
+
 	static bool IsCapture(const GameState& state, const PiecePositionData currentData, const Utils::Point2DInt newPos)
 	{
 		return TryGetCapturePiece(state, currentData, newPos) != nullptr;
@@ -964,14 +971,16 @@ namespace Board
 				//and we can save some time by first making sure if there actually is a piece at the new pos
 				SpecialMove specialMove = SpecialMove::None;
 				const Piece* capturePiece = nullptr;
-				std::optional<PieceTypeInfo> capturedPieceValue = std::nullopt;
 				if (pieceAtNewPos != nullptr)
 				{
-					capturePiece = TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos);
+					//capturePiece = TryGetCapturePiece(state, PiecePositionData{ *movedPiece, startPos }, moveNewPos);
+					capturePiece = TryGetPieceAtPosition(state, moveNewPos);
 					specialMove= (capturePiece != nullptr) ? SpecialMove::Capture : SpecialMove::None;
-					if (capturePiece != nullptr) capturedPieceValue = PieceTypeInfo(capturePiece->m_Color, capturePiece->m_PieceType);
+					/*if (capturePiece != nullptr) capturedPieceValue = capturePiece;*/
 				}
 
+				Utils::Log(Utils::LogType::Error, std::format("ADDING move for piece {} {} -> {} has capture: {}", 
+					movedPiece->ToString(), startPos.ToString(), moveNewPos.ToString(), capturePiece!=nullptr? capturePiece->ToString() : "NUL"));
 				possibleMoves.emplace_back(
 					std::vector<MovePiecePositionData>
 				{
@@ -979,8 +988,8 @@ namespace Board
 				},
 					"",
 					specialMove,
-					std::nullopt,
-					capturedPieceValue,
+					nullptr,
+					capturePiece,
 					false,
 					false
 					);
@@ -1015,8 +1024,8 @@ namespace Board
 					},
 						"",
 						SpecialMove::Capture,
-						std::nullopt,
-						PieceTypeInfo(pieceAtNewPos->m_Color, pieceAtNewPos->m_PieceType),
+						nullptr,
+						pieceAtNewPos,
 						false,
 						false
 						);
@@ -1041,8 +1050,8 @@ namespace Board
 				},
 					"",
 					SpecialMove::KingSideCastle,
-					std::nullopt,
-					std::nullopt,
+					nullptr,
+					nullptr,
 					false,
 					false
 				);
@@ -1056,8 +1065,8 @@ namespace Board
 				},
 					"",
 					SpecialMove::QueenSideCastle,
-					std::nullopt,
-					std::nullopt,
+					nullptr,
+					nullptr,
 					false,
 					false
 				);

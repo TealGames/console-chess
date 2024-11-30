@@ -181,13 +181,12 @@ namespace Core
 			moveInfo.ToString()));
 
 		if (Utils::HasFlag(static_cast<unsigned int>(moveInfo.SpecialMoveFlags),
-			static_cast<unsigned int>(SpecialMove::Capture)) && moveInfo.PieceCaptured.has_value())
+			static_cast<unsigned int>(SpecialMove::Capture)) && moveInfo.PieceCaptured!=nullptr)
 		{
-			PieceTypeInfo capturedInfo = moveInfo.PieceCaptured.value();
-			int pieceValue = GetValueForPiece(capturedInfo.PieceType);
+			int pieceValue = GetValueForPiece(moveInfo.PieceCaptured->m_PieceType);
 			Utils::Log("CALC last move team points");
-			teamPoints.at(capturedInfo.Color) -= pieceValue;
-			teamPoints.at(GetOtherTeam(capturedInfo.Color)) += pieceValue;
+			teamPoints.at(moveInfo.PieceCaptured->m_Color) -= pieceValue;
+			teamPoints.at(GetOtherTeam(moveInfo.PieceCaptured->m_Color)) += pieceValue;
 		}
 
 		return MoveValueInfo{ teamPoints };
@@ -282,9 +281,16 @@ namespace Core
 		int greaterScore = state.TeamValue.at(greaterScoreColor);
 
 		std::unordered_map<ColorTheme, float> colorPercent = {};
-		colorPercent.emplace(smallerScoreColor, (float)(smallestScore+smallestScoreDelta)/(smallestScore + greaterScore));
-		colorPercent.emplace(greaterScoreColor, (float)(greaterScore+smallestScoreDelta)/(smallestScore + greaterScore));
-		return colorPercent;
+		smallestScore += smallestScoreDelta;
+		greaterScore += smallestScoreDelta;
+		colorPercent.emplace(smallerScoreColor, (float)(smallestScore)/(smallestScore + greaterScore));
+		colorPercent.emplace(greaterScoreColor, (float)(greaterScore)/(smallestScore + greaterScore));
+		Utils::Log(Utils::LogType::Error, std::format("calc win percent: l:{} d:{} small: {} greater: {}", 
+			std::to_string(colorPercent.at(ColorTheme::Light)), 
+			std::to_string(colorPercent.at(ColorTheme::Dark)),
+			std::to_string(smallestScore), 
+			std::to_string(greaterScore)));
+		return colorPercent; 
 	}
 
 	void GameManager::InvokeEvent(const GameState& state, const GameEventType gameEvent)

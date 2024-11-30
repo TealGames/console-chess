@@ -60,14 +60,22 @@ static void ResetCellVisuals()
 			cell->Dehighlight();
 		}
 		if (cell->HasOverlayImage) cell->RemoveOverlaySprite();*/
-		if (cell->VisualState != CellVisualState::Default &&
-			!IsStoredAsPreviousMove(cell)) cell->ResetVisualToDefault();
+		if (cell->m_CurrentState != CellState::Default &&
+			!IsStoredAsPreviousMove(cell)) cell->ResetStateToDefault();
 	}
 	currentCellMoves.clear();
 }
 
 static void PrintCells()
 {
+	std::string str = "";
+	//std::unordered_map<Cell*, CellVisualState> states;
+	for (const auto cell : cells)
+	{
+		str += std::format("[{}: {}] ", cell.first.ToString(), ToString(cell.second->m_CurrentState));
+	}
+	Utils::Log(Utils::LogType::Error, std::format("State of all cells: {}", str));
+	/*
 	std::vector<Utils::Point2DInt> cellPositionsWith;
 	for (const auto& element : cells)
 	{
@@ -83,6 +91,7 @@ static void PrintCells()
 		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellPositionsWith),
 		Utils::ToStringIterable<std::vector<Utils::Point2DInt>, Utils::Point2DInt>(cellMoves));
 	Utils::Log(str);
+	*/
 }
 
 Cell* TryGetCellAtPosition(const Utils::Point2DInt point)
@@ -116,7 +125,14 @@ void UpdateInteractablePieces(const ColorTheme& interactableColor)
 
 		bool isInteractableColor = cellPiece->m_Color == interactableColor;
 		bool updateVisual = !IsStoredAsPreviousMove(cell.second);
-		cell.second->UpdateCanClick(isInteractableColor, updateVisual);
+		//cell.second->UpdateCanClick(isInteractableColor, updateVisual);
+		if (isInteractableColor) cell.second->SetState(CellState::Default, true);
+		else
+		{
+			cell.second->SetState(CellState::Disabled, true);
+			Utils::Log(Utils::LogType::Error, std::format("Setting cell at {} to disabled. is: {}", 
+				cell.first.ToString(), std::to_string(cell.second->IsDisabled())));
+		}
 	}
 }
 
@@ -146,8 +162,8 @@ void CreateBoardCells(wxWindow* parent)
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
 			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
-				{{CellVisualState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
-				 {CellVisualState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
+				{{CellState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
+				 {CellState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
 
 			if (!emplaced.second)
 			{
@@ -173,198 +189,171 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 	{
 		cell.second->AddOnClickCallback([&gameStateId, &cell, &manager](Cell* clickedCell) -> void
 		{
-			if (clickedCell == nullptr) return;
-			try
-			{
+			if (clickedCell == nullptr || clickedCell->IsDisabled()) return;
+
 #pragma region Move Updating
-				if (!currentCellMoves.empty())
+			if (!currentCellMoves.empty())
+			{
+				for (const auto& cell : currentCellMoves)
 				{
-					for (const auto& cell : currentCellMoves)
+					/*Utils::Log(Utils::LogType::Error, std::format("SELECTED {} MOVES: {} CLICKED: {}",
+						std::to_string(currentCellMoves.size()), Utils::ToStringIterable<std::vector<Cell*>, Cell*>(currentCellMoves),
+						std::to_string(cell == clickedCell)));*/
+
+					if (cell != clickedCell || lastSelected == nullptr) continue;
+
+					std::optional<Utils::Point2DInt> startPos = TryGetPositionOfCell(*lastSelected);
+					if (startPos == std::nullopt)
 					{
-						/*Utils::Log(Utils::LogType::Error, std::format("SELECTED {} MOVES: {} CLICKED: {}",
-							std::to_string(currentCellMoves.size()), Utils::ToStringIterable<std::vector<Cell*>, Cell*>(currentCellMoves),
-							std::to_string(cell == clickedCell)));*/
-
-						if (!cell->HasOverlayImage && cell != clickedCell || lastSelected == nullptr) continue;
-
-						std::optional<Utils::Point2DInt> startPos = TryGetPositionOfCell(*lastSelected);
-						if (startPos == std::nullopt)
-						{
-							const std::string error = std::format("Tried find start pos for move to cell "
-								"but failed to be retrieved!");
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-
-						std::optional<Utils::Point2DInt> endPos = TryGetPositionOfCell(*clickedCell);
-						if (endPos == std::nullopt)
-						{
-							const std::string error = std::format("Tried find end pos for move to cell "
-								"but failed to be retrieved!");
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-
-						PieceMoveResult result = manager.TryMoveForState(gameStateId, startPos.value(), endPos.value());
-						if (!result.IsValidMove)
-						{
-							const std::string error = std::format("Tried update the the move of piece state from pos "
-								"{} -> {} but failed! Info: {}", startPos.value().ToString(),
-								endPos.value().ToString(), result.Info);
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-
-						const GameState* maybeGameState = manager.TryGetGameState(gameStateId);
-						if (maybeGameState == nullptr)
-						{
-							const std::string error = std::format("Tried update the the move of piece state from pos "
-								"{} -> {} but faile because game state for id: {} was not found", startPos.value().ToString(),
-								endPos.value().ToString(), gameStateId);
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-
-						if (!TryRenderUpdateCells(manager, *maybeGameState, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
-						{
-							const std::string error = std::format("Tried update the rendering for cells "
-								"{} -> {} but failed!", startPos.value().ToString(), endPos.value().ToString());
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-
-						if (!previousMoveCells.empty())
-						{
-							//for (const auto& cell : previousMoveCells) cell->Dehighlight();
-							for (const auto& cell : previousMoveCells) cell->ResetVisualToDefault();
-							previousMoveCells.clear();
-						}
-
-						ResetCellVisuals();
-						//lastSelected->Highlight(HighlightColorType::PreviousMove);
-						//clickedCell->Highlight(HighlightColorType::PreviousMove);
-						lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
-						clickedCell->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
-
-						//We need to store the cell that was last selected (the start pos of move)
-						//so we can disable it on next move since it is not stored definitively anywhere else
-						previousMoveCells.push_back(lastSelected);
-						previousMoveCells.push_back(clickedCell);
-						lastSelected = clickedCell;
-
-						std::optional<ColorTheme> newColor = manager.TryAdvanceTurn(gameStateId);
-						Utils::Log(std::format("TURN: Trying to advance turn for state: {}, has new color: {}", gameStateId, std::to_string(newColor.has_value())));
-						if (!newColor.has_value())
-						{
-							const std::string error = std::format("Tried advantce the turn in board UI when moving from"
-								"{} -> {} but failed since GameManager call returned a null new team!",
-								startPos.value().ToString(), endPos.value().ToString());
-							Utils::Log(Utils::LogType::Error, error);
-							continue;
-						}
-						UpdateInteractablePieces(newColor.value());
-						return;
+						const std::string error = std::format("Tried find start pos for move to cell "
+							"but failed to be retrieved!");
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
 					}
 
-					//If we got to this point it means player lickced on cell not from available moves
-					if (lastSelected != nullptr) lastSelected->SetVisualState(CellVisualState::Default, true);
-				}
-				ResetCellVisuals();
-#pragma endregion
+					std::optional<Utils::Point2DInt> endPos = TryGetPositionOfCell(*clickedCell);
+					if (endPos == std::nullopt)
+					{
+						const std::string error = std::format("Tried find end pos for move to cell "
+							"but failed to be retrieved!");
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
 
-				//We don't want to do any highlighting if it is a cell with no pieces
-				if (!clickedCell->HasPiece())
-				{
+					PieceMoveResult result = manager.TryMoveForState(gameStateId, startPos.value(), endPos.value());
+					if (!result.IsValidMove)
+					{
+						const std::string error = std::format("Tried update the the move of piece state from pos "
+							"{} -> {} but failed! Info: {}", startPos.value().ToString(),
+							endPos.value().ToString(), result.Info);
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					const GameState* maybeGameState = manager.TryGetGameState(gameStateId);
+					if (maybeGameState == nullptr)
+					{
+						const std::string error = std::format("Tried update the the move of piece state from pos "
+							"{} -> {} but faile because game state for id: {} was not found", startPos.value().ToString(),
+							endPos.value().ToString(), gameStateId);
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					if (!TryRenderUpdateCells(manager, *maybeGameState, std::vector<Utils::Point2DInt>{ startPos.value(), endPos.value() }))
+					{
+						const std::string error = std::format("Tried update the rendering for cells "
+							"{} -> {} but failed!", startPos.value().ToString(), endPos.value().ToString());
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+
+					if (!previousMoveCells.empty())
+					{
+						//for (const auto& cell : previousMoveCells) cell->Dehighlight();
+						for (const auto& cell : previousMoveCells) cell->ResetStateToDefault();
+						previousMoveCells.clear();
+					}
+
+					ResetCellVisuals();
+					//lastSelected->Highlight(HighlightColorType::PreviousMove);
+					//clickedCell->Highlight(HighlightColorType::PreviousMove);
+					lastSelected->SetState(CellState::PreviousMoveHighlighted, true);
+					clickedCell->SetState(CellState::PreviousMoveHighlighted, true);
+
+					//We need to store the cell that was last selected (the start pos of move)
+					//so we can disable it on next move since it is not stored definitively anywhere else
+					previousMoveCells.push_back(lastSelected);
+					previousMoveCells.push_back(clickedCell);
 					lastSelected = clickedCell;
+
+					std::optional<ColorTheme> newColor = manager.TryAdvanceTurn(gameStateId);
+					Utils::Log(std::format("TURN: Trying to advance turn for state: {}, has new color: {}", gameStateId, std::to_string(newColor.has_value())));
+					if (!newColor.has_value())
+					{
+						const std::string error = std::format("Tried advantce the turn in board UI when moving from"
+							"{} -> {} but failed since GameManager call returned a null new team!",
+							startPos.value().ToString(), endPos.value().ToString());
+						Utils::Log(Utils::LogType::Error, error);
+						continue;
+					}
+					UpdateInteractablePieces(newColor.value());
+					TryGetSound(AudioClipType::Move)->TryPlaySound();
+
+					PrintCells();
 					return;
 				}
 
-				//TODO: for each cell try to create states to check like highlighted, selected, previous moves shown, etc
-				//to obfuscate what changes actually occur from state
+				//If we got to this point it means player lickced on cell not from available moves
+				if (lastSelected != nullptr) lastSelected->SetState(CellState::Default, true);
+			}
+			ResetCellVisuals();
+			PrintCells();
+#pragma endregion
+
+			//We don't want to do any highlighting if it is a cell with no pieces
+			if (!clickedCell->HasPiece())
+			{
+				lastSelected = clickedCell;
+				return;
+			}
+
+			//TODO: for each cell try to create states to check like highlighted, selected, previous moves shown, etc
+			//to obfuscate what changes actually occur from state
 
 #pragma region Toggling Highlight
-				bool sameCellClickedAgain = lastSelected != nullptr && lastSelected == clickedCell;
-
-				//We want to preserve previous old move highlighted status
-				//so we must check for what type is highlighted and what to set as new
-				if (sameCellClickedAgain)
+			bool sameCellClickedAgain = lastSelected != nullptr && lastSelected == clickedCell;
+			//We want to preserve previous old move highlighted status
+			//so we must check for what type is highlighted and what to set as new
+			if (sameCellClickedAgain)
+			{
+				if (IsStoredAsPreviousMove(lastSelected) && !lastSelected->IsDisabled())
 				{
-					/*if (IsStoredAsPreviousMove(lastSelected))
-					{
-						if (lastSelected->GetHighlightedColorType() == HighlightColorType::PreviousMove)
-							lastSelected->Highlight(HighlightColorType::Selected);
-						else lastSelected->Highlight(HighlightColorType::PreviousMove);
-					}
-					else lastSelected->ToggleHighlighted(HighlightColorType::Selected);*/
-
-					if (IsStoredAsPreviousMove(lastSelected))
-					{
-						if (lastSelected->VisualState == CellVisualState::PreviousMoveHighlighted)
-							lastSelected->SetVisualState(CellVisualState::Selected, true);
-						else lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
-					}
-					else lastSelected->ToggleVisualState(CellVisualState::Selected);
+					if (lastSelected->m_CurrentState == CellState::PreviousMoveHighlighted)
+						lastSelected->SetState(CellState::Selected, true);
+					else lastSelected->SetState(CellState::PreviousMoveHighlighted, true);
 				}
-				else
+				else lastSelected->ToggleState(CellState::Selected);
+			}
+			else
+			{
+				if (lastSelected != nullptr && !lastSelected->IsDisabled())
 				{
-					if (lastSelected != nullptr)
-					{
-						/*if (IsStoredAsPreviousMove(lastSelected)) lastSelected->Highlight(HighlightColorType::PreviousMove);
-						else lastSelected->Dehighlight();*/
-
-						if (IsStoredAsPreviousMove(lastSelected)) lastSelected->SetVisualState(CellVisualState::PreviousMoveHighlighted, true);
-						else lastSelected->ResetVisualToDefault();
-					}
-
-					//clickedCell->Highlight(HighlightColorType::Selected);
-					clickedCell->SetVisualState(CellVisualState::Selected, true);
+					if (IsStoredAsPreviousMove(lastSelected)) lastSelected->SetState(CellState::PreviousMoveHighlighted, true);
+					else lastSelected->ResetStateToDefault();
 				}
+				clickedCell->SetState(CellState::Selected, true);
+			}
 #pragma endregion
 
 #pragma region Possible Move Highlighting
-				bool isClickedCellSelected = clickedCell->VisualState == CellVisualState::Selected;
+			bool isClickedCellSelected = clickedCell->m_CurrentState == CellState::Selected;
 
-				//Double clicking on a cell with possible moves will toggle it off
-				if (sameCellClickedAgain && isClickedCellSelected && !currentCellMoves.empty()) ResetCellVisuals();
-				else if (isClickedCellSelected)
-				{
-					std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
-					/*Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
-						std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));*/
-
-					Cell* cellAtPosition = nullptr;
-					for (const auto& move : possibleMoves)
-					{
-						for (const auto& piecesMoved : move.PiecesMoved)
-						{
-							cellAtPosition = TryGetCellAtPosition(piecesMoved.NewPos);
-							if (cellAtPosition == nullptr) continue;
-
-							//cellAtPosition->Highlight(HighlightColorType::PossibleMove);
-							//cellAtPosition->SetOverlaySprite(GetMoveIcon());
-							cellAtPosition->SetVisualState(CellVisualState::PossibleMoveHighlighted, true);
-							currentCellMoves.push_back(cellAtPosition);
-						}
-					}
-					PrintCells();
-				}
-
-				//We make sure to rehighlight them as previous moves
-				//in case one might have been selected as a possible move before
-				else
-				{
-					for (const auto& cell : previousMoveCells)
-						cell->SetVisualState(CellVisualState::PossibleMoveHighlighted, true);
-				}
-
-				lastSelected = clickedCell;
-#pragma endregion
-			}
-			catch (const std::exception e)
+			//Double clicking on a cell with possible moves will toggle it off
+			if (sameCellClickedAgain && isClickedCellSelected && !currentCellMoves.empty()) ResetCellVisuals();
+			else if (isClickedCellSelected)
 			{
-				const std::string str = std::format("ERROR: ran into error: {}", e.what());
-				wxLogMessage(str.c_str());
+				std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
+				/*Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
+					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));*/
+
+				Cell* cellAtPosition = nullptr;
+				for (const auto& move : possibleMoves)
+				{
+					for (const auto& piecesMoved : move.PiecesMoved)
+					{
+						cellAtPosition = TryGetCellAtPosition(piecesMoved.NewPos);
+						if (cellAtPosition == nullptr) continue;
+
+						bool isCaptureCell = cellAtPosition->IsDisabled();
+						cellAtPosition->SetState(CellState::PossibleMoveHighlighted, true);
+						currentCellMoves.push_back(cellAtPosition);
+					}
+				}
+				PrintCells();
 			}
+
+			lastSelected = clickedCell;
 		});
 	}
 }

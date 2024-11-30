@@ -1,4 +1,6 @@
 #include <wx/wx.h>
+#include <wx/sound.h>
+#include <format>
 #include <string>
 #include <optional>
 #include <filesystem>
@@ -29,20 +31,44 @@ static SpriteMap<PieceTypeInfo> PieceSprites
 	{{ColorTheme::Dark,  PieceType::Pawn},		{{1,5}, SPRITE_SIZE, std::nullopt}}}
 };
 
-//const std::filesystem::path PIECES_PATH = "chess_pieces.png";
-//static wxImage* pieceSpriteMap = nullptr;
-//static const std::unordered_map<PieceTypeInfo, Utils::Point2DInt> PIECE_POSITIONS =
-//{
-//	
-//};
-//static std::unordered_map<PieceTypeInfo, wxImage> pieceSprites;
-
 static SpriteMap<SpriteSymbolType> IconSprites
 {
 	"chess_symbols.png", nullptr, wxSize(0, 0),
 	std::unordered_map<SpriteSymbolType, SubSpriteData>{
 	{SpriteSymbolType::MoveSpot,				{{0,0}, {200, 200}, std::nullopt}},
 	{SpriteSymbolType::DisabledOverlay,			{{0,1}, {200, 200}, std::nullopt}}}
+};
+
+AudioClip::AudioClip(const std::filesystem::path& path) : 
+	m_path(path), m_Path(m_path), m_sound(m_path.string()), m_Sound(nullptr)
+{
+	if (m_sound.IsOk()) m_Sound = &m_sound;
+}
+
+AudioClip::AudioClip(const AudioClip& clip) :
+	m_path(clip.m_path), m_Path(m_path), m_sound(m_path.string()), m_Sound(nullptr)
+{
+	if (m_sound.IsOk()) m_Sound = &m_sound;
+}
+
+bool AudioClip::HasGoodClip() const
+{
+	return m_Sound != nullptr;
+}
+
+bool AudioClip::TryPlaySound() const
+{
+	if (!HasGoodClip()) return false;
+	else
+	{
+		bool played= m_Sound->Play(wxSOUND_ASYNC);
+		Utils::Log(Utils::LogType::Error, std::format("playing sound at: {} played:{}", m_path.string(), std::to_string(played)));
+	}
+}
+
+static const std::unordered_map<AudioClipType, AudioClip> AudioClips =
+{
+	{AudioClipType::Move, AudioClip("chess_move.wav")}
 };
 
 //Updates and adds an image handler if it is a new handler
@@ -254,4 +280,12 @@ std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, 
 	//TODO: maybe potential issue here where we use a reference to a local value that 
 	//will go out of scope and is used for returning structure
 	return GetBitMapFromSprite(maybeData.value().MaybeImage.value(), targetSize);
+}
+
+const AudioClip* TryGetSound(const AudioClipType& type)
+{
+	auto clipIt = AudioClips.find(type);
+	if (clipIt == AudioClips.end()) return nullptr;
+	else if (!clipIt->second.HasGoodClip()) return nullptr;
+	else return &(clipIt->second);
 }

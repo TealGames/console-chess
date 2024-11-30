@@ -60,7 +60,7 @@ bool MovePiecePositionData::operator==(const MovePiecePositionData& other) const
 }
 
 MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
-	const std::optional<Piece*>& promotion, const std::optional<PieceTypeInfo>& capturedPiece, const bool& check, const bool& checkmate) :
+	const Piece* const promotion, const Piece* const capturedPiece, const bool& check, const bool& checkmate) :
 	_piecesMoved(piecesMoved), PiecesMoved(_piecesMoved), _boardNotation(boardNotation), BoardNotation(_boardNotation),
 	_specialMoveFlags(moveFlags), SpecialMoveFlags(_specialMoveFlags), _piecePromotion(promotion), PiecePromotion(_piecePromotion),
 	_capturedPiece(capturedPiece), PieceCaptured(_capturedPiece),
@@ -71,7 +71,7 @@ MoveInfo::MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const 
 MoveInfo::MoveInfo(const MoveInfo& other) noexcept:
 _piecesMoved(other.PiecesMoved), PiecesMoved(_piecesMoved), _boardNotation(other.BoardNotation), BoardNotation(_boardNotation),
 _specialMoveFlags(other.SpecialMoveFlags), SpecialMoveFlags(_specialMoveFlags), _piecePromotion(other.PiecePromotion), PiecePromotion(_piecePromotion),
-_capturedPiece(std::nullopt), PieceCaptured(_capturedPiece), _isCheck(other.IsCheck), IsCheck(_isCheck), 
+_capturedPiece(other.PieceCaptured), PieceCaptured(_capturedPiece), _isCheck(other.IsCheck), IsCheck(_isCheck), 
 _isCheckmate(other.IsCheckmate), IsCheckmate(_isCheckmate)
 {
 }
@@ -89,8 +89,8 @@ MoveInfo::MoveInfo(MoveInfo&& other) noexcept:
 	other._piecesMoved = {};
 	other._boardNotation = "";
 	other._specialMoveFlags = SpecialMove::None;
-	other._piecePromotion = std::nullopt;
-	other._piecePromotion = std::nullopt;
+	other._piecePromotion = nullptr;
+	other._piecePromotion = nullptr;
 	other._isCheck = false;
 	other._isCheckmate = false;
 }
@@ -100,8 +100,8 @@ std::string MoveInfo::ToString() const
 	return std::format("[PiecesMoved:{} SpecialMove:{} Piece Promoted:{} Captured:{} IsCheck:{} IsCheckmate: {}]", 
 		Utils::ToStringIterable<const std::vector<MovePiecePositionData>, MovePiecePositionData>(PiecesMoved), 
 		std::to_string(static_cast<unsigned int>(SpecialMoveFlags)), 
-		PieceCaptured.has_value() ? PieceCaptured.value().ToString() : "NULL",
-		PiecePromotion.has_value()? PiecePromotion.value()->ToString() : "NULL", 
+		PiecePromotion!=nullptr? PiecePromotion->ToString() : "NULL", 
+		PieceCaptured!=nullptr ? PieceCaptured->ToString() : "NULL",
 		std::to_string(IsCheck), std::to_string(IsCheckmate));
 }
 

@@ -1,11 +1,13 @@
 #pragma once
 #include <unordered_map>
 #include <string>
+#include <array>
 #include <vector>
 #include <optional>
 #include "Point2DInt.hpp"
 #include "Piece.hpp"
 #include "Color.hpp"
+#include "Globals.hpp"
 
 enum class SpecialMove : unsigned int
 {
@@ -60,8 +62,8 @@ private:
 	std::string _boardNotation;
 	SpecialMove _specialMoveFlags;
 	//Piece to promote to
-	std::optional<Piece*> _piecePromotion;
-	std::optional<PieceTypeInfo> _capturedPiece;
+	const Piece* _piecePromotion;
+	const Piece* _capturedPiece;
 	bool _isCheck;
 	bool _isCheckmate;
 
@@ -70,14 +72,17 @@ public:
 	const std::vector<MovePiecePositionData>& PiecesMoved;
 	const std::string& BoardNotation = "";
 	const SpecialMove& SpecialMoveFlags = SpecialMove::None;
+
 	//Piece to promote to
-	const std::optional<Piece*>& PiecePromotion;
-	const std::optional<PieceTypeInfo>& PieceCaptured;
+	//const std::optional<const Piece*>& PiecePromotion;
+	//const std::optional<const Piece*>& PieceCaptured;
+	const Piece* const PiecePromotion;
+	const Piece* const PieceCaptured;
 	const bool& IsCheck = false;
 	const bool& IsCheckmate = false;
 
 	MoveInfo(const std::vector<MovePiecePositionData>& piecesMoved, const std::string& boardNotation, const SpecialMove& moveFlags,
-		const std::optional<Piece*>& promotion, const std::optional<PieceTypeInfo>& pieceCaptured, const bool& check, const bool& checkmate);
+		const Piece* const promotion, const Piece* const pieceCaptured, const bool& check, const bool& checkmate);
 	MoveInfo(const MoveInfo& other) noexcept;
 	MoveInfo(MoveInfo&& other) noexcept;
 

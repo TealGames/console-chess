@@ -12,7 +12,7 @@ constexpr float ICON_SIZE_TO_CELL = 0.7;
 
 //TODO: change cell system to use states rather than knowing about the implementation
 //of different types of highlighting and symbol setting
-enum class CellVisualState
+enum class CellState
 {
 	Default,
 	Selected,
@@ -21,7 +21,7 @@ enum class CellVisualState
 	Disabled,
 };
 
-std::string ToString(const CellVisualState& state);
+std::string ToString(const CellState& state);
 
 //enum class HighlightColorType
 //{
@@ -45,29 +45,29 @@ struct CellColors
 class Cell : public wxPanel
 {
 private:
-	static constexpr bool _UPDATE_IMAGE_SIZE = true;
+	static constexpr bool m_UPDATE_IMAGE_SIZE = true;
 	
-	std::vector<std::function<void(Cell*)>> _onClickCallbacks;
-	bool _isClickable;
-	bool _hasOverlayImage;
-	bool _isRenderingPiece;
+	std::vector<std::function<void(Cell*)>> m_onClickCallbacks;
+	bool m_isClickable;
+	bool m_hasOverlayImage;
+	bool m_isRenderingPiece;
 
-	const CellColors& _colors;	
-	wxColour _lastColor;
+	const CellColors& m_colors;	
+	wxColour m_lastColor;
 	
-	const std::unordered_map<CellVisualState, wxBitmap*> _stateSprites;
-	CellVisualState _visualState;
+	const std::unordered_map<CellState, wxBitmap*> m_stateSprites;
+	CellState m_currentState;
 
 	//std::optional<HighlightColorType> _highlightedType;
-	const Piece* _pieceHere;
+	const Piece* m_pieceHere;
 
-	wxStaticBitmap* _bitMapDisplay = nullptr;
-	wxStaticBitmap* _overlayPanel = nullptr;
+	wxStaticBitmap* m_bitMapDisplay = nullptr;
+	wxStaticBitmap* m_overlayPanel = nullptr;
 
 public:
-	const bool& IsClickable;
-	const bool& HasOverlayImage;
-	const CellVisualState& VisualState;
+	const bool& m_IsClickable;
+	const bool& m_HasOverlayImage;
+	const CellState& m_CurrentState;
 
 private:
 	//const wxColour& GetHighlightColor(const HighlightColorType highlightType) const;
@@ -83,7 +83,7 @@ private:
 
 public:
 	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors, 
-		const std::unordered_map<CellVisualState, wxBitmap*>& stateSprites);
+		const std::unordered_map<CellState, wxBitmap*>& stateSprites);
 
 	bool IsHighlighted() const;
 	//std::optional<HighlightColorType> GetHighlightedColorType() const;
@@ -132,9 +132,9 @@ public:
 	void UpdateCanClick(const bool isClickable, const bool updateVisual);
 	void AddOnClickCallback(const std::function<void(Cell*)>& callback);
 
-	void SetVisualState(const CellVisualState& state, const bool updateVisual);
-	void ToggleVisualState(const CellVisualState& state);
-	void ResetVisualToDefault();
+	void SetState(const CellState& state, const bool updateVisual);
+	void ToggleState(const CellState& state);
+	void ResetStateToDefault();
 	
 	
 	/// <summary>

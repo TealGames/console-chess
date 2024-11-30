@@ -13,6 +13,8 @@
 #include "HelperFunctions.hpp"
 
 static wxPanel* winningSliderPanel;
+static wxStaticText* lightWinPercentText;
+static wxStaticText* darkWinPercentText;
 
 static GridLayout* lightPanelPieces;
 static GridLayout* darkPanelPieces;
@@ -23,13 +25,21 @@ static wxStaticText* darkValueText;
 //The panel that encompases a sprite
 static const wxSize SPRITE_PANEL_SIZE(30, 30);
 static const wxSize SPRITE_SIZE(30, 30);
-static const Utils::Vector2D SLIDER_SIZE_OF_PARENT = Utils::Vector2D(0.7, 0.3);
+static const Utils::Vector2D SLIDER_SIZE_OF_PARENT = Utils::Vector2D(0.8, 0.3);
 
 static void SetWinDisplayValue(float percent)
 {
 	wxSize parentSize = winningSliderPanel->GetParent()->GetSize();
+
+	darkWinPercentText->SetLabel(std::format("{:.0f}%", percent * 100));
+	lightWinPercentText->SetLabel(std::format("{:.0f}%", 100 - (percent * 100)));
+
 	winningSliderPanel->SetSize(wxSize(parentSize.GetWidth()* percent, parentSize.GetHeight()));
 	winningSliderPanel->SetPosition(wxDefaultPosition);
+
+	Utils::Log(Utils::LogType::Error, std::format("POOP: New size is: {} -> {}",
+		std::to_string(parentSize.x),
+		std::to_string(winningSliderPanel->GetSize().x)));
 }
 
 static void UpdateWinningDisplay(const Core::GameManager& manager, const GameState& state)
@@ -41,14 +51,38 @@ static void UpdateWinningDisplay(const Core::GameManager& manager, const GameSta
 
 void CreateWinChanceDisplay(Core::GameManager& manager, wxWindow* parent)
 {
-	wxSize backgroundSize(SLIDER_SIZE_OF_PARENT.m_X * parent->GetSize().x, SLIDER_SIZE_OF_PARENT.m_Y*parent->GetSize().y);
-	wxPanel* background = new wxPanel(parent, wxID_ANY, wxPoint((parent->GetSize().x-backgroundSize.x)/2, wxDefaultPosition.y), backgroundSize);
-	background->SetBackgroundColour(MUTED_WHITE);
+	DirectionalLayout* layoutParent = new DirectionalLayout(parent, LayoutType::Horizontal, wxDefaultPosition, parent->GetSize());
+	layoutParent->SetBackgroundColour(LIGHT_GREEN);
 
-	winningSliderPanel = new wxPanel(background, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-	winningSliderPanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
-	SetWinDisplayValue(0.5);
+	const wxSize backgroundSize(SLIDER_SIZE_OF_PARENT.m_X * layoutParent->GetSize().x, SLIDER_SIZE_OF_PARENT.m_Y * layoutParent->GetSize().y);
+	const wxSize textSize = wxSize((layoutParent->GetSize().x - backgroundSize.x)/2, layoutParent->GetSize().y);
+
+	darkWinPercentText = new wxStaticText(layoutParent, wxID_ANY, "0%", wxDefaultPosition, 
+		textSize, wxALIGN_CENTER_HORIZONTAL);
+	darkWinPercentText->SetForegroundColour(LIGHTER_SECONDARY_COLOR);
+	//darkWinPercentText->SetBackgroundColour(RED);
+	layoutParent->AddChild(darkWinPercentText, 0);
+
+	lightWinPercentText = new wxStaticText(layoutParent, wxID_ANY, "0%", wxDefaultPosition,
+		textSize, wxALIGN_CENTER_HORIZONTAL);
+	lightWinPercentText->SetForegroundColour(MUTED_WHITE);
+	//lightWinPercentText->SetBackgroundColour(RED);
+	layoutParent->AddChild(lightWinPercentText, 0);
+	
+	wxPoint backgroundPos = wxPoint((layoutParent->GetSize().x - backgroundSize.x) / 2, wxDefaultPosition.y);
+	wxPanel* background = new wxPanel(layoutParent, wxID_ANY, wxDefaultPosition, backgroundSize);
+	background->SetBackgroundColour(MUTED_WHITE);
+	layoutParent->AddChild(background, 0, SpacingType::None, 0, 1);
+	
+	//background->Center();
+
+	
 	 
+	winningSliderPanel = new wxPanel(background, wxID_ANY, wxDefaultPosition, background->GetSize());
+	winningSliderPanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	//layoutParent->AddChild(winningSliderPanel, 1, SpacingType::Center);
+	SetWinDisplayValue(0.5);
+
 	manager.AddEventCallback(Core::GameEventType::SuccessfulTurn, 
 		[&manager](const GameState& state) -> void{ UpdateWinningDisplay(manager, state); });
 }
