@@ -20,7 +20,7 @@ std::vector<std::string> GetBoardJSON(const BoardType& boardType);
 struct InitPiecePosition
 {
 	const PieceType PieceType;
-	const ColorTheme Color;
+	const ArmyColor Color;
 	const Utils::Point2DInt NewPos;
 };
 std::vector<InitPiecePosition> GetDefaultBoardPiecePositions();

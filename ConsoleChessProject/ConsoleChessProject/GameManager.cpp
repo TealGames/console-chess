@@ -84,8 +84,8 @@ namespace Core
 		}
 
 		GameState& newState = newStateIt.first->second;
-		newState.CurrentPlayer = ColorTheme::Light;
-		newState.TeamValue = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0}};
+		newState.CurrentPlayer = ArmyColor::Light;
+		newState.TeamValue = { {ArmyColor::Light, 0}, {ArmyColor::Dark, 0}};
 		Board::CreateDefaultBoard(newState);
 		InvokeEvent(newState, GameEventType::StartGame);
 		
@@ -98,13 +98,13 @@ namespace Core
 		
 	}
 
-	static ColorTheme GetOtherTeam(const ColorTheme color)
+	static ArmyColor GetOtherTeam(const ArmyColor color)
 	{
-		if (color == ColorTheme::Light) return ColorTheme::Dark;
-		else return ColorTheme::Light;
+		if (color == ArmyColor::Light) return ArmyColor::Dark;
+		else return ArmyColor::Light;
 	}
 
-	ColorTheme GameManager::GetOtherPlayer(const GameState& state) const
+	ArmyColor GameManager::GetOtherPlayer(const GameState& state) const
 	{
 		return GetOtherTeam(state.CurrentPlayer);
 	}
@@ -142,7 +142,7 @@ namespace Core
 		return Board::GetPossibleMovesForPieceAt(*maybeGameState, pos);
 	}
 
-	std::optional<MoveValueInfo> GameManager::TryCalculateLastMoveValue(const std::string& gameStateID, const ColorTheme color)
+	std::optional<MoveValueInfo> GameManager::TryCalculateLastMoveValue(const std::string& gameStateID, const ArmyColor color)
 	{
 		GameState* maybeGameState = TryGetGameStateMutable(gameStateID);
 		//Utils::Log(std::format("Try get possible moves game manager has state: {}", std::to_string(maybeGameState!=nullptr)));
@@ -174,7 +174,7 @@ namespace Core
 			//return std::nullopt;
 
 		const MoveInfo& moveInfo = colorMovesIt->second.at(colorMovesIt->second.size() - 1);
-		std::unordered_map<ColorTheme, int> teamPoints = { {ColorTheme::Light, 0}, {ColorTheme::Dark, 0} };
+		std::unordered_map<ArmyColor, int> teamPoints = { {ArmyColor::Light, 0}, {ArmyColor::Dark, 0} };
 
 		Utils::Log(Utils::LogType::Error, std::format("MOVE INFO: try calc last move for: {} value points moveinfo: {} ",
 			ToString(color),
@@ -192,7 +192,7 @@ namespace Core
 		return MoveValueInfo{ teamPoints };
 	}
 
-	std::optional<ColorTheme> GameManager::TryAdvanceTurn(const std::string& gameStateID)
+	std::optional<ArmyColor> GameManager::TryAdvanceTurn(const std::string& gameStateID)
 	{
 		if (!ADVANCE_TURN) return std::nullopt;
 
@@ -203,11 +203,11 @@ namespace Core
 		if (maybeMoveVals.has_value())
 		{
 			Utils::Log(std::format("CALC: adding points to team dark {} light {}", 
-				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark)), 
-				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light))));
+				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ArmyColor::Dark)), 
+				std::to_string(maybeMoveVals.value().TeamPointDelta.at(ArmyColor::Light))));
 
-			maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
-			maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);
+			maybeGameState->TeamValue[ArmyColor::Light] += maybeMoveVals.value().TeamPointDelta.at(ArmyColor::Light);
+			maybeGameState->TeamValue[ArmyColor::Dark] += maybeMoveVals.value().TeamPointDelta.at(ArmyColor::Dark);
 		}
 		
 		/*if (!maybeMoveVals.has_value())
@@ -221,7 +221,7 @@ namespace Core
 		maybeGameState->TeamValue[ColorTheme::Light] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Light);
 		maybeGameState->TeamValue[ColorTheme::Dark] += maybeMoveVals.value().TeamPointDelta.at(ColorTheme::Dark);*/
 
-		ColorTheme otherPlayer = GetOtherPlayer(*maybeGameState);
+		ArmyColor otherPlayer = GetOtherPlayer(*maybeGameState);
 
 		maybeGameState->CurrentPlayer = otherPlayer;
 		InvokeEvent(*maybeGameState, GameEventType::SuccessfulTurn);
@@ -234,7 +234,7 @@ namespace Core
 
 	void GameManager::EndGame(GameState& state)
 	{
-		std::optional<ColorTheme> maybeOther= GetOtherPlayer(state);
+		std::optional<ArmyColor> maybeOther= GetOtherPlayer(state);
 		if (!maybeOther.has_value())
 		{
 			const std::string error = std::format("Tried to end the game in GameManager "
@@ -265,14 +265,14 @@ namespace Core
 		}
 	}
 
-	std::unordered_map<ColorTheme, float> GameManager::CalculateWinPercentage(const GameState& state) const
+	std::unordered_map<ArmyColor, float> GameManager::CalculateWinPercentage(const GameState& state) const
 	{
-		if (state.TeamValue.at(ColorTheme::Dark) == state.TeamValue.at(ColorTheme::Light)) 
-			return { {ColorTheme::Light, 0.5, }, {ColorTheme::Dark, 0.5} };
+		if (state.TeamValue.at(ArmyColor::Dark) == state.TeamValue.at(ArmyColor::Light)) 
+			return { {ArmyColor::Light, 0.5, }, {ArmyColor::Dark, 0.5} };
 
-		ColorTheme smallerScoreColor = state.TeamValue.at(ColorTheme::Light) < state.TeamValue.at(ColorTheme::Dark) ?
-										ColorTheme::Light : ColorTheme::Dark;
-		ColorTheme greaterScoreColor= GetOtherTeam(smallerScoreColor);
+		ArmyColor smallerScoreColor = state.TeamValue.at(ArmyColor::Light) < state.TeamValue.at(ArmyColor::Dark) ?
+										ArmyColor::Light : ArmyColor::Dark;
+		ArmyColor greaterScoreColor= GetOtherTeam(smallerScoreColor);
 
 		int smallestScore = state.TeamValue.at(smallerScoreColor);
 		int smallestScoreDelta = 0;
@@ -280,14 +280,14 @@ namespace Core
 
 		int greaterScore = state.TeamValue.at(greaterScoreColor);
 
-		std::unordered_map<ColorTheme, float> colorPercent = {};
+		std::unordered_map<ArmyColor, float> colorPercent = {};
 		smallestScore += smallestScoreDelta;
 		greaterScore += smallestScoreDelta;
 		colorPercent.emplace(smallerScoreColor, (float)(smallestScore)/(smallestScore + greaterScore));
 		colorPercent.emplace(greaterScoreColor, (float)(greaterScore)/(smallestScore + greaterScore));
 		Utils::Log(Utils::LogType::Error, std::format("calc win percent: l:{} d:{} small: {} greater: {}", 
-			std::to_string(colorPercent.at(ColorTheme::Light)), 
-			std::to_string(colorPercent.at(ColorTheme::Dark)),
+			std::to_string(colorPercent.at(ArmyColor::Light)), 
+			std::to_string(colorPercent.at(ArmyColor::Dark)),
 			std::to_string(smallestScore), 
 			std::to_string(greaterScore)));
 		return colorPercent; 

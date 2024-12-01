@@ -15,6 +15,7 @@
 #include "GameState.hpp"
 #include "UIGlobals.hpp"
 #include "DirectionalLayout.hpp"
+#include "ThemeControllerUI.hpp"
 
 static const std::string GAME_STATE_ID = "main_state";
 
@@ -22,7 +23,7 @@ static constexpr int TITLE_Y_OFFSET = 50;
 static constexpr int BUTTON_START_Y = 150;
 static constexpr int BUTTON_SPACING = 70;
 
-static constexpr int SIDE_PANEL_WIDTH = 200;
+static constexpr int LEFT_SIDE_PANEL_WIDTH = 200;
 
 MainFrame::MainFrame(Core::GameManager& gameManager, const wxString& title)
 	: wxFrame(nullptr, wxID_ANY, title), WindowName(title), _manager(gameManager), _currentState(nullptr)
@@ -103,16 +104,24 @@ void MainFrame::DrawGame()
 	pageRoot->AddChild(winningChancePanelParent, 0);
 	//winningChancePanelParent->SetBackgroundColour(LIGHT_DEEP_BLUE);
 
-	
-	wxSize cellAreaSize = 1.2 * BOARD_SIZE;
-	_cellParent = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, cellAreaSize);
-	CreateBoardCells(_cellParent);	
-	_cellParent->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	const wxSize cellAreaSize = 1.1 * BOARD_SIZE;
 	//_cellParent->Center();
+
+	wxPanel* leftSidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, wxSize(0.5 * LEFT_SIDE_PANEL_WIDTH, cellAreaSize.y));
+	leftSidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	CreateThemeController(leftSidePanel);
+
+	_cellParent = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, cellAreaSize);
+	CreateBoardCells(_cellParent);
+	_cellParent->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
 	
-	wxPanel* sidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, wxSize(SIDE_PANEL_WIDTH, cellAreaSize.y));
-	sidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
-	CreateCaptureDisplay(_manager, sidePanel);
+	wxPanel* rightSidePanel = new wxPanel(gameRoot, wxID_ANY, wxDefaultPosition, wxSize(LEFT_SIDE_PANEL_WIDTH, cellAreaSize.y));
+	rightSidePanel->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
+	CreateCaptureDisplay(_manager, rightSidePanel);
+
+	
+
+	
 
 	//sidePanel->SetSize(SIDE_PANEL_SIZE);
 	//sidePanel->SetPosition(wxPoint(500, 0));
@@ -123,8 +132,10 @@ void MainFrame::DrawGame()
 	gameRoot->SetSizer(rootSizer);*/
 
 	pageRoot->AddChild(gameRoot, 0);
-	gameRoot->AddChild(_cellParent, 0, SpacingType::Left, 100);
-	gameRoot->AddChild(sidePanel, 0, SpacingType::Left | SpacingType::Right , 20);
+	gameRoot->AddChild(leftSidePanel, 1, SpacingType::Right, 20);
+	//gameRoot->AddChild(_cellParent, 0, SpacingType::Left, 130);
+	gameRoot->AddChild(_cellParent, 0);
+	gameRoot->AddChild(rightSidePanel, 0, SpacingType::Left, 20);
 	
 
 	//gameRoot->CenterOnParent();

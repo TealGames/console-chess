@@ -1,12 +1,12 @@
 #include "Color.hpp"
 
-std::string ToString(const ColorTheme& color)
+std::string ToString(const ArmyColor& color)
 {
 	switch (color)
 	{
-	case ColorTheme::Light:
+	case ArmyColor::Light:
 		return "Light";
-	case ColorTheme::Dark:
+	case ArmyColor::Dark:
 		return "Dark";
 	default:
 		return "NULL";

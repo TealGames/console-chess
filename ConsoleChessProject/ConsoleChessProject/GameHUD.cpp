@@ -44,9 +44,9 @@ static void SetWinDisplayValue(float percent)
 
 static void UpdateWinningDisplay(const Core::GameManager& manager, const GameState& state)
 {
-	std::unordered_map<ColorTheme, float> percents = manager.CalculateWinPercentage(state);
-	Utils::Log(std::format("CALC: update win display with percetn: {}", std::to_string(percents.at(ColorTheme::Dark))));
-	SetWinDisplayValue(percents.at(ColorTheme::Dark));
+	std::unordered_map<ArmyColor, float> percents = manager.CalculateWinPercentage(state);
+	Utils::Log(std::format("CALC: update win display with percetn: {}", std::to_string(percents.at(ArmyColor::Dark))));
+	SetWinDisplayValue(percents.at(ArmyColor::Dark));
 }
 
 void CreateWinChanceDisplay(Core::GameManager& manager, wxWindow* parent)
@@ -93,14 +93,14 @@ static void UpdateCaptureDisplay(const GameState& state)
 		std::to_string(state.TeamValue.size())));*/
 
 		//std::to_string(state.TeamValue.at(ColorTheme::Dark)), std::to_string(state.TeamValue.at(ColorTheme::Light))));
-	lightValueText->SetLabel("PTS: "+std::to_string(state.TeamValue.at(ColorTheme::Light)));
+	lightValueText->SetLabel("PTS: "+std::to_string(state.TeamValue.at(ArmyColor::Light)));
 	lightValueText->SetSize(lightValueText->GetBestSize());
 
 	wxPoint lightCenterPos = wxPoint((lightValueText->GetParent()->GetSize().x - 
 		lightValueText->GetSize().x)/2, lightValueText->GetPosition().y);
 	lightValueText->SetPosition(lightCenterPos);
 
-	darkValueText->SetLabel("PTS: "+std::to_string(state.TeamValue.at(ColorTheme::Dark)));
+	darkValueText->SetLabel("PTS: "+std::to_string(state.TeamValue.at(ArmyColor::Dark)));
 	darkValueText->SetSize(darkValueText->GetBestSize());
 
 	wxPoint darkCenterPos = wxPoint((lightValueText->GetParent()->GetSize().x - 
@@ -122,7 +122,7 @@ static void UpdateCaptureDisplay(const GameState& state)
 			return;
 		}
 		
-		bool hasCapturedDark = capturedPiece->m_Color == ColorTheme::Dark;
+		bool hasCapturedDark = capturedPiece->m_Color == ArmyColor::Dark;
 		currentLayout = hasCapturedDark ? lightPanelPieces : darkPanelPieces;
 
 		wxPanel* piecePanel = new wxPanel(currentLayout, wxID_ANY, wxDefaultPosition, SPRITE_PANEL_SIZE);
@@ -140,14 +140,14 @@ static void UpdateCaptureDisplay(const GameState& state)
 void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 {
 	DirectionalLayout* displayRoot = new DirectionalLayout(parent, LayoutType::Vertical, wxDefaultPosition, parent->GetSize());
-	const wxSize LAYOUT_SIZE(0.8 * displayRoot->GetSize().x, 0.2 * displayRoot->GetSize().y);
+	const wxSize LAYOUT_SIZE(0.9 * displayRoot->GetSize().x, 0.2 * displayRoot->GetSize().y);
 
 	DirectionalLayout* lightLayout= new DirectionalLayout(displayRoot, LayoutType::Vertical, 
 		wxDefaultPosition, LAYOUT_SIZE);
 	lightLayout->SetBackgroundColour(BACKGROUND_COLOR);
 
-	wxStaticText* lightTitle = new wxStaticText(lightLayout, wxID_ANY, "WHITE CAPTURED", 
-		wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	wxStaticText* lightTitle = new wxStaticText(lightLayout, wxID_ANY, "WHITE", 
+		wxDefaultPosition, wxSize(lightLayout->GetSize().x, wxDefaultSize.y), wxALIGN_CENTER_HORIZONTAL);
 	lightTitle->SetFont(HEADING_FONT);
 	//lightTitle->CenterOnParent();
 	lightTitle->SetSize(wxSize(lightLayout->GetSize().x, lightTitle->GetBestSize().y));
@@ -181,8 +181,8 @@ void CreateCaptureDisplay(Core::GameManager& manager, wxWindow* parent)
 		wxDefaultPosition, LAYOUT_SIZE);
 	darkLayout->SetBackgroundColour(BACKGROUND_COLOR);
 
-	wxStaticText* darkTitle = new wxStaticText(darkLayout, wxID_ANY, "DARK CAPTURED", 
-		wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	wxStaticText* darkTitle = new wxStaticText(darkLayout, wxID_ANY, "DARK", 
+		wxDefaultPosition, wxSize(lightLayout->GetSize().x, wxDefaultSize.y), wxALIGN_CENTER_HORIZONTAL);
 	darkTitle->SetFont(HEADING_FONT);
 	//darkTitle->CenterOnParent();
 	darkTitle->SetSize(wxSize(darkLayout->GetSize().x, darkTitle->GetBestSize().y));

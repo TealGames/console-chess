@@ -41,5 +41,5 @@ bool TryRenderAllPieces(const Core::GameManager& manager, const GameState& state
 bool TryRenderUpdateCells(const Core::GameManager& manager, 
 	const GameState& gameState, std::vector<Utils::Point2DInt> positions);
 
-void UpdateInteractablePieces(const ColorTheme& interactableColor);
+void UpdateInteractablePieces(const ArmyColor& interactableColor);
 void EndCleanup();

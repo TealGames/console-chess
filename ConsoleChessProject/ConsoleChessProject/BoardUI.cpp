@@ -12,18 +12,19 @@
 #include "Piece.hpp"
 #include "Cell.hpp"
 #include "PieceMoveResult.hpp"
+#include "ThemeControllerUI.hpp"
 
 static std::unordered_map<Utils::Point2DInt, Cell*> cells;
 static Cell* lastSelected;
 static std::vector<Cell*> previousMoveCells;
 static std::vector<Cell*> currentCellMoves;
-static const std::unordered_map<ColorTheme, CellColors> cellColorData =
-{
-	{ColorTheme::Light, CellColors{LIGHT_CELL_COLOR, LIGHT_CELL_HOVER_COLOR, LIGHT_CELL_SELECTED_COLOR, 
-								   LIGHT_CELL_MOVE_COLOR, LIGHT_CELL_CAPTURE_MOVE_COLOR, LIGHT_CELL_PREVIOUS_MOVE_COLOR}},
-	{ColorTheme::Dark, CellColors{DARK_CELL_COLOR, DARK_CELL_HOVER_COLOR, DARK_CELL_SELECTED_COLOR,
-								   DARK_CELL_MOVE_COLOR, DARK_CELL_CAPTURE_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
-};
+//static const std::unordered_map<ArmyColor, CellColors> cellColorData =
+//{
+//	{ArmyColor::Light, CellColors{LIGHT_CELL_COLOR, LIGHT_CELL_HOVER_COLOR, LIGHT_CELL_SELECTED_COLOR, 
+//								   LIGHT_CELL_MOVE_COLOR, LIGHT_CELL_CAPTURE_MOVE_COLOR, LIGHT_CELL_PREVIOUS_MOVE_COLOR}},
+//	{ArmyColor::Dark, CellColors{DARK_CELL_COLOR, DARK_CELL_HOVER_COLOR, DARK_CELL_SELECTED_COLOR,
+//								   DARK_CELL_MOVE_COLOR, DARK_CELL_CAPTURE_MOVE_COLOR, DARK_CELL_PREVIOUS_MOVE_COLOR}}
+//};
 
 static std::unordered_map<SpriteSymbolType, wxBitmap> spriteBitmaps;
 
@@ -37,6 +38,18 @@ static wxBitmap& GetSpriteIcon(const SpriteSymbolType symbolType)
 	}
 	//Utils::Log(std::format("LOADING: has icon: {}", std::to_string(movePositionIcon.has_value())));
 	return spriteMapIt->second;
+}
+
+static CellColors GetCellColorsForTheme(const Theme& theme, const ArmyColor& color)
+{
+	return {
+		theme.CellDefaultColors.at(color),
+		theme.CellHoverColors.at(color),
+		theme.CellSelectedColors.at(color), 
+		theme.CellMoveColors.at(color),
+		theme.CellCaptureMoveColors.at(color),
+		theme.CellPreviousMoveColors.at(color)
+	};
 }
 
 static bool IsStoredAsPreviousMove(const Cell* cellCheck)
@@ -113,7 +126,7 @@ std::optional<Utils::Point2DInt> TryGetPositionOfCell(const Cell& cell)
 	return std::nullopt;
 }
 
-void UpdateInteractablePieces(const ColorTheme& interactableColor)
+void UpdateInteractablePieces(const ArmyColor& interactableColor)
 {
 	const Piece* cellPiece = nullptr;
 	for (const auto& cell : cells)
@@ -136,6 +149,11 @@ void UpdateInteractablePieces(const ColorTheme& interactableColor)
 	}
 }
 
+bool IsDarkCell(const Utils::Point2DInt& pos)
+{
+	return (pos.x % 2 == 0 && pos.y % 2 == 0) || (pos.x % 2 == 1 && pos.y % 2 == 1);
+}
+
 void CreateBoardCells(wxWindow* parent)
 {
 	wxPoint currentPoint;
@@ -143,25 +161,42 @@ void CreateBoardCells(wxWindow* parent)
 	//wxPanel* cellParent = new wxPanel(parent, wxID_ANY, wxDefaultPosition, parentSize);
 	//cellParent->SetBackgroundColour(RED);
 
+	const Theme* theme = TryGetCurrentTheme();
+	if (theme == nullptr)
+	{
+		const std::string error = std::format("Tried to create board cells "
+			"but the current theme was not found");
+		Utils::Log(Utils::LogType::Error, error);
+		return;
+	}
+	AddThemeUpdatedCallback([](const Theme& newTheme)-> void {
+		for (const auto& cell : cells)
+		{
+			cell.second->SetCellColors(GetCellColorsForTheme(newTheme, cell.second->m_TileColor));
+		}});
+
 	const int gridStartX = (parent->GetSize().GetWidth()- BOARD_SIZE.x) / 2;
 	const int gridStartY = (parent->GetSize().GetHeight()- BOARD_SIZE.y) / 2;
+	ArmyColor tileColor = ArmyColor::Light;
 
 	for (int r = 0; r < BOARD_DIMENSION; r++)
 	{
 		for (int c = 0; c < BOARD_DIMENSION; c++)
 		{
-			bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
-			auto cellColorDataIt = cellColorData.find(isDarkCell? ColorTheme::Dark : ColorTheme::Light);
+			tileColor = IsDarkCell(Utils::Point2DInt(r, c)) ? ArmyColor::Dark : ArmyColor::Light;
+			//bool isDarkCell = (r % 2 == 0 && c % 2 == 0) || (r % 2 == 1 && c % 2 == 1);
+			/*auto cellColorDataIt = cellColorData.find(isDarkCell? ArmyColor::Dark : ArmyColor::Light);
 			if (cellColorDataIt == cellColorData.end())
 			{
 				const std::string err = std::format("Tried to get color data for tile color but was not found");
 				Utils::Log(Utils::LogType::Error, err);
 				return;
-			}
+			}*/
 
 			currentPoint = wxPoint(gridStartX + c * CELL_SIZE.x, gridStartY + r * CELL_SIZE.y);
 			
-			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, cellColorDataIt->second,
+			auto emplaced = cells.emplace(Utils::Point2DInt(r, c), new Cell(parent, currentPoint, tileColor,
+				GetCellColorsForTheme(*theme, tileColor),
 				{{CellState::PossibleMoveHighlighted, &GetSpriteIcon(SpriteSymbolType::MoveSpot)},
 				 {CellState::Disabled, &GetSpriteIcon(SpriteSymbolType::DisabledOverlay)}}));
 
@@ -230,6 +265,8 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 						continue;
 					}
 
+					//TryGetSound(AudioClipType::Move)->PlaySoundWindows();
+					TryGetSound(AudioClipType::Move)->TryPlaySound();
 					const GameState* maybeGameState = manager.TryGetGameState(gameStateId);
 					if (maybeGameState == nullptr)
 					{
@@ -267,7 +304,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 					previousMoveCells.push_back(clickedCell);
 					lastSelected = clickedCell;
 
-					std::optional<ColorTheme> newColor = manager.TryAdvanceTurn(gameStateId);
+					std::optional<ArmyColor> newColor = manager.TryAdvanceTurn(gameStateId);
 					Utils::Log(std::format("TURN: Trying to advance turn for state: {}, has new color: {}", gameStateId, std::to_string(newColor.has_value())));
 					if (!newColor.has_value())
 					{
@@ -278,7 +315,6 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 						continue;
 					}
 					UpdateInteractablePieces(newColor.value());
-					TryGetSound(AudioClipType::Move)->TryPlaySound();
 
 					PrintCells();
 					return;
@@ -333,6 +369,7 @@ void BindCellEventsForGameState(Core::GameManager& manager, const std::string& g
 			if (sameCellClickedAgain && isClickedCellSelected && !currentCellMoves.empty()) ResetCellVisuals();
 			else if (isClickedCellSelected)
 			{
+				TryGetSound(AudioClipType::PieceSelect)->TryPlaySound();
 				std::vector<MoveInfo> possibleMoves = manager.TryGetPossibleMovesForPieceAt(gameStateId, cell.first);
 				/*Utils::Log(Utils::LogType::Error, std::format("TURN POSSIBLE {} MOVES: {}",
 					std::to_string(possibleMoves.size()), Utils::ToStringIterable<std::vector<MoveInfo>, MoveInfo>(possibleMoves)));*/

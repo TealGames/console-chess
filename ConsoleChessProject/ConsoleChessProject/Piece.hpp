@@ -26,7 +26,7 @@ constexpr std::array<PieceType, 6> ALL_PIECE_TYPES = {
 
 struct PieceTypeInfo
 {
-	ColorTheme Color;
+	ArmyColor Color;
 	PieceType PieceType;
 
 	std::string ToString() const;
@@ -81,12 +81,12 @@ private:
 	bool HasDifferentCaptureMove();
 
 public:
-	const ColorTheme m_Color;
+	const ArmyColor m_Color;
 	const PieceType m_PieceType;
 	const State& m_State;
 
 	Piece();
-	Piece(const ColorTheme, const PieceType);
+	Piece(const ArmyColor, const PieceType);
 	Piece(const Piece& copy);
 
 	void UpdateState(const State& state);
@@ -97,8 +97,8 @@ public:
 
 double GetValueForPiece(const PieceType piece);
 bool CanPieceMoveOverPieces(const PieceType piece);
-const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ColorTheme color, const PieceType piece);
-const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ColorTheme color, const PieceType piece);
+const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ArmyColor color, const PieceType piece);
+const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ArmyColor color, const PieceType piece);
 char GetNotationSymbolForPiece(const PieceType piece);
 const std::optional<PieceType> TryGetPieceFromNotationSymbol(const char& notation);
 

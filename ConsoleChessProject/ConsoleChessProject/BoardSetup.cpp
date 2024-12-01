@@ -15,8 +15,8 @@
 
 using json = nlohmann::json;
 
-static const std::unordered_map<ColorTheme, char> COLOR_SYMBOLS =
-{ {ColorTheme::Light, 'L'}, {ColorTheme::Dark, 'D'}};
+static const std::unordered_map<ArmyColor, char> COLOR_SYMBOLS =
+{ {ArmyColor::Light, 'L'}, {ArmyColor::Dark, 'D'}};
 static const std::unordered_map<BoardType, std::string> BOARD_TYPE_PROPERTIES =
 { {BoardType::Default, "Default" } };
 static const char EMPTY_IDENTIFIER = '-';
@@ -24,7 +24,7 @@ static const char EMPTY_IDENTIFIER = '-';
 static std::optional<json> boardsJSON;
 static std::unordered_map<BoardType, std::vector<std::string>> storedBoards;
 
-static std::optional<ColorTheme> TryGetColorFromNotation(const char& notation)
+static std::optional<ArmyColor> TryGetColorFromNotation(const char& notation)
 {
 	for (const auto& colorChar : COLOR_SYMBOLS)
 	{
@@ -94,7 +94,7 @@ std::vector<InitPiecePosition> GetDefaultBoardPiecePositions()
 
 		currentColorChar = cellSymbol[0];
 		currentPieceChar = cellSymbol[1];
-		std::optional<ColorTheme> maybeColor = TryGetColorFromNotation(currentColorChar);
+		std::optional<ArmyColor> maybeColor = TryGetColorFromNotation(currentColorChar);
 		if (!maybeColor.has_value())
 		{
 			std::string err = std::format("Tried to get default board positions"

@@ -9,12 +9,12 @@ private:
 
 public:
 	const Piece* const currentPiece;
-	const ColorTheme color;
+	const ArmyColor color;
 	bool HasPiece();
 
 	Tile();
-	Tile(const ColorTheme);
-	Tile(const ColorTheme, const Piece&);
+	Tile(const ArmyColor);
+	Tile(const ArmyColor, const Piece&);
 
 	void UpdatePiece(const Piece*);
 	bool TryRemovePiece();

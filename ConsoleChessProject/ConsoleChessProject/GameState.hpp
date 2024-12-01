@@ -95,15 +95,15 @@ public:
 using PiecePositionMapType = std::unordered_map<Utils::Point2DInt, Piece*>;
 struct GameState
 {
-	ColorTheme CurrentPlayer = ColorTheme::Light;
-	std::unordered_map<ColorTheme, int> TeamValue = {};
+	ArmyColor CurrentPlayer = ArmyColor::Light;
+	std::unordered_map<ArmyColor, int> TeamValue = {};
 
 	//TODO: maybe create general all peices list and then have separate for in play and captured
 	std::vector<Piece> AllPieces = {};
 	PiecePositionMapType InPlayPieces = {};
 	std::vector<Piece*> CapturedPieces = {};
 
-	std::unordered_map<ColorTheme, std::vector<MoveInfo>> PreviousMoves = {};
+	std::unordered_map<ArmyColor, std::vector<MoveInfo>> PreviousMoves = {};
 
 	bool InCheckmate = false;
 	bool InCheck = false;

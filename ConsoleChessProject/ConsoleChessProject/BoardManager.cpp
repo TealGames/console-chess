@@ -232,7 +232,7 @@ namespace Board
 		return foundPieces;
 	}*/
 
-	std::vector<PiecePositionData> TryGetPiecesPosition(const GameState& state, const ColorTheme& color, const std::optional<PieceType>& type,
+	std::vector<PiecePositionData> TryGetPiecesPosition(const GameState& state, const ArmyColor& color, const std::optional<PieceType>& type,
 		const std::optional<std::vector<Piece::State>>& targetState)
 	{
 		std::vector<PiecePositionData> foundPieces;
@@ -272,7 +272,7 @@ namespace Board
 		return positions;
 	}*/
 
-	size_t GetAvailablePieces(const GameState& state, ColorTheme& color)
+	size_t GetAvailablePieces(const GameState& state, ArmyColor& color)
 	{
 		return TryGetPiecesPosition(state, color, std::nullopt, std::vector<Piece::State>{ Piece::State::InPlay }).size();
 	}
@@ -318,7 +318,7 @@ namespace Board
 		state.InPlayPieces.clear();
 	}
 
-	static Piece CreatePiece(const ColorTheme& color, const PieceType& pieceType)
+	static Piece CreatePiece(const ArmyColor& color, const PieceType& pieceType)
 	{
 		return { color, pieceType };
 	}
@@ -405,7 +405,7 @@ namespace Board
 		if (inCheckResult)
 		{
 			std::vector<PiecePositionData> kingPositions = TryGetPiecesPosition(state, pieceAttemptingCheck->m_Color ==
-				ColorTheme::Dark ? ColorTheme::Light : ColorTheme::Dark, PieceType::King,
+				ArmyColor::Dark ? ArmyColor::Light : ArmyColor::Dark, PieceType::King,
 				std::vector<Piece::State>{ Piece::State::InPlay });
 			if (kingPositions.size() != 1)
 			{
@@ -440,7 +440,7 @@ namespace Board
 	/// <param name="state"></param>
 	/// <param name="color"></param>
 	/// <returns></returns>
-	static std::vector<PiecePositionData> GetPiecePositionsForcingCheckOrMate(const GameState& state, const ColorTheme& color)
+	static std::vector<PiecePositionData> GetPiecePositionsForcingCheckOrMate(const GameState& state, const ArmyColor& color)
 	{
 		std::vector<PiecePositionData> checkablePiecePositions;
 		for (const auto& piece : state.InPlayPieces)
@@ -570,7 +570,7 @@ namespace Board
 		if (!TryUpdatePiecePosition(state, currentData, newPos)) return false;
 
 		//Utils::Log(std::format("POOPY DOPZY Adding previous moves with move info: {}", moveInfo.ToString()));
-		ColorTheme color = currentData.PieceRef.m_Color;
+		ArmyColor color = currentData.PieceRef.m_Color;
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end())
 		{
 			state.PreviousMoves.emplace(color, std::vector<MoveInfo>{moveInfo });
@@ -586,7 +586,7 @@ namespace Board
 		return true;
 	}
 
-	static bool TryCreatePieceAtPos(GameState& state, const ColorTheme& color,
+	static bool TryCreatePieceAtPos(GameState& state, const ArmyColor& color,
 		const PieceType& pieceType, const Utils::Point2DInt& pos)
 	{
 		if (!IsWithinBounds(pos))
@@ -797,7 +797,7 @@ namespace Board
 	/// <param name="state"></param>
 	/// <param name="color"></param>
 	/// <returns></returns>
-	static CastleInfo CanCastle(const GameState& state, const ColorTheme& color)
+	static CastleInfo CanCastle(const GameState& state, const ArmyColor& color)
 	{
 		if (state.InCheck || state.InCheckmate) return { false, false, false };
 
@@ -1232,7 +1232,7 @@ namespace Board
 	//	return info;
 	//}
 
-	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ColorTheme& color)
+	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ArmyColor& color)
 	{
 		if (state.PreviousMoves.size() == 0) return {};
 		if (state.PreviousMoves.find(color) == state.PreviousMoves.end()) return {};
@@ -1240,7 +1240,7 @@ namespace Board
 		return state.PreviousMoves.at(color);
 	}
 
-	const MoveInfo* GetPieceFirstMove(const GameState& state, const ColorTheme& color, const PieceType& type)
+	const MoveInfo* GetPieceFirstMove(const GameState& state, const ArmyColor& color, const PieceType& type)
 	{
 		const std::vector<MoveInfo> colorMoves = GetPreviousMoves(state, color);
 		if (colorMoves.size() == 0) return nullptr;
@@ -1259,7 +1259,7 @@ namespace Board
 		return nullptr;
 	}
 
-	bool HasMovedPiece(const GameState& state, const ColorTheme& color, const PieceType& type)
+	bool HasMovedPiece(const GameState& state, const ArmyColor& color, const PieceType& type)
 	{
 		return GetPieceFirstMove(state, color, type) != nullptr;
 	}

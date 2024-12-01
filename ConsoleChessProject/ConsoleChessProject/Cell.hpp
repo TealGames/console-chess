@@ -52,7 +52,7 @@ private:
 	bool m_hasOverlayImage;
 	bool m_isRenderingPiece;
 
-	const CellColors& m_colors;	
+	CellColors m_colors;	
 	wxColour m_lastColor;
 	
 	const std::unordered_map<CellState, wxBitmap*> m_stateSprites;
@@ -68,6 +68,7 @@ public:
 	const bool& m_IsClickable;
 	const bool& m_HasOverlayImage;
 	const CellState& m_CurrentState;
+	const ArmyColor m_TileColor;
 
 private:
 	//const wxColour& GetHighlightColor(const HighlightColorType highlightType) const;
@@ -82,7 +83,7 @@ private:
 	//void SkipMouseEvent(wxMouseEvent& evt);
 
 public:
-	Cell(wxWindow* parent, wxPoint pos, const CellColors& colors, 
+	Cell(wxWindow* parent, wxPoint pos, const ArmyColor& tileColor, const CellColors& colors, 
 		const std::unordered_map<CellState, wxBitmap*>& stateSprites);
 
 	bool IsHighlighted() const;
@@ -128,6 +129,8 @@ public:
 	//TODO: change from pointer to reference
 	void SetPiece(const Piece* piece, wxImage& image);
 	bool TryRemovePiece();
+
+	void SetCellColors(const CellColors& colors);
 
 	void UpdateCanClick(const bool isClickable, const bool updateVisual);
 	void AddOnClickCallback(const std::function<void(Cell*)>& callback);

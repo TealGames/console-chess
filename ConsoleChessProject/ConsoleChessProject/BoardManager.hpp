@@ -110,15 +110,15 @@ namespace Board
 
 	bool HasPieceWithinPositionRange(const GameState& state, const Utils::Point2DInt& startPos, 
 									 const Utils::Point2DInt& endPos, bool inclusive);
-	std::vector<PiecePositionData> TryGetPiecesPosition(const GameState& state, const ColorTheme& color,
+	std::vector<PiecePositionData> TryGetPiecesPosition(const GameState& state, const ArmyColor& color,
 		const std::optional<PieceType>& type, const std::optional<std::vector<Piece::State>>& targetState);
 	//const std::unordered_map<Utils::Point2DInt, Piece>& GetAllPieces();
 	std::string GetPiecePositionsAsString(const GameState& state);
-	size_t GetAvailablePieces(const GameState& state, ColorTheme& color);
+	size_t GetAvailablePieces(const GameState& state, ArmyColor& color);
 
-	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ColorTheme& color);
-	const MoveInfo* GetPieceFirstMove(const GameState& state, const ColorTheme& color, const PieceType& type);
-	bool HasMovedPiece(const GameState& state, const ColorTheme& color, const PieceType& type);
+	const std::vector<MoveInfo> GetPreviousMoves(const GameState& state, const ArmyColor& color);
+	const MoveInfo* GetPieceFirstMove(const GameState& state, const ArmyColor& color, const PieceType& type);
+	bool HasMovedPiece(const GameState& state, const ArmyColor& color, const PieceType& type);
 
 	std::vector<MoveInfo> GetPossibleMovesForPieceAt(const GameState& state, const Utils::Point2DInt& pos);
 	PieceMoveResult TryMove(GameState& state, const Utils::Point2DInt& currentPos, const Utils::Point2DInt& moveToPos);

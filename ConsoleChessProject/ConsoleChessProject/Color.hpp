@@ -1,10 +1,10 @@
 #pragma once
 #include <string>
 
-enum class ColorTheme
+enum class ArmyColor
 {
 	Light,
 	Dark,
 };
 
-std::string ToString(const ColorTheme& color);
+std::string ToString(const ArmyColor& color);

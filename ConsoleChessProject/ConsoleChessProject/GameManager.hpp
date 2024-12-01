@@ -17,7 +17,7 @@ namespace Core
 
 	struct EndGameInfo
 	{
-		const ColorTheme& WinningPlayer;
+		const ArmyColor& WinningPlayer;
 	};
 
 	struct GameStateQueryResult
@@ -36,7 +36,7 @@ namespace Core
 
 	struct MoveValueInfo
 	{
-		std::unordered_map<ColorTheme, int> TeamPointDelta;
+		std::unordered_map<ArmyColor, int> TeamPointDelta;
 	};
 		
 	class GameManager
@@ -62,7 +62,7 @@ namespace Core
 		bool IsValidGameState(const GameState* state, const std::string& operationName);
 		GameState* TryGetGameStateMutable(const std::string& gameStateID);
 
-		ColorTheme GetOtherPlayer(const GameState& state) const;
+		ArmyColor GetOtherPlayer(const GameState& state) const;
 		
 		void EndGame(GameState& state);
 		void InvokeEvent(const GameState& state, const GameEventType gameEvent);
@@ -80,13 +80,13 @@ namespace Core
 		/// </summary>
 		/// <param name="gameStateID"></param>
 		/// <returns></returns>
-		std::optional<ColorTheme> TryAdvanceTurn(const std::string& gameStateID);
+		std::optional<ArmyColor> TryAdvanceTurn(const std::string& gameStateID);
 
 		PieceMoveResult TryMoveForState(const std::string& gameStateID,
 			const Utils::Point2DInt& currentPos, const Utils::Point2DInt& newPos);
 
 		std::vector<MoveInfo> TryGetPossibleMovesForPieceAt(const std::string& gameStateID, const Utils::Point2DInt& pos);
-		std::optional<MoveValueInfo> TryCalculateLastMoveValue(const std::string& gameStateID, const ColorTheme colorMoves);
+		std::optional<MoveValueInfo> TryCalculateLastMoveValue(const std::string& gameStateID, const ArmyColor colorMoves);
 		size_t TotalGameStatesCount() const;
 
 		/// <summary>
@@ -95,7 +95,7 @@ namespace Core
 		/// <param name="state"></param>
 		/// <param name="color"></param>
 		/// <returns></returns>
-		std::unordered_map<ColorTheme, float> CalculateWinPercentage(const GameState& state) const;
+		std::unordered_map<ArmyColor, float> CalculateWinPercentage(const GameState& state) const;
 
 		void AddEventCallback(const GameEventType& eventType, const GameEventCallbackType& callback);
 	};

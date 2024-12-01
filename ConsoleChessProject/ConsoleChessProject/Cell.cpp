@@ -25,10 +25,10 @@ std::string ToString(const CellState& state)
 	else return "NULL";
 }
 
-Cell::Cell(wxWindow* parent, wxPoint pos, const CellColors& colors,
+Cell::Cell(wxWindow* parent, wxPoint pos, const ArmyColor& tileColor, const CellColors& colors,
 	const std::unordered_map<CellState, wxBitmap*>& stateSprites)
-	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), m_colors(colors), m_bitMapDisplay(nullptr), 
-	m_isRenderingPiece(false),
+	: wxPanel(parent, wxID_ANY, pos, CELL_SIZE), m_colors(colors), m_TileColor(tileColor),
+	m_bitMapDisplay(nullptr), m_isRenderingPiece(false),
 	m_isClickable(true), m_IsClickable(m_isClickable),
 	m_hasOverlayImage(false), m_HasOverlayImage(m_hasOverlayImage), 
 	//_highlightedType(std::nullopt), 
@@ -223,6 +223,11 @@ bool Cell::TryRemovePiece()
 	}
 	
 	return renderingOrPieceRemoved;
+}
+
+void Cell::SetCellColors(const CellColors& colors)
+{
+	m_colors = colors;
 }
 
 void Cell::SetOverlaySprite(const wxBitmap& bitmap)

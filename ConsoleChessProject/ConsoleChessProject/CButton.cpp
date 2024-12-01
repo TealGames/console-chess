@@ -2,12 +2,15 @@
 #include <wx/wx.h>
 #include "CButton.hpp"
 
+const wxSize CButton::m_BUTTON_SIZE = wxSize{ 200, 60 };
+
 CButton::CButton(wxWindow* parent, const wxString& buttonText, const wxPoint& pos,
 	const wxSize& size, const wxWindowID& id, const long& style) :
-	wxButton(parent, id, buttonText, pos, size, style)
+	wxButton(parent, id, buttonText, pos, size, style), 
+	m_font(0.1*m_BUTTON_SIZE.x, wxFONTFAMILY_SCRIPT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD)
 {
 	SetBackgroundColour(LIGHT_GREEN);
-	SetFont(BUTTON_FONT);
+	SetFont(m_font);
 	SetOwnForegroundColour(MUTED_WHITE);
 
 	Bind(wxEVT_ENTER_WINDOW, &CButton::OnEnter, this);

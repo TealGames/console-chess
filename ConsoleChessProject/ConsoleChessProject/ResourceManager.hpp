@@ -49,7 +49,8 @@ struct SpriteMap
 
 enum class AudioClipType
 {
-	Move
+	Move,
+	PieceSelect
 };
 
 class AudioClip
@@ -67,6 +68,7 @@ public:
 
 	bool HasGoodClip() const;
 	bool TryPlaySound() const;
+	void PlaySoundWindows() const;
 };
 
 bool TryLoadResource(const std::filesystem::path& resourcePath, const wxBitmapType& resourceType, wxImage* outImage=nullptr);

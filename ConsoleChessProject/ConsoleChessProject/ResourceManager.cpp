@@ -1,7 +1,10 @@
 #include <wx/wx.h>
 #include <wx/sound.h>
+#include <mmsystem.h>
+#include <Windows.h>
 #include <format>
 #include <string>
+#include <iostream>
 #include <optional>
 #include <filesystem>
 #include <unordered_map>
@@ -10,6 +13,8 @@
 #include "Point2DInt.hpp"
 #include "HelperFunctions.hpp"
 
+#pragma comment(lib, "winmm.lib")
+
 //Size/spacing is row, col
 const wxSize SPRITE_SIZE(101, 101);
 
@@ -17,18 +22,18 @@ static SpriteMap<PieceTypeInfo> PieceSprites
 {
 	"chess_pieces.png", nullptr, wxSize(21, 21),
 	std::unordered_map<PieceTypeInfo, SubSpriteData>{
-	{{ColorTheme::Light, PieceType::King},		{{0,0}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Light, PieceType::Queen},		{{0,1}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Light, PieceType::Bishop},	{{0,2}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Light, PieceType::Knight},	{{0,3}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Light, PieceType::Rook},		{{0,4}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Light, PieceType::Pawn},		{{0,5}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::King},		{{1,0}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::Queen},		{{1,1}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::Bishop},	{{1,2}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::Knight},	{{1,3}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::Rook},		{{1,4}, SPRITE_SIZE, std::nullopt}},
-	{{ColorTheme::Dark,  PieceType::Pawn},		{{1,5}, SPRITE_SIZE, std::nullopt}}}
+	{{ArmyColor::Light, PieceType::King},		{{0,0}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Queen},		{{0,1}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Bishop},	{{0,2}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Knight},	{{0,3}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Rook},		{{0,4}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Pawn},		{{0,5}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::King},		{{1,0}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Queen},		{{1,1}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Bishop},	{{1,2}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Knight},	{{1,3}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Rook},		{{1,4}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Pawn},		{{1,5}, SPRITE_SIZE, std::nullopt}}}
 };
 
 static SpriteMap<SpriteSymbolType> IconSprites
@@ -59,16 +64,24 @@ bool AudioClip::HasGoodClip() const
 bool AudioClip::TryPlaySound() const
 {
 	if (!HasGoodClip()) return false;
-	else
-	{
-		bool played= m_Sound->Play(wxSOUND_ASYNC);
-		Utils::Log(Utils::LogType::Error, std::format("playing sound at: {} played:{}", m_path.string(), std::to_string(played)));
-	}
+	bool played = m_Sound->Play(wxSOUND_ASYNC);
+	Utils::Log(Utils::LogType::Error, std::format("playing sound at: {} played:{} is ok: {}",
+		m_path.string(), std::to_string(played), std::to_string(m_sound.IsOk())));
+	return played;
+}
+
+void AudioClip::PlaySoundWindows() const
+{
+	//wstring is wxchar[] (like string is char[]) since playsound accepts unicode characters
+	std::wstring widePath = m_path.wstring();
+	Utils::Log(Utils::LogType::Error, std::format("Playing windows sound at {}", m_path.string()));
+	PlaySound(m_path.wstring().c_str(), NULL, SND_FILENAME | SND_ASYNC);
 }
 
 static const std::unordered_map<AudioClipType, AudioClip> AudioClips =
 {
-	{AudioClipType::Move, AudioClip("chess_move.wav")}
+	{AudioClipType::Move, AudioClip("chess_move.wav")},
+	{ AudioClipType::PieceSelect, AudioClip("chess_tile_select.wav") }
 };
 
 //Updates and adds an image handler if it is a new handler

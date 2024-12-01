@@ -30,7 +30,7 @@ static const std::unordered_map<PieceType, PieceStaticInfo> PIECE_INFO(
 
 //Since we do not want to duplicate the same piece movements but with flipped signs or something
 //we instead transform them with a multiplier for x and y. REMEMBER: {x= rows, y= cols}
-static const std::unordered_map<ColorTheme, Utils::Vector2D> COLOR_MOVE_CAPTURE_MULTUPLIERS = { {ColorTheme::Dark, Utils::Vector2D{-1, 1}} };
+static const std::unordered_map<ArmyColor, Utils::Vector2D> COLOR_MOVE_CAPTURE_MULTUPLIERS = { {ArmyColor::Dark, Utils::Vector2D{-1, 1}} };
 
 std::string PieceTypeInfo::ToString() const
 {
@@ -53,10 +53,10 @@ PieceTypeInfo& PieceTypeInfo::operator=(const PieceTypeInfo& info)
 }
 
 Piece::Piece()
-	: m_Color(ColorTheme::Light), m_PieceType(PieceType::Pawn), m_moveDirs(GetMoveDirsForPiece(m_Color, m_PieceType)),
+	: m_Color(ArmyColor::Light), m_PieceType(PieceType::Pawn), m_moveDirs(GetMoveDirsForPiece(m_Color, m_PieceType)),
 	m_captureDirs(GetCaptureMovesForPiece(m_Color, m_PieceType)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
-Piece::Piece(const ColorTheme color, const PieceType piece)
+Piece::Piece(const ArmyColor color, const PieceType piece)
 	: m_Color(color), m_PieceType(piece), m_moveDirs(GetMoveDirsForPiece(m_Color, piece)),
 	m_captureDirs(GetCaptureMovesForPiece(m_Color, piece)), m_state(Piece::State::Undefined), m_State(m_state) {}
 
@@ -111,7 +111,7 @@ bool CanPieceMoveOverPieces(const PieceType type)
 	return PIECE_INFO.at(type).CanMoveOverPieces;
 }
 
-const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ColorTheme color, const PieceType type)
+const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ArmyColor color, const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
@@ -193,7 +193,7 @@ const std::vector<Utils::Vector2D> GetMoveDirsForPiece(const ColorTheme color, c
 	return allMoveDirs;
 }
 
-const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ColorTheme color, const PieceType type)
+const std::vector<Utils::Vector2D> GetCaptureMovesForPiece(const ArmyColor color, const PieceType type)
 {
 	bool hasType = HasPieceTypeDefined(type);
 	if (!hasType)
