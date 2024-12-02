@@ -428,7 +428,7 @@ bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DI
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
 	}*/
-	auto maybeSprite = TryGetSpriteFromPiece(PieceTypeInfo{ pieceInfo->m_Color, pieceInfo->m_PieceType });
+	auto maybeSprite = TryGetImageFromPiece(PieceTypeInfo{ pieceInfo->m_Color, pieceInfo->m_PieceType });
 	if (!maybeSprite.has_value())
 	{
 		std::string err = std::format("Tried to render piece {} is null: {} at pos {} piece color: {} but its sprite "
@@ -436,7 +436,7 @@ bool TryRenderPieceAtPos(const Core::GameManager& manager, const Utils::Point2DI
 			pieceInfo != nullptr ? ToString(pieceInfo->m_Color) : "NULL");
 		Utils::Log(Utils::LogType::Error, err);
 		return false;
-	}
+	};
 
 	//TODO: change from nullptr to actual piece
 	Utils::Log(std::format("PIECE CHECK Need to update render sprite for piece {} at pos: {}", pieceInfo->ToString(), pos.ToString()));

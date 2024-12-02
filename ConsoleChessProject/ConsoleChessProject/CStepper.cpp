@@ -25,27 +25,30 @@ CStepper::CStepper(wxWindow* parent, const std::vector<CStepperOption>& options,
 	layout->AddChild(m_prevButton, 0, SpacingType::Right, 10);
 	layout->AddChild(m_text, 1);
 	layout->AddChild(m_nextButton, 0, SpacingType::Left, 10);
+
+	DisplayOption(0, true);
 }
 
-void CStepper::DisplayOption(const int& index)
+void CStepper::DisplayOption(const int& index, bool invokeCallback)
 {
 	if (index < 0 || index >= m_options.size()) return;
 	const CStepperOption& option = m_options.at(index);
 
 	m_text->SetLabel(option.Option);
-	if (option.Callback!=nullptr) option.Callback(option.Option);
+	if (invokeCallback && option.Callback!=nullptr) 
+		option.Callback(option.Option);
 }
 
 void CStepper::NextOption()
 {
 	m_index = m_index + 1 % m_options.size();
-	DisplayOption(m_index);
+	DisplayOption(m_index, true);
 }
 
 void CStepper::PrevOption()
 {
 	m_index = m_index - 1 % m_options.size();
-	DisplayOption(m_index);
+	DisplayOption(m_index, true);
 }
 
 

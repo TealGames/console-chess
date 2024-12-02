@@ -11,6 +11,7 @@ enum class SpriteSymbolType
 {
 	MoveSpot,
 	DisabledOverlay,
+	QuitIcon,
 };
 
 struct SubSpriteData
@@ -47,10 +48,14 @@ struct SpriteMap
 	}
 };
 
+//TODO: maybe refactor this to not be enum but these are string aliases for names and
+//although we reference with strings it would be easier than creatng long enum entry
 enum class AudioClipType
 {
 	Move,
-	PieceSelect
+	PieceSelect,
+	ButtonClick,
+	ButtonHover,
 };
 
 class AudioClip
@@ -78,13 +83,16 @@ bool TryLoadSubImageFromResource(const std::filesystem::path& resourcePath, cons
 void Resize(wxImage& resourceImage, const wxSize& newSize);
 void ResizePreserveAspect(wxImage& resourceImage, const wxSize& newSize, const wxPoint& point);
 wxImage GetSubImage(const wxImage& resourceImage, const wxPoint& position, const wxSize& size);
-wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize);
+
+wxBitmap ConvertToBitMap(wxImage& image, const wxSize& targetSize);
+std::optional<wxBitmap> ConvertToBitMap(std::optional<wxImage>& image, const wxSize& targetSize);
 
 bool TryCacheAllSprites();
 
-std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info);
+std::optional<wxImage> TryGetImageFromPiece(const PieceTypeInfo& info);
 std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize);
 
+std::optional<wxImage> TryGetImageForIcon(const SpriteSymbolType& symbolType);
 std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, const wxSize& targetSize);
 
 const AudioClip* TryGetSound(const AudioClipType& type);

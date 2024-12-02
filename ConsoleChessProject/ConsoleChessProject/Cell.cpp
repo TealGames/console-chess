@@ -181,7 +181,7 @@ void Cell::SetPiece(const Piece* piece, wxImage& image)
 		wxLogMessage(m.c_str());
 	}*/
 	
-	wxBitmap map = GetBitMapFromSprite(image, targetSize);
+	wxBitmap map = ConvertToBitMap(image, targetSize);
 	m_bitMapDisplay->SetBitmap(map);
 	//_bitMapDisplay = new wxStaticBitmap(this, wxID_ANY, map, this->GetPosition());
 	m_bitMapDisplay->Center();

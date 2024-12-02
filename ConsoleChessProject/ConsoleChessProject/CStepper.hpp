@@ -25,7 +25,7 @@ private:
 public:
 
 private:
-	void DisplayOption(const int& index);
+	void DisplayOption(const int& index, bool invokeCallback);
 	void NextOption();
 	void PrevOption();
 

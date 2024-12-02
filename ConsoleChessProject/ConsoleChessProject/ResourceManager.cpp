@@ -12,6 +12,7 @@
 #include "Piece.hpp"
 #include "Point2DInt.hpp"
 #include "HelperFunctions.hpp"
+#include "WXHelperFunctions.hpp"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -24,14 +25,14 @@ static SpriteMap<PieceTypeInfo> PieceSprites
 	std::unordered_map<PieceTypeInfo, SubSpriteData>{
 	{{ArmyColor::Light, PieceType::King},		{{0,0}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Light, PieceType::Queen},		{{0,1}, SPRITE_SIZE, std::nullopt}},
-	{{ArmyColor::Light, PieceType::Bishop},	{{0,2}, SPRITE_SIZE, std::nullopt}},
-	{{ArmyColor::Light, PieceType::Knight},	{{0,3}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Bishop},		{{0,2}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Light, PieceType::Knight},		{{0,3}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Light, PieceType::Rook},		{{0,4}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Light, PieceType::Pawn},		{{0,5}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Dark,  PieceType::King},		{{1,0}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Dark,  PieceType::Queen},		{{1,1}, SPRITE_SIZE, std::nullopt}},
-	{{ArmyColor::Dark,  PieceType::Bishop},	{{1,2}, SPRITE_SIZE, std::nullopt}},
-	{{ArmyColor::Dark,  PieceType::Knight},	{{1,3}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Bishop},		{{1,2}, SPRITE_SIZE, std::nullopt}},
+	{{ArmyColor::Dark,  PieceType::Knight},		{{1,3}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Dark,  PieceType::Rook},		{{1,4}, SPRITE_SIZE, std::nullopt}},
 	{{ArmyColor::Dark,  PieceType::Pawn},		{{1,5}, SPRITE_SIZE, std::nullopt}}}
 };
@@ -41,8 +42,9 @@ static SpriteMap<SpriteSymbolType> IconSprites
 	"chess_symbols.png", nullptr, wxSize(0, 0),
 	std::unordered_map<SpriteSymbolType, SubSpriteData>{
 	{SpriteSymbolType::MoveSpot,				{{0,0}, {200, 200}, std::nullopt}},
-	{SpriteSymbolType::DisabledOverlay,			{{0,1}, {200, 200}, std::nullopt}}}
-};
+	{SpriteSymbolType::DisabledOverlay,			{{0,1}, {200, 200}, std::nullopt}},
+	{SpriteSymbolType::QuitIcon,				{{0,2}, {200, 200}, std::nullopt}}
+}};
 
 AudioClip::AudioClip(const std::filesystem::path& path) : 
 	m_path(path), m_Path(m_path), m_sound(m_path.string()), m_Sound(nullptr)
@@ -65,8 +67,8 @@ bool AudioClip::TryPlaySound() const
 {
 	if (!HasGoodClip()) return false;
 	bool played = m_Sound->Play(wxSOUND_ASYNC);
-	Utils::Log(Utils::LogType::Error, std::format("playing sound at: {} played:{} is ok: {}",
-		m_path.string(), std::to_string(played), std::to_string(m_sound.IsOk())));
+	/*Utils::Log(Utils::LogType::Error, std::format("playing sound at: {} played:{} is ok: {}",
+		m_path.string(), std::to_string(played), std::to_string(m_sound.IsOk())));*/
 	return played;
 }
 
@@ -81,7 +83,9 @@ void AudioClip::PlaySoundWindows() const
 static const std::unordered_map<AudioClipType, AudioClip> AudioClips =
 {
 	{AudioClipType::Move, AudioClip("chess_move.wav")},
-	{ AudioClipType::PieceSelect, AudioClip("chess_tile_select.wav") }
+	{AudioClipType::PieceSelect, AudioClip("chess_tile_select.wav") },
+	{AudioClipType::ButtonClick, AudioClip("button_click.wav") },
+	{AudioClipType::ButtonHover, AudioClip("button_hover.wav") }
 };
 
 //Updates and adds an image handler if it is a new handler
@@ -246,26 +250,35 @@ bool TryCacheAllSprites()
 	return true;
 }
 
-wxBitmap GetBitMapFromSprite(wxImage& image, const wxSize& targetSize)
+wxBitmap ConvertToBitMap(wxImage& image, const wxSize& targetSize)
 {
-	wxSize startSize(image.GetWidth(), image.GetHeight());
-	if (startSize != targetSize)
+	//wxSize startSize(image.GetWidth(), image.GetHeight());
+	if (image.GetSize() != targetSize)
 	{
-		float newWidthScale = static_cast<float>(targetSize.x) / startSize.x;
+		/*float newWidthScale = static_cast<float>(targetSize.x) / startSize.x;
 		float newHeightScale = static_cast<float>(targetSize.y) / startSize.y;
 		float totalScale = std::max(newWidthScale, newHeightScale);
-		wxSize size(image.GetWidth() * totalScale, image.GetHeight() * totalScale);
+		wxSize size(image.GetWidth() * totalScale, image.GetHeight() * totalScale);*/
+		wxSize size = WXUtils::BestSizePreserveAspect(image.GetSize(), targetSize);
 
 		Resize(image, size);
-		std::string m = std::format("Start: ({}, {})  END: ({}, {}) target: {} {}", std::to_string(startSize.x), std::to_string(startSize.y),
-			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()), std::to_string(targetSize.x), std::to_string(targetSize.y));
+		std::string m = std::format("Start: ({}, {})  END: ({}, {}) target: {} {}", 
+			std::to_string(image.GetSize().x), std::to_string(image.GetSize().y),
+			std::to_string(image.GetWidth()), std::to_string(image.GetHeight()), 
+			std::to_string(targetSize.x), std::to_string(targetSize.y));
 		wxLogMessage(m.c_str());
 	}
 
 	return wxBitmap{ image };
 }
 
-std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
+std::optional<wxBitmap> ConvertToBitMap(std::optional<wxImage>& image, const wxSize& targetSize)
+{
+	if (!image.has_value()) return std::nullopt;
+	return ConvertToBitMap(image.value(), targetSize);
+}
+
+std::optional<wxImage> TryGetImageFromPiece(const PieceTypeInfo& info)
 {
 	TryCacheAllSprites();
 	std::optional<SubSpriteData> maybeData = PieceSprites.TryGetSpriteFromID(info);
@@ -275,24 +288,26 @@ std::optional<wxImage> TryGetSpriteFromPiece(const PieceTypeInfo& info)
 
 std::optional<wxBitmap> TryGetBitMapFromPiece(const PieceTypeInfo& info, const wxSize& targetSize)
 {
-	std::optional<wxImage> maybeImage = TryGetSpriteFromPiece(info);
+	std::optional<wxImage> maybeImage = TryGetImageFromPiece(info);
 	if (!maybeImage.has_value()) return std::nullopt;
 
-	//TODO: maybe potential issue here where we use a reference to a local value that 
-	//will go out of scope and is used for returning structure
-	return GetBitMapFromSprite(maybeImage.value(), targetSize);
+	return ConvertToBitMap(maybeImage.value(), targetSize);
 }
 
-std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, const wxSize& targetSize)
+std::optional<wxImage> TryGetImageForIcon(const SpriteSymbolType& symbolType)
 {
 	TryCacheAllSprites();
 	std::optional<SubSpriteData> maybeData = IconSprites.TryGetSpriteFromID(symbolType);
 	if (!maybeData.has_value()) return std::nullopt;
-	else if (!maybeData.value().MaybeImage.has_value()) return std::nullopt;
+	return maybeData.value().MaybeImage;
+}
 
-	//TODO: maybe potential issue here where we use a reference to a local value that 
-	//will go out of scope and is used for returning structure
-	return GetBitMapFromSprite(maybeData.value().MaybeImage.value(), targetSize);
+std::optional<wxBitmap> TryGetBitMapForIcon(const SpriteSymbolType& symbolType, const wxSize& targetSize)
+{
+	std::optional<wxImage> maybeImage = TryGetImageForIcon(symbolType);
+	if (!maybeImage.has_value()) return std::nullopt;
+
+	return ConvertToBitMap(maybeImage.value(), targetSize);
 }
 
 const AudioClip* TryGetSound(const AudioClipType& type)

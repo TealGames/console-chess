@@ -25,6 +25,9 @@ namespace WXUtils
 {
 	void CenterX(wxWindow* element);
 	std::string ToString(const wxColour& color);
+	std::string ToString(const wxSize& size);
+
+	wxSize BestSizePreserveAspect(const wxSize& startSize, const wxSize& targetSize);
 }
 
 

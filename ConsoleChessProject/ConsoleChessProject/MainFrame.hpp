@@ -6,15 +6,17 @@
 #include "UIGlobals.hpp"
 #include "GameManager.hpp"
 #include "GameState.hpp"
+#include "ConfirmPopup.hpp"
 
 class MainFrame : public wxFrame
 {
 private:
-	wxSimplebook* _pages;
-	wxPanel* _cellParent;
+	wxSimplebook* m_pages;
+	wxPanel* m_cellParent;
 
-	const GameState* _currentState;
-	Core::GameManager& _manager;
+	const GameState* m_currentState;
+	Core::GameManager& m_manager;
+	ConfirmPopup m_popup;
 
 public:
 
