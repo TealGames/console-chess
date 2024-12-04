@@ -24,36 +24,53 @@ ConfirmPopup::ConfirmPopup(wxWindow* parent) :
 
 	m_root = new wxDialog(parent, wxID_ANY, "Confirmation", wxDefaultPosition,
 		wxSize(PANEL_SIZE_FACTOR * WIDTH, PANEL_SIZE_FACTOR * HEIGHT));
-	m_root->SetBackgroundColour(DARKER_LIGHT_GREEN);
+	m_root->SetBackgroundColour(LIGHTER_SECONDARY_COLOR);
 
 	DirectionalLayout* verticalLayout = new DirectionalLayout(m_root, 
 		LayoutType::Vertical, wxDefaultPosition, m_root->GetSize());
 	//verticalLayout->SetBackgroundColour(RED);
 	
 	const wxSize textSize = wxSize(verticalLayout->GetSize().x, TEXT_SIZE_FACTOR_Y* verticalLayout->GetSize().y);
-	m_text = new wxStaticText(verticalLayout, wxID_ANY, "NULL", wxDefaultPosition, textSize, wxALIGN_CENTER_HORIZONTAL);
+	Utils::Log(Utils::LogType::Error, std::format("Text size: {}", WXUtils::ToString(textSize)));
+	m_text = new wxStaticText(verticalLayout, wxID_ANY, "NULL", wxDefaultPosition, textSize, wxALIGN_CENTER_HORIZONTAL | wxALIGN_CENTER_VERTICAL);
 	m_text->SetFont(HEADING_FONT);
-	m_text->SetBackgroundColour(RED);
+	m_text->SetForegroundColour(MUTED_WHITE);
+	verticalLayout->AddChild(m_text, 0, SPACING_ALL_SIDES, 5);
 
-	DirectionalLayout* horizontalLayout = new DirectionalLayout(verticalLayout, LayoutType::Horizontal, wxDefaultPosition,
+	wxPanel* buttons = new wxPanel(verticalLayout, wxID_ANY, wxDefaultPosition,
+		wxSize(verticalLayout->GetSize().x, (1 - TEXT_SIZE_FACTOR_Y) * verticalLayout->GetSize().y));
+	verticalLayout->AddChild(buttons, 0);
+
+	DirectionalLayout* horizontalLayout = new DirectionalLayout(buttons, LayoutType::Horizontal,
+		wxPoint(wxDefaultPosition.x, wxDefaultPosition.y+textSize.y),
 		wxSize(verticalLayout->GetSize().x, (1 - TEXT_SIZE_FACTOR_Y) * verticalLayout->GetSize().y));
 
 	m_confirmButton = new CButton(horizontalLayout, "NULL", wxDefaultPosition,
 		wxSize(BUTTON_SIZE_FACTOR.x * horizontalLayout->GetSize().x, BUTTON_SIZE_FACTOR.y * horizontalLayout->GetSize().x));
-	m_denyButton = new CButton(horizontalLayout, "NULL", wxDefaultPosition,
+	m_denyButton = new CButton(buttons, "NULL", wxDefaultPosition,
 		wxSize(BUTTON_SIZE_FACTOR.x * horizontalLayout->GetSize().x, BUTTON_SIZE_FACTOR.y * horizontalLayout->GetSize().x));
 	horizontalLayout->AddChild(m_confirmButton, 0, SPACING_ALL_SIDES, 10);
 	horizontalLayout->AddChild(m_denyButton, 0, SPACING_ALL_SIDES, 10);
 
-	verticalLayout->AddChild(m_text);
-	verticalLayout->AddChild(horizontalLayout);
+	
+	
 
-	m_confirmButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) -> void {ExcecuteConfirmAction(); });
-	m_denyButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) -> void {ExecuteDenyAction(); });
+	verticalLayout->CenterOnParent();
+
+	/*m_confirmButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) -> void {ExcecuteConfirmAction(); });
+	m_denyButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent& evt) -> void {ExecuteDenyAction(); });*/
 }
 
 void ConfirmPopup::SetButtonLabels(const ConfirmType& confirmType)
 {
+	if (m_confirmButton == nullptr || m_denyButton == nullptr)
+	{
+		const std::string err = std::format("Tried to set button labels "
+			"to a confirm type but either the confirm or deny (or both) buttons are NULL!");
+		Utils::Log(Utils::LogType::Error, err);
+		return;
+	}
+
 	if (confirmType == ConfirmType::ConfirmDeny)
 	{
 		m_confirmButton->SetLabel("Confirm");

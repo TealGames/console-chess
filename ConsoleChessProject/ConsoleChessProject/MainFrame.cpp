@@ -125,7 +125,8 @@ void MainFrame::DrawGame()
 	quitButton->AddOnClickAction([this](wxCommandEvent& evt) -> void 
 		{
 			//Utils::Log(Utils::LogType::Error, "CLICK QUIT");
-			m_popup.Enable("Hello", ConfirmType::ConfirmDeny, nullptr, nullptr); 
+			m_popup.Enable("Are you sure you want to quit this game? Progress will not be saved.", 
+				ConfirmType::ConfirmDeny, nullptr, nullptr); 
 
 			/*wxPopupWindow* popup = new wxPopupWindow(this, wxPU_CONTAINS_CONTROLS);
 			popup->SetSize(200, 150);
