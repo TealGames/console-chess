@@ -22,7 +22,7 @@
 
 namespace Utils
 {
-	const std::string LOG_ONLY_MESSAGE = "POOP";
+	const std::string LOG_ONLY_MESSAGE = "Text size";
 	const bool LOG_MESSAGES = true;
 
 	void Log(const LogType& logType, const std::string& str)
